@@ -107,7 +107,7 @@ const IMG = { squad: 'kadra', tactics: 'taktyka', training: 'trening', opponents
 export function orb(ic, label, attrs, badge = 0) {
   const b = badge ? `<span class="badge">${badge}</span>` : '';
   if (IMG[ic]) {
-    return `<button class="orb orb-img" ${attrs} aria-label="${label}"><img src="img/${IMG[ic]}.png" alt="" draggable="false">${b}</button>`;
+    return `<button class="orb orb-img" ${attrs} aria-label="${label}"><img src="img/${IMG[ic]}.png" alt="" draggable="false"><span class="plate-shine" style="-webkit-mask-image:url(img/plate/${IMG[ic]}.png);mask-image:url(img/plate/${IMG[ic]}.png)"></span>${b}</button>`;
   }
   const g = G[ic] ? G[ic]() : '';
   const hl = g.match(/<[^>]*class="oh"[^>]*\/>/g) || [];

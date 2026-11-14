@@ -9,14 +9,7 @@ import { nextEvent } from '../flow.js';
 
 export const VERSION = '0.1.0';
 
-export const LOGO = `<svg viewBox="0 0 120 120" aria-hidden="true">
-<defs><linearGradient id="lg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0dcff"/><stop offset="1" stop-color="#9a50ff"/></linearGradient></defs>
-<path d="M60 6 L104 21 V57 C104 85 85 103 60 114 C35 103 16 85 16 57 V21 Z" fill="#1a0a3a" stroke="url(#lg1)" stroke-width="5"/>
-<path d="M60 22 V100" stroke="#4a2690" stroke-width="3"/>
-<circle cx="60" cy="60" r="19" fill="none" stroke="#4a2690" stroke-width="3"/>
-<path d="M60 39 l5.3 11.2 12.2 1.6 -9 8.5 2.2 12.1 -10.7-5.9 -10.7 5.9 2.2-12.1 -9-8.5 12.2-1.6z" fill="url(#lg1)"/>
-<path d="M34 92 h52" stroke="url(#lg1)" stroke-width="4" stroke-linecap="round"/>
-</svg>`;
+export const LOGO = '<img class="logo-img" src="img/logo.png" alt="Selekcjoner" draggable="false">';
 
 let metas = null;
 async function loadMetas() {
@@ -33,7 +26,7 @@ screen('menu', {
     return {
       noHeader: true, cls: 'nofoot', appCls: 'title-app',
       body: `<div class="title-screen">
-        <div class="logo">${LOGO}<h1>SELEKCJONER</h1><div class="tagline">Menedżer reprezentacji narodowej</div></div>
+        <div class="logo">${LOGO}<div class="tagline">Menedżer reprezentacji narodowej</div></div>
         <div class="menu-btns">
           ${G ? `<button class="btn" data-a="menu.resume">${icon('play')}<span class="continue-card">Wróć do gry<small>${G.user.nat ? esc(NAT[G.user.nat].name) : 'Bez pracy'} · ${fmtDate(G.day)}</small></span></button>` : ''}
           ${!G && auto ? `<button class="btn" data-a="menu.continue">${icon('play')}<span class="continue-card">Kontynuuj<small>${autoNat ? NAT[autoNat].flag + ' ' + esc(NAT[autoNat].name) : ''} · ${fmtDate(auto.day)}</small></span></button>` : ''}
@@ -134,7 +127,7 @@ screen('about', {
   render() {
     return {
       title: 'O grze', cls: 'nofoot',
-      body: `<div class="card center">${LOGO.replace('<svg', '<svg style="width:84px;height:84px"')}<h2 class="mt">Selekcjoner</h2><div class="muted">wersja ${VERSION}</div></div>
+      body: `<div class="card center">${LOGO.replace('<img', '<img style="width:110px;height:110px"')}<h2 class="mt">Selekcjoner</h2><div class="muted">wersja ${VERSION}</div></div>
       <div class="card"><p>Wciel się w selekcjonera reprezentacji narodowej. Powołuj zawodników, ustalaj taktykę i trening, prowadź drużynę w Lidze Narodów, eliminacjach i turniejach finałowych. Dbaj o zaufanie federacji, kibiców, piłkarzy i mediów.</p>
       <p class="small muted">Wszyscy zawodnicy, kluby i dziennikarze są fikcyjni – nazwiska generowane są losowo. W edytorze możesz zmienić dane zawodników według własnego uznania.</p></div>
       <div class="card"><div class="card-h"><h3>Jak grać</h3></div>

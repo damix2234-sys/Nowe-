@@ -295,6 +295,8 @@ textarea.input { min-height: 140px; font-family: ui-monospace, monospace; font-s
 .title-screen { min-height: 100dvh; display: flex; flex-direction: column; padding: calc(var(--sat) + 28px) 22px calc(var(--sab) + 24px); }
 .logo { text-align: center; margin: 18px 0 26px; }
 .logo svg { width: 120px; height: 120px; filter: drop-shadow(0 10px 30px rgba(176, 108, 255, 0.25)); }
+.logo-img { width: min(62vw, 250px); height: auto; aspect-ratio: 1; display: block; margin: 0 auto; filter: drop-shadow(0 8px 28px rgba(80, 120, 255, 0.45)); }
+.logo .tagline { margin-top: 10px; }
 .logo h1 { font-size: 34px; font-weight: 900; letter-spacing: 0.06em; margin-top: 10px; background: linear-gradient(180deg, #ffffff, #c08bff); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .logo .tagline { color: var(--muted); font-weight: 600; letter-spacing: 0.04em; margin-top: 2px; }
 .menu-btns { display: flex; flex-direction: column; gap: 10px; margin-top: auto; }
@@ -596,18 +598,18 @@ main.view.match-view { padding-top: 8px; }
 
 /* mniejsze przyciski pulpitu + błysk na plakietkach grafik */
 .tiles.orbs { max-width: 330px; margin-left: auto; margin-right: auto; gap: 14px 12px; }
-.orb-img::after {
-  content: ""; position: absolute; left: -1%; right: -1%; top: 70.5%; height: 23%; z-index: 2; pointer-events: none;
-  clip-path: polygon(6% 0, 94% 0, 100% 50%, 94% 100%, 6% 100%, 0 50%);
-  background: linear-gradient(100deg, transparent 0%, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%, transparent 100%);
+.orb-img .plate-shine {
+  position: absolute; left: -4%; top: -3%; width: 108%; height: 108%; z-index: 2; pointer-events: none;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  background: linear-gradient(100deg, transparent 0%, transparent 38%, rgba(255, 255, 255, 0.6) 50%, transparent 62%, transparent 100%);
   background-size: 300% 100%; background-repeat: no-repeat;
   mix-blend-mode: screen;
   animation: plateShine 4.5s ease-in-out infinite;
 }
-.orb-img:nth-child(2n)::after { animation-delay: -1.5s; }
-.orb-img:nth-child(3n)::after { animation-delay: -3s; }
+.orb-img:nth-child(2n) .plate-shine { animation-delay: -1.5s; }
+.orb-img:nth-child(3n) .plate-shine { animation-delay: -3s; }
 @keyframes plateShine {
   0%, 55% { background-position: 130% 0; }
   100% { background-position: -30% 0; }
 }
-@media (prefers-reduced-motion: reduce) { .orb-img::after { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .orb-img .plate-shine { animation: none; } }
