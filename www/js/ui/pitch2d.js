@@ -214,6 +214,7 @@ export class Pitch2D {
     for (const T of this.teams) for (const p of T.players) {
       if (p.state === 'off' || p.state === 'gone') continue;
       p.state = 'play';
+      p.hl = 0;
       p.goal = { x: PW / 2 + rnd(-14, 14), y: PL / 2 + rnd(-10, 10) };
       p.gUrg = 0.25;
     }
@@ -264,7 +265,9 @@ export class Pitch2D {
   advance(dtReal) {
     for (const f of this.fx) f.t += dtReal;
     this.fx = this.fx.filter((f) => f.t < f.dur);
-    for (const T of this.teams) for (const p of T.players) if (p.hl > 0) p.hl -= dtReal;
+    // podpisy znikają szybciej przy wysokim tempie, żeby się nie nakładały
+    const dh = Math.max(dtReal, (dtReal * this.rate) / 2.5);
+    for (const T of this.teams) for (const p of T.players) if (p.hl > 0) p.hl -= dh;
     const slow = this.time < this.slowUntil ? this.slowF : 1;
     let dt = dtReal * this.rate * slow;
     while (dt > 1e-6 && this.running) {
