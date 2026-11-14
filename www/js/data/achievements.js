@@ -10,7 +10,7 @@ export const ACHIEVEMENTS = [
   { id: 'shootout', name: 'Nerwy ze stali', desc: 'Wygraj serię rzutów karnych.', icon: '🥅' },
   { id: 'wins5', name: 'Passa', desc: 'Wygraj 5 meczów z rzędu.', icon: '🔥' },
   { id: 'unbeaten10', name: 'Twierdza', desc: 'Pozostań niepokonany w 10 kolejnych meczach.', icon: '🛡️' },
-  { id: 'debut18', name: 'Odkrywca talentów', desc: 'Daj zadebiutować w kadrze 18-latkowi (lub młodszemu).', icon: '🌱' },
+  { id: 'debut18', name: 'Odkrywca talentów', desc: 'Daj zadebiutować w kadrze 18-latkowi lub młodszemu.', icon: '🌱' },
   { id: 'ln_group', name: 'Najlepsi w grupie', desc: 'Wygraj grupę Ligi Narodów.', icon: '📊' },
   { id: 'ln_title', name: 'Triumfator Ligi Narodów', desc: 'Wygraj Ligę Narodów.', icon: '🏅' },
   { id: 'qualify', name: 'Jedziemy na turniej!', desc: 'Wywalcz awans na turniej finałowy.', icon: '✈️' },

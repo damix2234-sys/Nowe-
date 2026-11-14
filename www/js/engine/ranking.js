@@ -1,4 +1,4 @@
-// Ranking światowy – system punktowy oparty na wyniku względem oczekiwań (wzorowany na metodzie Elo).
+// Ranking światowy, system punktowy oparty na wyniku względem oczekiwań (wzorowany na metodzie Elo).
 import { NATIONS } from '../data/nations.js';
 
 export function initRanking(G, r = Math.random) {

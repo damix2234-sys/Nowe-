@@ -61,7 +61,7 @@ function lineupTab() {
   return `${formationChips(t.tac.f)}
     ${pitchHTML(t.lineup, t.tac.f, t.sp)}
     <div class="btnrow mb"><button class="btn ghost small" data-a="tac.auto">${icon('bolt')} Automatyczny skład</button><button class="btn ghost small" data-a="tac.clear">${icon('x')} Wyczyść</button></div>
-    <p class="small muted">Dotknij zawodnika na boisku, aby go zmienić. Kolor obwódki: zielony – nominalna pozycja, żółty – pozycja zbliżona, czerwony – gra nie na swojej pozycji.</p>
+    <p class="small muted">Dotknij zawodnika na boisku, aby go zmienić. Kolor obwódki: zielony to nominalna pozycja, żółty pozycja zbliżona, a czerwony oznacza grę nie na swojej pozycji.</p>
     ${benchList()}`;
 }
 
@@ -71,10 +71,10 @@ function optRow(label, key, names, val, hint) {
 
 function teamTab() {
   const t = G.team.tac;
-  return optRow('Styl gry', 'style', STYLE_NAMES, t.style, 'Ofensywny styl daje więcej okazji, ale zostawia więcej miejsca rywalowi. Defensywny – odwrotnie.')
+  return optRow('Styl gry', 'style', STYLE_NAMES, t.style, 'Ofensywny styl daje więcej okazji, ale zostawia więcej miejsca rywalowi. Defensywny działa odwrotnie.')
     + optRow('Pressing', 'press', PRESS_NAMES, t.press, 'Wysoki pressing pomaga odzyskiwać piłkę, ale szybciej męczy zawodników.')
     + optRow('Gra na czas', 'tw', TW_NAMES, t.tw, 'Spowalnia grę i skraca czas na odrobienie strat przez rywala.')
-    + optRow('Pułapki ofsajdowe', 'trap', TRAP_NAMES, t.trap, 'Więcej spalonych rywala, ale gdy pułapka zawiedzie – rywal wychodzi sam na sam.');
+    + optRow('Pułapki ofsajdowe', 'trap', TRAP_NAMES, t.trap, 'Więcej spalonych rywala, ale gdy pułapka zawiedzie, rywal wychodzi sam na sam.');
 }
 
 function instrSummary(ins) {
@@ -104,7 +104,7 @@ const SP_ROWS = [['cap', 'Kapitan'], ['pen', 'Rzuty karne'], ['fkn', 'Bliskie rz
 function spTab() {
   const t = G.team;
   const sp = t.sp || {};
-  const nm = (pid) => (G.players[pid] ? esc(fullName(G.players[pid])) : '—');
+  const nm = (pid) => (G.players[pid] ? esc(fullName(G.players[pid])) : '');
   const rows = SP_ROWS.map(([k, label]) => `<div class="row tap" data-a="tac.spPick" data-k="${k}"><div class="main"><div class="t2">${label}</div><div class="t1">${nm(sp[k])}</div></div>${icon('right')}</div>`).join('');
   const lu = (t.lineup || []).filter((x) => x != null).map((id) => G.players[id]).filter((p) => p.pos !== 'GK');
   const box = new Set(sp.box || []);
@@ -135,15 +135,15 @@ export function assistantReport(f, opp) {
   const notes = [];
   const starters = (t.lineup || []).map((id, i) => ({ p: G.players[id], pos: fm[i][0] })).filter((x) => x.p);
   const tired = starters.filter((x) => x.p.cond < 85).sort((a, b) => a.p.cond - b.p.cond);
-  if (tired.length) notes.push(`🔋 Zmęczeni po ostatnich meczach: ${tired.slice(0, 4).map((x) => `${esc(x.p.ln)} (${Math.round(x.p.cond)}%)`).join(', ')}. Warto rozważyć rotację.`);
+  if (tired.length) notes.push(`🔋 Zmęczeni po ostatnich meczach: ${tired.slice(0, 4).map((x) => `${esc(x.p.ln)} ${Math.round(x.p.cond)}%`).join(', ')}. Warto rozważyć rotację.`);
   const off = starters.filter((x) => familiarity(x.p, x.pos) < 0.85);
-  if (off.length) notes.push(`📍 Poza nominalną pozycją: ${off.map((x) => `${esc(x.p.ln)} (${x.p.pos} → ${x.pos})`).join(', ')}.`);
+  if (off.length) notes.push(`📍 Poza nominalną pozycją: ${off.map((x) => `${esc(x.p.ln)} ${x.p.pos} → ${x.pos}`).join(', ')}.`);
   if (c && c.type !== 'FRI') {
     const risk = starters.filter((x) => x.p.ycc === 1);
-    if (risk.length) notes.push(`🟨 Zagrożeni pauzą (jeszcze jedna żółta kartka): ${risk.map((x) => esc(x.p.ln)).join(', ')}.`);
+    if (risk.length) notes.push(`🟨 Jedna żółta kartka od pauzy: ${risk.map((x) => esc(x.p.ln)).join(', ')}.`);
   }
   const lowMor = starters.filter((x) => x.p.mor < 35);
-  if (lowMor.length) notes.push(`😟 Niskie morale: ${lowMor.map((x) => esc(x.p.ln)).join(', ')} – może pomóc rozmowa.`);
+  if (lowMor.length) notes.push(`😟 Niskie morale: ${lowMor.map((x) => esc(x.p.ln)).join(', ')}, może pomóc rozmowa.`);
   const bench = (t.bench || []).map((id) => G.players[id]).filter(Boolean);
   const betterOnBench = starters.filter((x) => bench.some((b) => b.pos === x.pos && slotRating(b, x.pos) > slotRating(x.p, x.pos) + 4 && b.cond >= 85));
   if (betterOnBench.length) notes.push(`🔁 Na ławce są mocniejsi zawodnicy na pozycjach: ${[...new Set(betterOnBench.map((x) => x.pos))].join(', ')}.`);
@@ -181,14 +181,14 @@ screen('prematch', {
         <div class="small muted mt">Kluczowi zawodnicy: ${oi.top.map((p) => `${esc(fullName(p))} (${p.pos}, ${Math.round(ovr(p))})`).join(', ')}</div>
       </div>
       ${warn}
-      <div class="card"><div class="card-h"><h3>Raport asystenta</h3><button class="link" data-a="tac.oppDetails" data-k="${opp}">Skład rywala ›</button></div>${assistantReport(f, opp).map((n) => `<p class="small">${n}</p>`).join('') || '<p class="small muted">Wszystko gotowe – zespół jest w dobrej dyspozycji.</p>'}</div>
+      <div class="card"><div class="card-h"><h3>Raport asystenta</h3><button class="link" data-a="tac.oppDetails" data-k="${opp}">Skład rywala ›</button></div>${assistantReport(f, opp).map((n) => `<p class="small">${n}</p>`).join('') || '<p class="small muted">Wszystko gotowe, zespół jest w dobrej dyspozycji.</p>'}</div>
       <div class="card-h"><h3>Wyjściowa jedenastka</h3><button class="link" data-a="go" data-k="tactics">Taktyka ›</button></div>
       ${formationChips(t.tac.f)}
       ${pitchHTML(t.lineup, t.tac.f, t.sp)}
       <div class="btnrow mb"><button class="btn ghost small" data-a="tac.auto">${icon('bolt')} Auto skład</button><button class="btn ghost small" data-a="go" data-k="tactics">${icon('clipboard')} Polecenia</button></div>
       <div class="note small">Styl: <b>${STYLE_NAMES[t.tac.style]}</b> · pressing: <b>${PRESS_NAMES[t.tac.press]}</b> · gra na czas: <b>${TW_NAMES[t.tac.tw]}</b> · pułapki: <b>${TRAP_NAMES[t.tac.trap]}</b></div>`;
     return {
-      title: 'Przed meczem', sub: `${natName(f.h)} – ${natName(f.a)}`, body,
+      title: 'Przed meczem', sub: `${natName(f.h)} vs ${natName(f.a)}`, body,
       foot: `<button class="btn ghost" data-a="pm.quick" data-k="${f.id}">${icon('ff')} Symuluj</button><button class="btn" data-a="pm.live" data-k="${f.id}">${icon('play')} Graj</button>`,
     };
   },
@@ -221,19 +221,19 @@ actions({
     rerender();
   },
   'tac.auto': () => { G.team.lineup = autoLineup(userSquadPlayers(), G.team.tac.f); G.team.bench = null; G.team.sp = null; ensureLineup(); toast('Asystent ustawił najsilniejszy skład.', 'good'); rerender(); },
-  'tac.clear': () => { G.team.lineup = new Array(11).fill(null); rerender(); toast('Skład wyczyszczony – uzupełnij pozycje.'); },
+  'tac.clear': () => { G.team.lineup = new Array(11).fill(null); rerender(); toast('Skład wyczyszczony, uzupełnij pozycje.'); },
   'tac.slot': (d) => {
     const i = +d.k;
     const t = G.team;
     const pos = FORMATIONS[t.tac.f][i][0];
     const cand = userSquadPlayers().slice().sort((a, b) => (available(b) - available(a)) || matchScore(b, pos) - matchScore(a, pos));
-    const where = (pid) => { const j = (t.lineup || []).indexOf(pid); return j >= 0 ? `w składzie (${FORMATIONS[t.tac.f][j][0]})` : (t.bench || []).includes(pid) ? 'ławka' : 'poza kadrą meczową'; };
-    sheet(`<p class="small muted">${POS_NAMES[pos]} – wybierz zawodnika:</p><div class="list">${cand.map((p) => `<div class="row tap ${t.lineup[i] === p.id ? 'me' : ''} ${available(p) ? '' : 'dim'}" data-a="tac.assign" data-i="${i}" data-k="${p.id}">
+    const where = (pid) => { const j = (t.lineup || []).indexOf(pid); return j >= 0 ? `w składzie: ${FORMATIONS[t.tac.f][j][0]}` : (t.bench || []).includes(pid) ? 'ławka' : 'poza kadrą meczową'; };
+    sheet(`<p class="small muted">${POS_NAMES[pos]}, wybierz zawodnika:</p><div class="list">${cand.map((p) => `<div class="row tap ${t.lineup[i] === p.id ? 'me' : ''} ${available(p) ? '' : 'dim'}" data-a="tac.assign" data-i="${i}" data-k="${p.id}">
       ${posBadge(p.pos)}<div class="main"><div class="t1">${esc(fullName(p))}</div><div class="t2">${where(p.id)}${p.inj ? ' · kontuzja' : ''}${p.susp ? ' · zawieszony' : ''} · kondycja ${Math.round(p.cond)}%</div></div>${rating(slotRating(p, pos))}</div>`).join('')}</div>`, { title: `Pozycja: ${pos}` });
   },
   'tac.assign': (d) => {
     const p = G.players[+d.k];
-    if (!available(p)) { toast('Ten zawodnik nie może zagrać (kontuzja lub zawieszenie).', 'bad'); return; }
+    if (!available(p)) { toast('Ten zawodnik nie może zagrać z powodu kontuzji lub zawieszenia.', 'bad'); return; }
     assign(+d.i, +d.k);
     closeOverlay();
     rerender();
@@ -269,11 +269,11 @@ actions({
     rerender();
   },
   'tac.help': () => modal({
-    title: 'Taktyka – pomoc',
-    body: `<p><b>Ustawienie</b> – wybierz formację i obsadź pozycje. Liczba na żetonie to ocena zawodnika na danej pozycji.</p>
-      <p><b>Drużyna</b> – styl gry, pressing, gra na czas i pułapki ofsajdowe wpływają na liczbę sytuacji, zmęczenie i ryzyko.</p>
-      <p><b>Zawodnicy</b> – polecenia indywidualne: jak często strzelać, dryblować, jakie podania grać i jak ostro odbierać piłkę.</p>
-      <p><b>Stałe fragmenty</b> – wykonawcy rzutów karnych, wolnych i rożnych, kapitan oraz zawodnicy wchodzący w pole karne.</p>`,
+    title: 'Pomoc: taktyka',
+    body: `<p><b>Ustawienie</b>: wybierz formację i obsadź pozycje. Liczba na żetonie to ocena zawodnika na danej pozycji.</p>
+      <p><b>Drużyna</b>: styl gry, pressing, gra na czas i pułapki ofsajdowe wpływają na liczbę sytuacji, zmęczenie i ryzyko.</p>
+      <p><b>Zawodnicy</b>: polecenia indywidualne, czyli jak często strzelać, dryblować, jakie podania grać i jak ostro odbierać piłkę.</p>
+      <p><b>Stałe fragmenty</b>: wykonawcy rzutów karnych, wolnych i rożnych, kapitan oraz zawodnicy wchodzący w pole karne.</p>`,
     buttons: [{ label: 'Rozumiem', a: 'ui.close' }],
   }),
   'tac.oppDetails': (d) => go('opponent', { nid: d.k }),
@@ -288,7 +288,7 @@ actions({
     if (!f || f.res || quickBusy) return;
     ensureLineup();
     quickBusy = true;
-    modal({ title: 'Symulacja meczu', body: `<p class="center">${esc(natName(f.h))} – ${esc(natName(f.a))}</p><p class="center"><b id="qs-min">0'</b> <span id="qs-sc" class="muted"></span></p>`, dismiss: false });
+    modal({ title: 'Symulacja meczu', body: `<p class="center">${esc(natName(f.h))} vs ${esc(natName(f.a))}</p><p class="center"><b id="qs-min">0'</b> <span id="qs-sc" class="muted"></span></p>`, dismiss: false });
     try {
       const { quickSim } = await import('./match.js');
       await quickSim(f, (m) => {

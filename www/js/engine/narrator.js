@@ -1,5 +1,5 @@
 // Komentator meczu na żywo: zamienia prawdziwe zdarzenia z boiska na linie komentarza.
-// Niczego nie wymyśla – mówi o tym, co zrobili zawodnicy (strzał, parada, drybling, odbiór, faul,
+// Niczego nie wymyśla, mówi o tym, co zrobili zawodnicy (strzał, parada, drybling, odbiór, faul,
 // piłka za linią…). Priorytety pilnują tempa: najważniejsze zdarzenia zawsze, drobne tylko w ciszy.
 import { N } from '../data/commentary.js';
 import { fullName } from '../data/names.js';

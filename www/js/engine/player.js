@@ -2,7 +2,7 @@
 import { clamp, gauss, chance } from '../core/util.js';
 
 // Pełny zestaw atrybutów (jak w profesjonalnych menedżerach): techniczne, mentalne, fizyczne i bramkarskie.
-// Każdy ma konkretną rolę w silniku meczu (engine/sim.js) – zawodnicy ścierają się atrybutami w pojedynkach.
+// Każdy ma konkretną rolę w silniku meczu (engine/sim.js), zawodnicy ścierają się atrybutami w pojedynkach.
 // Klucze z poprzedniej wersji zachowały znaczenie (sh = Wykończenie, gk = Refleks, gw = Wyjścia z bramki).
 export const ATTR_NAMES = {
   // techniczne
@@ -22,20 +22,20 @@ export const ATTR_NAMES = {
 };
 export const ATTRS = Object.keys(ATTR_NAMES);
 export const ATTR_HINTS = {
-  cor: 'jakość dośrodkowań z rzutów rożnych', cr: 'dośrodkowania z gry', dr: 'mijanie rywali z piłką (przeciw odbiorowi)',
-  sh: 'skuteczność strzałów z pola karnego (przeciw bramkarzowi)', ft: 'pewność przyjęcia podania, mniej strat', fk: 'strzały i dośrodkowania z rzutów wolnych',
-  hd: 'celność i siła strzałów i podań głową', ls: 'strzały zza pola karnego (celność, siła, chęć uderzenia)', lt: 'zasięg wrzutów z autu',
-  mk: 'pilnowanie rywala, przechwyty', ps: 'celność podań', pen: 'skuteczność rzutów karnych', tk: 'odbieranie piłki (przeciw dryblingowi)',
-  te: 'technika użytkowa – celność strzałów i podań, gra pod presją',
-  agg: 'częstość prób odbioru (więcej fauli)', ant: 'czytanie gry: przechwyty, szybsza reakcja na piłkę', brv: 'blokowanie strzałów, walka w powietrzu',
+  cor: 'jakość dośrodkowań z rzutów rożnych', cr: 'dośrodkowania z gry', dr: 'mijanie rywali z piłką, pojedynek z odbiorem obrońcy',
+  sh: 'skuteczność strzałów z pola karnego w starciu z bramkarzem', ft: 'pewność przyjęcia podania, mniej strat', fk: 'strzały i dośrodkowania z rzutów wolnych',
+  hd: 'celność i siła strzałów i podań głową', ls: 'strzały zza pola karnego: celność, siła i chęć uderzenia', lt: 'zasięg wrzutów z autu',
+  mk: 'pilnowanie rywala, przechwyty', ps: 'celność podań', pen: 'skuteczność rzutów karnych', tk: 'odbieranie piłki, pojedynek z dryblingiem rywala',
+  te: 'technika użytkowa, celność strzałów i podań, gra pod presją',
+  agg: 'częstość prób odbioru, ale też więcej fauli', ant: 'czytanie gry: przechwyty, szybsza reakcja na piłkę', brv: 'blokowanie strzałów, walka w powietrzu',
   cm: 'zimna krew w sytuacjach bramkowych i pod presją', con: 'mniej błędów, szczególnie pod koniec meczu', dec: 'trafność wyborów z piłką',
   det: 'walka do końca, gdy drużyna przegrywa', fla: 'nieszablonowe zagrania: drybling, strzały z dystansu', ld: 'wpływ na drużynę jako kapitan',
   otb: 'wbiegnięcia za obrońców, szukanie wolnego pola', psn: 'ustawienie w obronie i krycie strefy', tmw: 'trzymanie ustawienia, wspieranie partnerów',
-  vis: 'dostrzeganie podań prostopadłych i otwierających', wr: 'pressing i powroty – intensywność gry bez piłki',
+  vis: 'dostrzeganie podań prostopadłych i otwierających', wr: 'pressing i powroty, intensywność gry bez piłki',
   acc: 'rozpędzanie się w pierwszych metrach', agi: 'zwody, zmiana kierunku, parady', bal: 'utrzymanie się na nogach w pojedynkach',
   jmp: 'wysokość wyskoku do piłki', nf: 'regeneracja między meczami i wolniejsze męczenie się', sp: 'prędkość maksymalna',
   en: 'jak szybko spada świeżość w meczu', st: 'przepychanki, zasłanianie piłki, walka w powietrzu',
-  aer: 'łapanie i piąstkowanie wysokich piłek', coa: 'wychodzenie do dośrodkowań w polu karnym', com: 'organizacja obrony (lepsze krycie)',
+  aer: 'łapanie i piąstkowanie wysokich piłek', coa: 'wychodzenie do dośrodkowań w polu karnym', com: 'organizacja obrony, lepsze krycie',
   ecc: 'nieprzewidywalne zachowania bramkarza', han: 'czy obroniona piłka zostanie złapana, czy odbita', kic: 'celność wykopów',
   ovo: 'pojedynki sam na sam z napastnikiem', pun: 'skłonność do piąstkowania zamiast łapania', gk: 'refleks przy strzałach z bliska',
   gw: 'skracanie kąta i wybiegnięcia przed pole karne', thr: 'celność wyrzutów ręką',
@@ -49,7 +49,7 @@ export const ATTR_GROUPS = [
 export const GK_ATTRS = new Set(['aer', 'coa', 'com', 'ecc', 'han', 'kic', 'ovo', 'pun', 'gk', 'gw', 'thr']);
 export const PHYS_ATTRS = new Set(['acc', 'agi', 'bal', 'jmp', 'nf', 'sp', 'en', 'st']);
 
-// pierwotny zestaw (generator świata – zachowuje bazę zawodników i ich oceny)
+// pierwotny zestaw (generator świata, zachowuje bazę zawodników i ich oceny)
 export const OLD_ATTRS = ['gk', 'tk', 'st', 'hd', 'ps', 'cr', 'te', 'sp', 'sh', 'ld'];
 
 export const POSITIONS = ['GK', 'LB', 'CB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'CF'];
@@ -89,7 +89,7 @@ export const POS_W_V2 = {
   CF: { sh: 0.3, cm: 0.14, te: 0.12, hd: 0.12, sp: 0.12, st: 0.1, dr: 0.06, ps: 0.04 },
 };
 
-// wagi atrybutów w ocenie ogólnej na pozycji (suma 1) – najważniejsze atrybuty dla danej roli
+// wagi atrybutów w ocenie ogólnej na pozycji (suma 1), najważniejsze atrybuty dla danej roli
 const FB_W = { tk: 0.11, sp: 0.1, cr: 0.1, mk: 0.08, en: 0.08, psn: 0.08, acc: 0.07, ant: 0.06, wr: 0.06, ps: 0.06, dr: 0.05, tmw: 0.05, dec: 0.05, con: 0.05 };
 const W_W = { dr: 0.14, sp: 0.12, acc: 0.1, cr: 0.1, te: 0.08, otb: 0.07, ft: 0.06, fla: 0.06, agi: 0.06, sh: 0.06, ps: 0.05, dec: 0.04, wr: 0.03, en: 0.03 };
 export const POS_W = {
@@ -134,7 +134,7 @@ const r1 = (v) => clamp(Math.round(v * 10) / 10, 1, 99);
 
 /**
  * Uzupełnia nowe umiejętności (drybling, kondycja, krycie, opanowanie, wyjścia) na podstawie dotychczasowych,
- * pozycji i wieku, zachowując ocenę ogólną. Własny generator losowy (z id zawodnika) – baza świata się nie zmienia.
+ * pozycji i wieku, zachowując ocenę ogólną. Własny generator losowy (z id zawodnika), baza świata się nie zmienia.
  */
 export function extendAttrs(p, r) {
   const a = p.a;
@@ -224,7 +224,7 @@ export function extendFull(p, r) {
   return true;
 }
 
-/** Dopasowuje umiejętności pozycji tak, by ocena ogólna wynosiła target (kilka przebiegów – limity 1–99). */
+/** Dopasowuje umiejętności pozycji tak, by ocena ogólna wynosiła target (kilka przebiegów, limity 1–99). */
 export function fitOvr(p, target, W = POS_W) {
   const w = W[p.pos];
   const rate = () => { let t = 0; for (const k in w) t += w[k] * (p.a[k] ?? 40); return t; };

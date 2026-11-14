@@ -23,7 +23,7 @@ export const QUESTIONS = [
   { ctx: 'win', q: 'Gratuluję zwycięstwa. Co zadecydowało o wyniku?', a: [
     { t: 'Charakter. Moi piłkarze walczyli o każdy metr boiska.', e: { pl: 3, fans: 1 } },
     { t: 'Dobre przygotowanie taktyczne. Wiedzieliśmy, gdzie rywal ma słabe punkty.', e: { media: 2, fed: 1 } },
-    { t: 'Trochę szczęścia – momentami przeciwnik był lepszy.', e: { media: 1, fans: -1, pl: -1 } },
+    { t: 'Trochę szczęścia, momentami przeciwnik był lepszy.', e: { media: 1, fans: -1, pl: -1 } },
   ] },
   { ctx: 'win', q: 'Kibice wychodzili ze stadionu zadowoleni. Czy drużyna złapała właściwy rytm?', a: [
     { t: 'Tak, widać efekty naszej pracy. To dopiero początek.', e: { fans: 3, media: 1 } },
@@ -37,7 +37,7 @@ export const QUESTIONS = [
   ] },
   { ctx: 'draw', q: 'Czy tym razem zabrakło skuteczności?', a: [
     { t: 'Stworzyliśmy sytuacje, piłka po prostu nie chciała wpaść.', e: { pl: 2, media: -1 } },
-    { t: 'Musimy więcej pracować nad wykończeniem akcji – to oczywiste.', e: { media: 2, fed: 1, pl: -1 } },
+    { t: 'Musimy więcej pracować nad wykończeniem akcji, to oczywiste.', e: { media: 2, fed: 1, pl: -1 } },
     { t: 'Problem leży w napastnikach. Oczekuję od nich więcej.', e: { pl: -4, media: 1, fans: 1 } },
   ] },
   { ctx: 'loss', q: 'Porażka {S}. Co zawiodło?', a: [
@@ -101,9 +101,9 @@ export const QUESTIONS = [
     { t: 'Biorę na siebie całą winę. Przepraszam kibiców.', e: { fans: 3, media: 1, fed: -1 } },
   ] },
   { ctx: 'title', q: 'Jesteście mistrzami! Komu dedykuje pan ten triumf?', a: [
-    { t: 'Kibicom – byli z nami w najtrudniejszych chwilach.', e: { fans: 4, media: 1 } },
+    { t: 'Kibicom, byli z nami w najtrudniejszych chwilach.', e: { fans: 4, media: 1 } },
     { t: 'Zawodnikom. To oni wykonali całą robotę.', e: { pl: 4 } },
-    { t: 'Federacji – za zaufanie i świetne warunki do pracy.', e: { fed: 4 } },
+    { t: 'Federacji, za zaufanie i świetne warunki do pracy.', e: { fed: 4 } },
   ] },
   // ---------- przed meczem ----------
   { ctx: 'pre_strong', q: 'Najbliższy rywal ({O}) jest faworytem. Na co stać pańską drużynę?', a: [
@@ -118,7 +118,7 @@ export const QUESTIONS = [
   ] },
   { ctx: 'pre_even', q: 'Zapowiada się wyrównany mecz. Jaki wynik pana zadowoli?', a: [
     { t: 'Tylko zwycięstwo. Gramy o pełną pulę.', e: { fans: 2, pl: 1 } },
-    { t: 'Chcę zobaczyć dobrą grę – wynik będzie jej konsekwencją.', e: { media: 2 } },
+    { t: 'Chcę zobaczyć dobrą grę, wynik będzie jej konsekwencją.', e: { media: 2 } },
     { t: 'Każdy punkt będzie na wagę złota.', e: { media: 1, fed: 1, fans: -1 } },
   ] },
   // ---------- telefony dziennikarzy ----------

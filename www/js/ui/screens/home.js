@@ -12,7 +12,7 @@ const ui = { tab: 'fx' };
 
 function fxLine(f) {
   const c = G.comps[f.comp];
-  const res = f.res ? `${f.res.hg}:${f.res.ag}${f.res.pens ? '*' : ''}` : '–:–';
+  const res = f.res ? `${f.res.hg}:${f.res.ag}${f.res.pens ? '*' : ''}` : 'vs';
   let chip = '';
   if (f.res) {
     const m = me() || G.user.spells.length && G.user.spells[G.user.spells.length - 1].nat;
@@ -21,7 +21,7 @@ function fxLine(f) {
     chip = resChip(gf > ga ? 'W' : gf < ga ? 'L' : 'D');
   }
   return `<div class="fx-row"><span class="d">${fmtDateShort(f.d)}</span>
-    <span class="teams">${flag(f.h)}<span class="tn">${esc(natName(f.h))}</span><span class="muted">–</span>${flag(f.a)}<span class="tn">${esc(natName(f.a))}</span></span>
+    <span class="teams">${flag(f.h)}<span class="tn">${esc(natName(f.h))}</span><span class="muted">vs</span>${flag(f.a)}<span class="tn">${esc(natName(f.a))}</span></span>
     <span class="row-flex"><span class="tag">${esc(c ? c.short : '')}</span><span class="r">${res}</span>${chip}</span></div>`;
 }
 
@@ -38,7 +38,7 @@ function nextMatchCard() {
   const f = nextUserFixture();
   if (!f) {
     const w = nextWindow(G.day);
-    return `<div class="card next-match"><div class="card-h"><h3>Następny mecz</h3></div><div class="muted">Brak zaplanowanych meczów.${w ? ` Najbliższe zgrupowanie (${WINDOW_NAMES[w.key]}): ${fmtDateLong(w.days[0])}.` : ''}</div>
+    return `<div class="card next-match"><div class="card-h"><h3>Następny mecz</h3></div><div class="muted">Brak zaplanowanych meczów.${w ? ` Najbliższe zgrupowanie, ${WINDOW_NAMES[w.key]}: ${fmtDateLong(w.days[0])}.` : ''}</div>
       <div class="mt"><button class="btn small ghost" data-a="go" data-k="friendlies">${icon('handshake')} Umów mecz towarzyski</button></div></div>`;
   }
   const c = G.comps[f.comp];
@@ -51,7 +51,7 @@ function nextMatchCard() {
       <div class="mid">${esc(c ? c.short : '')}<br><span class="small">${esc(fixtureStage(G, f))}</span></div>
       <div>${flag(f.a)}<div class="nm">${esc(natName(f.a))}</div></div>
     </div>
-    <div class="meta"><span>${fmtDateLong(f.d)}</span><span>${esc(f.city)}${f.neutral ? ' (teren neutralny)' : ''}</span></div>
+    <div class="meta"><span>${fmtDateLong(f.d)}</span><span>${esc(f.city)}${f.neutral ? ', teren neutralny' : ''}</span></div>
   </div>`;
 }
 

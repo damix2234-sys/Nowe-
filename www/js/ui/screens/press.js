@@ -31,14 +31,14 @@ screen('press', {
     let foot;
     if (ev.type === 'journalist' && !ps.greeted) {
       body += `<div class="press-q">${esc(ev.greet)}</div>`;
-      body += ev.ga.map((a, i) => `<button class="ans ${ps.pick === i ? 'on' : ''}" data-a="pr.greetPick" data-k="${i}">– ${esc(a.t)}</button>`).join('');
+      body += ev.ga.map((a, i) => `<button class="ans ${ps.pick === i ? 'on' : ''}" data-a="pr.greetPick" data-k="${i}">${esc(a.t)}</button>`).join('');
       foot = `<button class="btn block" data-a="pr.greet" ${ps.pick == null ? 'disabled' : ''}>Odpowiedz</button>`;
     } else {
       const q = ev.qs[ps.step];
       if (!q) return { title: ev.title, body: empty('Brak pytań.'), foot: '<button class="btn block" data-a="pr.done">Dalej</button>' };
       body += `<div class="qprog">${ev.qs.map((_, i) => `<i class="${i <= ps.step ? 'on' : ''}"></i>`).join('')}</div>`;
       body += `<div class="press-q">${esc(q.q)}</div>`;
-      body += q.a.map((a, i) => `<button class="ans ${ps.sel[ps.step] === i ? 'on' : ''}" data-a="pr.pick" data-k="${i}">– ${esc(a.t)}</button>`).join('');
+      body += q.a.map((a, i) => `<button class="ans ${ps.sel[ps.step] === i ? 'on' : ''}" data-a="pr.pick" data-k="${i}">${esc(a.t)}</button>`).join('');
       foot = `<button class="btn block" data-a="pr.next" ${ps.sel[ps.step] == null ? 'disabled' : ''}>${ps.step < ev.qs.length - 1 ? 'Następne pytanie' : 'Zakończ'}</button>`;
     }
     return { title: ev.title, sub: ev.sub || '', back: false, body, foot };

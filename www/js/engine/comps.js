@@ -203,7 +203,7 @@ export function createLN(G, y) {
     }
     const c = newComp(G, {
       id: `LN${y}-${conf}`, type: 'LN', kind: 'LN', conf, year: y,
-      name: `Liga Narodów ${y}/${String((y + 1) % 100).padStart(2, '0')}${conf !== 'EU' ? ' – ' + CONFS[conf].name : ''}`,
+      name: `Liga Narodów ${y}/${String((y + 1) % 100).padStart(2, '0')}${conf !== 'EU' ? ', ' + CONFS[conf].name : ''}`,
       short: 'LN', groups, ko: null, stage: 'groups', done: false, winner: null,
     });
     groups.forEach((g, gi) => {
@@ -323,7 +323,7 @@ export function createQualifiers(G, fy) {
     const all = NATIONS.filter((n) => n.conf === conf).map((n) => n.id).filter((id) => id !== host);
     const slots = kind === 'WC' ? WC_SLOTS[conf] : FINALS_SIZE[conf] - 1;
     const id = `Q${fy}-${conf}`;
-    const name = kind === 'WC' ? `Eliminacje MŚ ${fy} – ${CONFS[conf].name}` : `Eliminacje: ${CONT_NAMES[conf]} ${fy}`;
+    const name = kind === 'WC' ? `Eliminacje MŚ ${fy}, ${CONFS[conf].name}` : `Eliminacje: ${CONT_NAMES[conf]} ${fy}`;
     const short = kind === 'WC' ? 'el. MŚ' : `el. ${CONT_SHORT[conf]}`;
     if (slots >= all.length) {
       newComp(G, { id, type: 'Q', kind, conf, year: y, fy, name, short, groups: [], direct: true, slots, stage: 'done', done: true, qualified: all });

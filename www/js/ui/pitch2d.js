@@ -1,4 +1,4 @@
-// Widok meczu 2D: rysuje stan symulacji (silnik engine/sim.js) na canvasie – zawodników, piłkę, sędziów
+// Widok meczu 2D: rysuje stan symulacji (silnik engine/sim.js) na canvasie, zawodników, piłkę, sędziów
 // i efekty. Steruje tempem (czas boiska na sekundę), zwolnionym tempem przy strzałach, kamerą
 // (całe boisko / przy piłce) i jakością (dynamiczna rozdzielczość na słabszych urządzeniach).
 import { matchKits } from '../data/kits.js';
@@ -9,7 +9,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const FX_DUR = { goal: 2.8, net: 0.9, confetti: 1.6, card: 2.2, medic: 2.6, sub: 2.8, board: 2.6, offside: 2.2, post: 0.6, caption: 2.3 };
 
 export class Pitch2D {
-  /** canvas – element <canvas>, sim – mecz (LiveMatch), cb: { frame() } */
+  /** canvas, element <canvas>, sim, mecz (LiveMatch), cb: { frame() } */
   constructor(canvas, sim, cb = {}) {
     this.cv = canvas;
     this.ctx = canvas ? canvas.getContext('2d') : null;

@@ -80,7 +80,7 @@ screen('squad', {
     return {
       title: mode === 'callup' ? 'Powołania' : 'Kadra', sub: `${natName(me())} · limit ${limit}`,
       cls: mode === 'callup' ? '' : 'nofoot',
-      body: `${seg('sq.tab', [['called', `Powołani (${called.length})`], ['all', `Wszyscy (${pool.length})`]], tab, { mode })}
+      body: `${seg('sq.tab', [['called', `Powołani: ${called.length}`], ['all', `Wszyscy: ${pool.length}`]], tab, { mode })}
         ${summary}
         <input class="input mb" id="sq-search" type="search" data-input="sq.search" placeholder="Szukaj zawodnika…" value="${esc(st.q)}" autocomplete="off">
         ${controls()}
@@ -108,14 +108,14 @@ screen('u21', {
     if (u.tab === 'res') {
       const res = G.u21res.filter((r) => r.nat === me());
       body += res.length ? `<div class="card tight"><div class="list">${res.map((r) => `<div class="row"><span class="tag">${fmtDate(r.d)}</span>
-        <div class="main"><div class="t1">${r.home ? `${esc(natName(me()))} – ${esc(natName(r.opp))}` : `${esc(natName(r.opp))} – ${esc(natName(me()))}`}</div><div class="t2">${r.sc.length ? 'Gole: ' + esc(r.sc.join(', ')) : 'bez goli'}</div></div>
+        <div class="main"><div class="t1">${r.home ? `${esc(natName(me()))} vs ${esc(natName(r.opp))}` : `${esc(natName(r.opp))} vs ${esc(natName(me()))}`}</div><div class="t2">${r.sc.length ? 'Gole: ' + esc(r.sc.join(', ')) : 'bez goli'}</div></div>
         <b>${r.home ? `${r.gf}:${r.ga}` : `${r.ga}:${r.gf}`}</b></div>`).join('')}</div></div>` : empty('Nie rozegrano jeszcze żadnych meczów. Kadra U-21 gra podczas zgrupowań.');
     } else {
       const pool = poolOf(me()).filter((p) => p.age <= 21);
       let list = u.tab === 'squad' ? pool.filter((p) => sel.has(p.id)) : pool.filter((p) => !sel.has(p.id));
       list = sortPlayers(filterGrp(list));
       lastList = list.map((p) => p.id);
-      body += `<p class="small muted">Młodzieżowcy (do 21 lat) rozwijają się szybciej, gdy regularnie grają w kadrze U-21. Zawodnicy powołani do pierwszej reprezentacji nie grają w meczach U-21. Limit: ${G.team.u21.length}/23.</p>`;
+      body += `<p class="small muted">Młodzieżowcy do 21 lat rozwijają się szybciej, gdy regularnie grają w kadrze U-21. Zawodnicy powołani do pierwszej reprezentacji nie grają w meczach U-21. Limit: ${G.team.u21.length}/23.</p>`;
       body += controls();
       body += `<div class="card tight"><div class="list">${list.map((p) => playerRow(p, { toggle: 'u21.toggle', on: sel.has(p.id), sub: `${p.age} l. · ${esc(G.clubs[p.club] ? G.clubs[p.club].n : '')} · U-21: ${p.u21 ? p.u21.apps : 0}/${p.u21 ? p.u21.g : 0}${G.team.scouts ? ` · potencjał ${Math.round(p.pot)}` : ''}` })).join('') || empty('Brak zawodników.')}</div></div>`;
     }
@@ -127,7 +127,7 @@ screen('u21', {
 function potentialText(p) {
   const o = ovr(p);
   if (p.age >= 27) return 'osiągnięty';
-  if (!G.team || !G.team.scouts) return '? (skauci)';
+  if (!G.team || !G.team.scouts) return 'nieznany, zatrudnij skautów';
   const gap = p.pot - o;
   return `${Math.round(p.pot)} ${gap >= 10 ? '🔥' : gap >= 5 ? '↗' : ''}`;
 }
@@ -136,7 +136,7 @@ function formEffect(p) {
   const m = FORM_MUL[p.form] ?? 1;
   if (m === 1) return '';
   const pct = Math.round((m - 1) * 100);
-  return ` <span class="${pct > 0 ? 'good-t' : 'bad-t'}">(${pct > 0 ? '+' : ''}${pct}% w meczu)</span>`;
+  return ` <span class="${pct > 0 ? 'good-t' : 'bad-t'}">${pct > 0 ? '+' : ''}${pct}% w meczu</span>`;
 }
 
 function attrGroups(p) {
@@ -150,7 +150,7 @@ function attrGroups(p) {
       return `<div class="attr2 ${key[k] ? 'key' : ''}" title="${ATTR_HINTS[k]}"><span class="an">${ATTR_NAMES[k]}</span><b class="${c}">${Math.round(v)}</b></div>`;
     }).join('');
     return `<div class="attr-group"><div class="label">${name}</div><div class="attr-grid">${rows}</div></div>`;
-  }).join('') + '<div class="small muted mt">Podświetlone – najważniejsze atrybuty dla pozycji.</div>';
+  }).join('') + '<div class="small muted mt">Podświetlone atrybuty są najważniejsze dla tej pozycji.</div>';
 }
 
 screen('player', {
@@ -165,7 +165,7 @@ screen('player', {
     const fact = (k, v) => `<div class="fact"><div class="k">${k}</div><div class="v">${v}</div></div>`;
     const inSquad = mine && G.team.squad.includes(p.id);
     const inU21 = mine && G.team.u21.includes(p.id);
-    const statusLine = p.inj ? `<div class="note mt">✚ Kontuzja – przerwa jeszcze ${p.inj} ${plural(p.inj, 'dzień', 'dni', 'dni')}.</div>` : p.susp ? '<div class="note mt">Zawieszony na najbliższy mecz.</div>' : '';
+    const statusLine = p.inj ? `<div class="note mt">✚ Kontuzja, przerwa jeszcze ${p.inj} ${plural(p.inj, 'dzień', 'dni', 'dni')}.</div>` : p.susp ? '<div class="note mt">Zawieszony na najbliższy mecz.</div>' : '';
     const body = `
       <div class="card"><div class="pl-head">${av(p.id * 7 + 3, { shirt: '#c6f432' }).replace('class="avatar"', 'class="avatar lg"')}
         <div class="grow"><div class="big">${esc(fullName(p))}</div><div class="muted small">${flag(p.nat)} ${esc(natName(p.nat))} · ${POS_NAMES[p.pos]}</div>
@@ -174,7 +174,7 @@ screen('player', {
       </div>
       <div class="facts mb">
         ${fact('Wiek', `${p.age} lat`)}
-        ${fact('Wzrost / waga', p.h ? `${p.h} cm / ${p.w} kg` : '—')}
+        ${fact('Wzrost i waga', p.h ? `${p.h} cm, ${p.w} kg` : '')}
         ${fact('Występy / gole', `${p.caps} / ${p.goals}`)}
         ${fact('Klub', esc(club ? club.n : 'bez klubu'))}
         ${fact('Status w klubie', CLUB_STATUS[p.cst])}
@@ -185,7 +185,7 @@ screen('player', {
       </div>
       <div class="card"><div class="card-h"><h3>Morale</h3><b>${Math.round(p.mor)}</b></div>${bar(p.mor)}</div>
       <div class="card"><div class="card-h"><h3>Umiejętności</h3><span class="big-ovr">${ovrI(p)}</span></div>
-        <div class="small muted mb">★ – kluczowe na pozycji ${POS_NAMES[p.pos].toLowerCase()}</div>
+        <div class="small muted mb">★ oznacza atrybuty kluczowe na pozycji ${POS_NAMES[p.pos].toLowerCase()}</div>
         ${attrGroups(p)}
       </div>
       ${s && s.apps ? `<div class="card"><div class="card-h"><h3>Pod Twoją wodzą</h3></div><div class="facts">
@@ -209,12 +209,12 @@ function toggleSquad(pid) {
     if (p.caps > 40) trustChange({ pl: -1 });
     if (t.lineup) t.lineup = t.lineup.map((x) => (x === pid ? null : x));
     if (t.bench) t.bench = t.bench.filter((x) => x !== pid);
-    toast(`${esc(fullName(p))} – usunięty z kadry.`);
+    toast(`${esc(fullName(p))}, usunięty z kadry.`);
   } else {
     if (t.squad.length >= squadLimit()) { toast(`Limit kadry to ${squadLimit()} zawodników.`, 'bad'); return; }
     t.squad.push(pid);
     p.mor = clamp(p.mor + 5, 0, 100);
-    toast(`${esc(fullName(p))} – powołany.`, 'good');
+    toast(`${esc(fullName(p))}, powołany.`, 'good');
   }
   G.nats[me()].squad = t.squad.slice();
 }
@@ -280,7 +280,7 @@ actions({
   },
   'pl.talk': (d) => {
     const p = G.players[+d.k];
-    sheet(`<p class="small muted">O czym chcesz porozmawiać z zawodnikiem (${esc(fullName(p))})?</p>
+    sheet(`<p class="small muted">O czym chcesz porozmawiać z zawodnikiem ${esc(fullName(p))}?</p>
       ${TALKS.map((t) => `<button class="ans" data-a="pl.talkDo" data-k="${p.id}" data-t="${t.id}">${t.t}</button>`).join('')}`, { title: 'Rozmowa indywidualna' });
   },
   'pl.talkDo': (d) => {

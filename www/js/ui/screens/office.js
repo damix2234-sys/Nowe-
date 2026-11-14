@@ -30,7 +30,7 @@ screen('training', {
     const t = G.team.train;
     const used = TRAIN_KEYS.reduce((s, k) => s + t.alloc[k], 0);
     const asst = G.staff ? G.staff.assistant : null;
-    const body = `<div class="card speech">${av(asst ? hashStr(asst.ln + 'a') : 1, { shirt: '#3d7bff' })}<div class="txt">Kadrowicze większość czasu spędzają w klubach, ale każde zgrupowanie to kilka cennych jednostek treningowych. Rozdziel punkty – im więcej punktów, tym szybciej rośnie poziom wytrenowania w danym obszarze. Między zgrupowaniami efekty powoli słabną.</div></div>
+    const body = `<div class="card speech">${av(asst ? hashStr(asst.ln + 'a') : 1, { shirt: '#3d7bff' })}<div class="txt">Kadrowicze większość czasu spędzają w klubach, ale każde zgrupowanie to kilka cennych jednostek treningowych. Rozdziel punkty, im więcej punktów, tym szybciej rośnie poziom wytrenowania w danym obszarze. Między zgrupowaniami efekty powoli słabną.</div></div>
       <div class="card"><div class="card-h"><h3>Plan treningowy</h3><span class="tag ${used >= TRAIN_BUDGET ? 'acc' : 'gold'}">${used}/${TRAIN_BUDGET} pkt</span></div>
       ${TRAIN_KEYS.map((k) => `<div class="train-row"><div class="top"><div class="grow"><b>${TRAIN_NAMES[k]}</b><div class="small muted">${TRAIN_DESC[k]}</div></div>
         <button class="stepper" data-a="tr.step" data-k="${k}" data-v="-1" aria-label="Mniej">${icon('minus')}</button><span class="val">${t.alloc[k]}</span><button class="stepper" data-a="tr.step" data-k="${k}" data-v="1" aria-label="Więcej">${icon('plus')}</button></div>
@@ -49,7 +49,7 @@ screen('federation', {
     const objs = G.objectives.filter((o) => o.nat === me()).slice().reverse();
     const body = `<div class="card"><div class="pl-head">${senderAvatar('president').replace('class="avatar"', 'class="avatar lg"')}<div class="grow"><div class="label">Prezes federacji</div><div class="big">${esc(fullName(pres))}</div><div class="small muted">${flag(me())} ${esc(natName(me()))}</div></div></div></div>
       <div class="card"><div class="card-h"><h3>Zaufanie</h3></div>${row('fed', 'Federacja')}${row('fans', 'Kibice')}${row('pl', 'Piłkarze')}${row('media', 'Media')}
-        <p class="small muted mt">Zbyt niskie zaufanie federacji oznacza zwolnienie. Kibice reagują na wyniki i styl gry, piłkarze – na powołania i Twoje słowa, media – na konferencje prasowe.</p></div>
+        <p class="small muted mt">Zbyt niskie zaufanie federacji oznacza zwolnienie. Kibice reagują na wyniki i styl gry, piłkarze na powołania i Twoje słowa, a media na konferencje prasowe.</p></div>
       <div class="facts mb"><div class="fact"><div class="k">Kontrakt do</div><div class="v">${fmtDate(G.user.contractEnd)}</div></div><div class="fact"><div class="k">Reputacja</div><div class="v">${Math.round(G.user.rep)} / 100</div></div></div>
       <div class="card"><div class="card-h"><h3>Cele</h3></div>${objs.length ? objs.map((o) => `<div class="row"><span class="tag ${o.status === 'ok' ? 'acc' : o.status === 'fail' ? 'red' : 'gold'}">${o.status === 'ok' ? '✓' : o.status === 'fail' ? '✗' : '…'}</span><div class="main"><div class="t1 wrap">${esc(o.text)}</div><div class="t2">${esc(o.cname)}</div></div></div>`).join('') : '<div class="small muted">Brak celów.</div>'}</div>
       <div class="card"><div class="card-h"><h3>Prośby do zarządu</h3></div>${REQUESTS.map((r) => {
@@ -83,10 +83,10 @@ screen('stats', {
     if (stt.tab === 'career') {
       const pct = s.m ? Math.round((s.w / s.m) * 100) : 0;
       const fact = (k, v) => `<div class="fact"><div class="k">${k}</div><div class="v">${v}</div></div>`;
-      body += `<div class="facts mb">${fact('Mecze', s.m)}${fact('Bilans Z-R-P', `${s.w}-${s.d}-${s.l}`)}${fact('Bramki', `${s.gf}:${s.ga}`)}${fact('Skuteczność', pct + '%')}${fact('Seria bez porażki', `${s.unb} (rekord ${s.maxUnb})`)}${fact('Seria zwycięstw', `${s.ws} (rekord ${s.maxWs})`)}
-        ${fact('Najwyższe zwycięstwo', s.best ? `${s.best.gf}:${s.best.ga} – ${esc(natName(s.best.opp))}` : '—')}${fact('Najwyższa porażka', s.worst ? `${s.worst.gf}:${s.worst.ga} – ${esc(natName(s.worst.opp))}` : '—')}</div>
-        <div class="card"><div class="card-h"><h3>Trofea</h3></div>${G.user.trophies.length ? G.user.trophies.map((t) => `<div class="row"><span style="font-size:22px">🏆</span><div class="main"><div class="t1">${esc(t.name)}</div><div class="t2">${flag(t.nat)} ${esc(natName(t.nat))}</div></div></div>`).join('') : '<div class="small muted">Jeszcze bez trofeów – czas to zmienić!</div>'}</div>
-        <div class="card"><div class="card-h"><h3>Przebieg kariery</h3></div>${G.user.spells.slice().reverse().map((sp) => `<div class="row"><span class="flag" style="font-size:24px">${NAT[sp.nat].flag}</span><div class="main"><div class="t1">${esc(natName(sp.nat))}</div><div class="t2">${fmtDate(sp.from)} – ${sp.to ? fmtDate(sp.to) : 'obecnie'}</div></div><span class="small">${sp.m} m · ${sp.w}-${sp.d}-${sp.l}</span></div>`).join('')}</div>`;
+      body += `<div class="facts mb">${fact('Mecze', s.m)}${fact('Bilans Z-R-P', `${s.w}-${s.d}-${s.l}`)}${fact('Bramki', `${s.gf}:${s.ga}`)}${fact('Skuteczność', pct + '%')}${fact('Seria bez porażki', `${s.unb}, rekord ${s.maxUnb}`)}${fact('Seria zwycięstw', `${s.ws}, rekord ${s.maxWs}`)}
+        ${fact('Najwyższe zwycięstwo', s.best ? `${s.best.gf}:${s.best.ga}, ${esc(natName(s.best.opp))}` : '')}${fact('Najwyższa porażka', s.worst ? `${s.worst.gf}:${s.worst.ga}, ${esc(natName(s.worst.opp))}` : '')}</div>
+        <div class="card"><div class="card-h"><h3>Trofea</h3></div>${G.user.trophies.length ? G.user.trophies.map((t) => `<div class="row"><span style="font-size:22px">🏆</span><div class="main"><div class="t1">${esc(t.name)}</div><div class="t2">${flag(t.nat)} ${esc(natName(t.nat))}</div></div></div>`).join('') : '<div class="small muted">Jeszcze bez trofeów, czas to zmienić!</div>'}</div>
+        <div class="card"><div class="card-h"><h3>Przebieg kariery</h3></div>${G.user.spells.slice().reverse().map((sp) => `<div class="row"><span class="flag" style="font-size:24px">${NAT[sp.nat].flag}</span><div class="main"><div class="t1">${esc(natName(sp.nat))}</div><div class="t2">${fmtDate(sp.from)} vs ${sp.to ? fmtDate(sp.to) : 'obecnie'}</div></div><span class="small">${sp.m} m · ${sp.w}-${sp.d}-${sp.l}</span></div>`).join('')}</div>`;
     } else if (stt.tab === 'players') {
       const list = Object.values(G.players).filter((p) => p.s && p.s.apps);
       const key = { apps: (p) => p.s.apps, g: (p) => p.s.g, a: (p) => p.s.a, avg: (p) => p.s.rs / p.s.apps, mom: (p) => p.s.mom }[stt.sort];
@@ -96,7 +96,7 @@ screen('stats', {
       body += list.length ? `<div class="card tight"><table class="tbl"><thead><tr><th class="tl">Zawodnik</th><th>M</th><th>G</th><th>A</th><th>Śr.</th><th>MVP</th></tr></thead><tbody>${list.slice(0, 60).map((p) => `<tr data-a="pl.open" data-k="${p.id}"><td class="tl">${posBadge(p.pos)} <span class="tn">${esc(p.ln)}</span></td><td>${p.s.apps}</td><td>${p.s.g}</td><td>${p.s.a}</td><td>${(p.s.rs / p.s.apps).toFixed(2)}</td><td>${p.s.mom}</td></tr>`).join('')}</tbody></table></div>` : empty('Brak rozegranych meczów.');
     } else {
       const h = G.history.slice().reverse();
-      body += h.length ? `<div class="card tight"><div class="list">${h.slice(0, 120).map((x, i) => `<div class="row tap" data-a="st.match" data-k="${G.history.length - 1 - i}"><span class="tag">${fmtDate(x.d)}</span><div class="main"><div class="t1">${flag(x.home ? x.nat : x.opp)} ${esc(natName(x.home ? x.nat : x.opp))} – ${esc(natName(x.home ? x.opp : x.nat))} ${flag(x.home ? x.opp : x.nat)}</div><div class="t2">${esc(x.cs)} · ${esc(x.stage)}</div></div><b>${x.home ? `${x.gf}:${x.ga}` : `${x.ga}:${x.gf}`}</b>${resChip(x.res)}</div>`).join('')}</div></div>` : empty('Brak rozegranych meczów.');
+      body += h.length ? `<div class="card tight"><div class="list">${h.slice(0, 120).map((x, i) => `<div class="row tap" data-a="st.match" data-k="${G.history.length - 1 - i}"><span class="tag">${fmtDate(x.d)}</span><div class="main"><div class="t1">${flag(x.home ? x.nat : x.opp)} ${esc(natName(x.home ? x.nat : x.opp))} vs ${esc(natName(x.home ? x.opp : x.nat))} ${flag(x.home ? x.opp : x.nat)}</div><div class="t2">${esc(x.cs)} · ${esc(x.stage)}</div></div><b>${x.home ? `${x.gf}:${x.ga}` : `${x.ga}:${x.gf}`}</b>${resChip(x.res)}</div>`).join('')}</div></div>` : empty('Brak rozegranych meczów.');
     }
     return { title: 'Statystyki', cls: 'nofoot', body };
   },
@@ -140,7 +140,7 @@ screen('save', {
       const nat = m ? m.nat || m.lastNat : null;
       return `<div class="row tap" data-a="sv.slot" data-k="${s}"><span class="flag" style="font-size:26px">${nat ? NAT[nat].flag : '💾'}</span><div class="main"><div class="t1">Slot ${s}</div><div class="t2">${m ? `${esc(m.manager)} · ${fmtDateLong(m.day)}` : 'pusty'}</div></div><span class="btn small">Zapisz</span></div>`;
     }).join('')}</div></div>
-    <p class="small muted center">Autozapis wykonywany jest automatycznie (można go wczytać z menu głównego).</p>`;
+    <p class="small muted center">Autozapis wykonywany jest automatycznie, można go wczytać z menu głównego.</p>`;
     return { title: 'Zapisz grę', cls: 'nofoot', body };
   },
 });
@@ -161,7 +161,7 @@ screen('editor', {
   render() {
     const edits = getEdits();
     const list = NATIONS.filter((n) => n.conf === ed.conf).sort((a, b) => a.name.localeCompare(b.name, 'pl'));
-    const body = `<div class="note mb">Edytuj imiona, nazwiska, wiek, pozycję i umiejętności zawodników domyślnej bazy. Zmiany obowiązują w nowych grach (opcja „Domyślna baza”). Edycji: <b>${Object.keys(edits).length}</b>.</div>
+    const body = `<div class="note mb">Edytuj imiona, nazwiska, wiek, pozycję i umiejętności zawodników domyślnej bazy. Zmiany obowiązują w nowych grach z opcją „Domyślna baza”. Edycji: <b>${Object.keys(edits).length}</b>.</div>
       <div class="btnrow mb"><button class="btn small ghost" data-a="ed.export">${icon('upload')} Eksport</button><button class="btn small ghost" data-a="ed.import">${icon('download')} Import</button><button class="btn small danger" data-a="ed.clear">${icon('trash')} Wyczyść</button></div>
       ${chips('ed.conf', CONF_ORDER.map((c) => [c, CONFS[c].name]), ed.conf)}
       <div class="card tight"><div class="list">${list.map((n) => `<div class="row tap" data-a="ed.nat" data-k="${n.id}"><span class="flag" style="font-size:26px">${n.flag}</span><div class="main"><div class="t1">${esc(n.name)}</div></div>${icon('right')}</div>`).join('')}</div></div>`;
@@ -180,7 +180,7 @@ screen('editorNat', {
       const name = v.ord === 'fl' ? `${v.ln} ${v.fn}` : `${v.fn} ${v.ln}`.trim();
       return `<div class="row tap" data-a="ed.player" data-k="${p.id}" data-n="${nid}">${posBadge(v.pos)}<div class="main"><div class="t1">${esc(name)} ${v.edited ? '<span class="tag acc">edytowany</span>' : ''}</div><div class="t2">${v.age} l.</div></div>${rating(v.ovr)}</div>`;
     }).join('')}</div></div>`;
-    return { title: NAT[nid].name, sub: 'Edytor – domyślna baza', cls: 'nofoot', body };
+    return { title: NAT[nid].name, sub: 'Edytor, domyślna baza', cls: 'nofoot', body };
   },
 });
 
@@ -190,7 +190,7 @@ function editForm(p, nid) {
     <label class="field"><span>Nazwisko</span><input class="input" id="ed-ln" value="${esc(v.ln)}" maxlength="30"></label>
     <div class="btnrow"><label class="field grow"><span>Wiek</span><input class="input" id="ed-age" type="number" min="15" max="45" value="${v.age}"></label>
     <label class="field grow"><span>Ocena ogólna</span><input class="input" id="ed-ovr" type="number" min="20" max="99" value="${v.ovr}"></label></div>
-    <label class="field"><span>Pozycja</span><select class="input" id="ed-pos">${POSITIONS.map((x) => `<option value="${x}" ${x === v.pos ? 'selected' : ''}>${x} – ${POS_NAMES[x]}</option>`).join('')}</select></label>
+    <label class="field"><span>Pozycja</span><select class="input" id="ed-pos">${POSITIONS.map((x) => `<option value="${x}" ${x === v.pos ? 'selected' : ''}>${x}: ${POS_NAMES[x]}</option>`).join('')}</select></label>
     <div class="btnrow"><button class="btn ghost" data-a="ed.reset" data-k="${p.id}" data-n="${nid}">Przywróć</button><button class="btn" data-a="ed.save" data-k="${p.id}" data-n="${nid}">Zapisz</button></div>`;
 }
 
@@ -227,7 +227,7 @@ actions({
     const x = G.history[+d.k];
     if (!x) return;
     const hsc = x.sc.filter((s) => (x.home ? s.own : !s.own)), asc = x.sc.filter((s) => (x.home ? !s.own : s.own));
-    const l = (arr) => arr.map((s) => `${esc(s.n)} ${s.m}${s.pen ? ' (k)' : ''}${s.og ? ' (sam.)' : ''}`).join('<br>') || '—';
+    const l = (arr) => arr.map((s) => `${esc(s.n)} ${s.m}${s.pen ? ' karny' : ''}${s.og ? ' samobój' : ''}`).join('<br>') || '';
     const hn = x.home ? x.nat : x.opp, an = x.home ? x.opp : x.nat;
     modal({
       title: `${esc(natName(hn))} ${x.home ? x.gf : x.ga}:${x.home ? x.ga : x.gf} ${esc(natName(an))}`,
@@ -249,7 +249,7 @@ actions({
     busy(false);
     saveMetas = null;
     invalidateMetas();
-    toast(ok ? `Zapisano w slocie ${d.k}.` : 'Zapis nie powiódł się (brak miejsca?).', ok ? 'good' : 'bad');
+    toast(ok ? `Zapisano w slocie ${d.k}.` : 'Zapis nie powiódł się, być może brak miejsca.', ok ? 'good' : 'bad');
     rerender();
   },
   'ed.conf': (d) => { ed.conf = d.k; rerender(); },

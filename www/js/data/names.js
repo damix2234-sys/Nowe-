@@ -1,6 +1,6 @@
 // Pule imion (f) i nazwisk (l). Podkreślnik "_" zamieniany jest na spację.
 // order: 'fl' = nazwisko wyświetlane przed imieniem (Korea, Chiny, Wietnam).
-// nick: pseudonimy (np. brazylijskie) – część zawodników występuje tylko pod pseudonimem.
+// nick: pseudonimy (np. brazylijskie), część zawodników występuje tylko pod pseudonimem.
 
 const RAW = {
   pl: {

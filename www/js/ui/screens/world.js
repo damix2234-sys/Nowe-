@@ -34,7 +34,7 @@ screen('comps', {
     let body = chips('cp.filter', [['mine', 'Moje'], ['world', 'Świat'], ...CONF_ORDER.map((c) => [c, CONFS[c].name]), ['arch', 'Archiwum']], cs.filter);
     if (shown === null) {
       const arch = G.archive.slice().reverse();
-      body += arch.length ? `<div class="card tight"><div class="list">${arch.map((a) => `<div class="row"><div class="main"><div class="t1">${esc(a.name)}</div><div class="t2">${a.runnerUp ? `finalista: ${esc(natName(a.runnerUp))}` : ''}</div></div>${a.winner ? `<span class="row-flex">${flag(a.winner)}<b>${esc(natName(a.winner))}</b></span>` : ''}</div>`).join('')}</div></div>` : empty('Archiwum jest puste – zakończone rozgrywki trafią tu po kilku latach.');
+      body += arch.length ? `<div class="card tight"><div class="list">${arch.map((a) => `<div class="row"><div class="main"><div class="t1">${esc(a.name)}</div><div class="t2">${a.runnerUp ? `finalista: ${esc(natName(a.runnerUp))}` : ''}</div></div>${a.winner ? `<span class="row-flex">${flag(a.winner)}<b>${esc(natName(a.winner))}</b></span>` : ''}</div>`).join('')}</div></div>` : empty('Archiwum jest puste, zakończone rozgrywki trafią tu po kilku latach.');
       const done = list.filter((c) => c.done && c.winner).reverse();
       if (done.length) body += `<div class="card"><div class="card-h"><h3>Ostatni triumfatorzy</h3></div>${done.slice(0, 12).map((c) => `<div class="row tap" data-a="cp.open" data-k="${c.id}"><div class="main"><div class="t1">${esc(c.name)}</div></div><span class="row-flex">${flag(c.winner)}<b>${esc(natName(c.winner))}</b></span></div>`).join('')}</div>`;
     } else {
@@ -53,10 +53,10 @@ function tableHTML(c, gi, qualN = 0) {
 }
 
 function fxRow(f) {
-  const res = f.res ? `${f.res.hg}:${f.res.ag}${f.res.et ? ' pd' : ''}${f.res.pens ? ` (k. ${f.res.pens[0]}:${f.res.pens[1]})` : ''}` : '–:–';
+  const res = f.res ? `${f.res.hg}:${f.res.ag}${f.res.et ? ' pd' : ''}${f.res.pens ? `, k. ${f.res.pens[0]}:${f.res.pens[1]}` : ''}` : 'vs';
   const m = me();
   return `<div class="fx-row ${f.h === m || f.a === m ? 'me' : ''}"><span class="d">${fmtDateShort(f.d)}</span>
-    <span class="teams">${flag(f.h)}<span class="tn">${esc(natName(f.h))}</span><span class="muted">–</span>${flag(f.a)}<span class="tn">${esc(natName(f.a))}</span></span><span class="r">${res}</span></div>`;
+    <span class="teams">${flag(f.h)}<span class="tn">${esc(natName(f.h))}</span><span class="muted">vs</span>${flag(f.a)}<span class="tn">${esc(natName(f.a))}</span></span><span class="r">${res}</span></div>`;
 }
 
 screen('comp', {
@@ -70,7 +70,7 @@ screen('comp', {
     tabs.push(['scorers', 'Strzelcy']);
     if (!tabs.some((t) => t[0] === cs.tab)) cs.tab = 'tables';
     let body = seg('cp.tab', tabs, cs.tab, { id });
-    if (c.direct) body += `<div class="note mb">Wszystkie drużyny (${c.qualified.length}) awansowały bez eliminacji: ${c.qualified.map(natName).join(', ')}.</div>`;
+    if (c.direct) body += `<div class="note mb">Wszystkie drużyny, łącznie ${c.qualified.length}, awansowały bez eliminacji: ${c.qualified.map(natName).join(', ')}.</div>`;
     if (c.qualified && !c.direct) body += `<div class="note mb">Awans wywalczyli: ${c.qualified.map((t) => `${NAT[t].flag} ${esc(natName(t))}`).join(', ')}.</div>`;
     if (c.winner) body += `<div class="note mb">🏆 Zwycięzca: <b>${NAT[c.winner].flag} ${esc(natName(c.winner))}</b>${c.runnerUp ? ` · finalista: ${esc(natName(c.runnerUp))}` : ''}</div>`;
     if (cs.tab === 'tables') {
@@ -88,7 +88,7 @@ screen('comp', {
       body += hasKO ? `<div class="bracket">${c.ko.rounds.map((r) => `<div class="rd"><div class="label mb">${esc(r.name)} · ${fmtDate(r.d)}</div>${r.fx.length ? r.fx.map((id2) => {
         const f = fxById(G, id2);
         const w = koWinner(f);
-        return `<div class="ko-m"><span class="${w === f.h ? 'w' : ''}">${flag(f.h)} ${esc(natName(f.h))}</span><span class="s">${f.res ? f.res.hg : '–'}${f.res && f.res.pens ? ` (${f.res.pens[0]})` : ''}</span><span class="${w === f.a ? 'w' : ''}">${flag(f.a)} ${esc(natName(f.a))}</span><span class="s">${f.res ? f.res.ag : '–'}${f.res && f.res.pens ? ` (${f.res.pens[1]})` : ''}</span></div>`;
+        return `<div class="ko-m"><span class="${w === f.h ? 'w' : ''}">${flag(f.h)} ${esc(natName(f.h))}</span><span class="s">${f.res ? f.res.hg : ''}${f.res && f.res.pens ? ` k${f.res.pens[0]}` : ''}</span><span class="${w === f.a ? 'w' : ''}">${flag(f.a)} ${esc(natName(f.a))}</span><span class="s">${f.res ? f.res.ag : ''}${f.res && f.res.pens ? ` (${f.res.pens[1]})` : ''}</span></div>`;
       }).join('') : '<div class="small muted">Pary zostaną ustalone po poprzedniej rundzie.</div>'}</div>`).join('')}</div>` : empty('Faza pucharowa jeszcze się nie rozpoczęła.');
     } else {
       const sc = topScorers(c, 20);
@@ -108,12 +108,12 @@ export function scoutTips(nid) {
   const att = best.filter((p) => ['CF', 'LW', 'RW', 'AM'].includes(p.pos));
   const def = best.filter((p) => ['CB', 'LB', 'RB', 'DM'].includes(p.pos));
   const gk = best.find((p) => p.pos === 'GK');
-  if (avg('hd', (p) => ['CB', 'CF'].includes(p.pos)) >= 72) tips.push('Bardzo groźni w powietrzu – uważaj na stałe fragmenty, wystaw wysokich obrońców.');
-  if (avg('sp', (p) => att.includes(p)) >= 76) tips.push('Szybcy napastnicy i skrzydłowi – wysoka linia obrony i pułapki ofsajdowe są ryzykowne.');
-  if (avg('sp', (p) => def.includes(p)) <= 58) tips.push('Wolni obrońcy – długie podania za linię obrony mogą przynieść efekty.');
-  if (gk && gk.a.gk <= 62) tips.push('Słabszy bramkarz – warto częściej strzelać z dystansu.');
-  if (avg('tk', (p) => def.includes(p)) >= 76) tips.push('Twarda, dobrze odbierająca obrona – drybling może się nie opłacać.');
-  if (avg('ps', (p) => ['CM', 'DM', 'AM'].includes(p.pos)) >= 78) tips.push('Świetna druga linia – wysoki pressing utrudni im rozgrywanie.');
+  if (avg('hd', (p) => ['CB', 'CF'].includes(p.pos)) >= 72) tips.push('Bardzo groźni w powietrzu, uważaj na stałe fragmenty, wystaw wysokich obrońców.');
+  if (avg('sp', (p) => att.includes(p)) >= 76) tips.push('Szybcy napastnicy i skrzydłowi, wysoka linia obrony i pułapki ofsajdowe są ryzykowne.');
+  if (avg('sp', (p) => def.includes(p)) <= 58) tips.push('Wolni obrońcy, długie podania za linię obrony mogą przynieść efekty.');
+  if (gk && gk.a.gk <= 62) tips.push('Słabszy bramkarz, warto częściej strzelać z dystansu.');
+  if (avg('tk', (p) => def.includes(p)) >= 76) tips.push('Twarda, dobrze odbierająca obrona, drybling może się nie opłacać.');
+  if (avg('ps', (p) => ['CM', 'DM', 'AM'].includes(p.pos)) >= 78) tips.push('Świetna druga linia, wysoki pressing utrudni im rozgrywanie.');
   if (!tips.length) tips.push('Zespół bez wyraźnych słabych punktów. Kluczowa będzie dyspozycja dnia.');
   return tips;
 }
@@ -142,7 +142,7 @@ screen('opponent', {
     const coach = nat.coach ? fullName(nat.coach) : 'Ty';
     const recent = G.fixtures.filter((f) => f.res && (f.h === nid || f.a === nid)).sort((a, b) => b.d - a.d).slice(0, 5);
     const pred = nid !== me() ? predictLineup(nid) : null;
-    const body = `<div class="card"><div class="pl-head"><span class="flag" style="font-size:54px">${n.flag}</span><div class="grow"><div class="big">${esc(n.name)}</div><div class="muted small">${CONFS[n.conf].name} · ${pos}. w rankingu (${Math.round(G.rank[nid])} pkt)</div><div>${natStars(nid)}</div></div></div></div>
+    const body = `<div class="card"><div class="pl-head"><span class="flag" style="font-size:54px">${n.flag}</span><div class="grow"><div class="big">${esc(n.name)}</div><div class="muted small">${CONFS[n.conf].name} · ${pos}. w rankingu · ${Math.round(G.rank[nid])} pkt</div><div>${natStars(nid)}</div></div></div></div>
       <div class="facts mb"><div class="fact"><div class="k">Selekcjoner</div><div class="v">${esc(coach)}</div></div><div class="fact"><div class="k">Ustawienie</div><div class="v">${nat.tac.f}</div></div></div>
       <div class="card"><div class="card-h"><h3>Raport asystenta</h3></div>${scoutTips(nid).map((t) => `<p class="small">• ${esc(t)}</p>`).join('')}</div>
       ${pred ? `<div class="card-h"><h3>Przewidywany skład</h3><span class="small muted">${pred.f} · ${STYLE_NAMES[pred.tac.style]}</span></div>${pitchHTML(pred.lineup, pred.f, {}, 'pl.open')}` : ''}
@@ -165,7 +165,7 @@ screen('ranking', {
       + `<div class="card tight"><div class="list">${ids.map((id) => {
         const p = pos[id], pp = prev[id] || p;
         const ch = pp - p;
-        const arrow = ch > 0 ? `<span class="small" style="color:#8dee7e">▲${ch}</span>` : ch < 0 ? `<span class="small" style="color:#f37f71">▼${-ch}</span>` : '<span class="small muted">–</span>';
+        const arrow = ch > 0 ? `<span class="small" style="color:#8dee7e">▲${ch}</span>` : ch < 0 ? `<span class="small" style="color:#f37f71">▼${-ch}</span>` : '<span class="small muted">=</span>';
         return `<div class="row ${id === m ? 'me' : ''} tap" data-a="op.open" data-k="${id}" id="rk-${id}"><b style="width:30px;text-align:right">${p}.</b><span class="flag" style="font-size:22px">${NAT[id].flag}</span><div class="main"><div class="t1">${esc(NAT[id].name)}</div></div>${arrow}<b style="width:48px;text-align:right">${Math.round(G.rank[id])}</b></div>`;
       }).join('')}</div></div>`;
     return { title: 'Ranking światowy', sub: m ? `${natName(m)}: ${pos[m]}. miejsce` : '', cls: 'nofoot', body, right: m ? `<button class="iconbtn" data-a="rk.me">${icon('target')}</button>` : '' };
@@ -178,7 +178,7 @@ screen('friendlies', {
   render() {
     const slots = friendlySlots();
     const m = me();
-    const body = `<p class="small muted">Mecze towarzyskie można umawiać w wolnych terminach zgrupowań (najpóźniej 3 dni przed meczem). Sparingi z silnymi rywalami podnoszą ranking, ze słabszymi – pewność siebie.</p>
+    const body = `<p class="small muted">Mecze towarzyskie można umawiać w wolnych terminach zgrupowań, najpóźniej 3 dni przed meczem. Sparingi z silnymi rywalami podnoszą ranking, a ze słabszymi pewność siebie.</p>
       <div class="card tight"><div class="list">${slots.length ? slots.map((s) => {
         if (s.taken) {
           const f = s.taken;
@@ -207,7 +207,7 @@ actions({
   'op.open': (d) => go('opponent', { nid: d.k }),
   'rk.conf': (d) => { rk.conf = d.k; rerender(); },
   'rk.me': () => { const el = document.getElementById('rk-' + me()); if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); },
-  'fr.slot': (d) => sheet(`<div id="fr-body">${friendlySheet(+d.k)}</div>`, { title: `Mecz towarzyski – ${fmtDate(+d.k)}` }),
+  'fr.slot': (d) => sheet(`<div id="fr-body">${friendlySheet(+d.k)}</div>`, { title: `Mecz towarzyski, ${fmtDate(+d.k)}` }),
   'fr.home': (d) => { fr.home = d.k === '1'; const el = document.getElementById('fr-body'); if (el) el.innerHTML = friendlySheet(+d.d); },
   'fr.conf': (d) => { fr.conf = d.k; const el = document.getElementById('fr-body'); if (el) el.innerHTML = friendlySheet(+d.d); },
   'fr.ask': (d) => {

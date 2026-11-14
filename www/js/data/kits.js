@@ -1,5 +1,5 @@
 // Barwy strojów reprezentacji (kolory narodowe): 'koszulka/wykończenie[/wzór]|strój wyjazdowy'.
-// Wzory: s – pasy pionowe, c – szachownica, d – szarfa, h – poziomy pas.
+// Wzory: s, pasy pionowe, c, szachownica, d, szarfa, h, poziomy pas.
 const K = {
   ALB: 'e41e20/111111|ffffff/e41e20', AND: '1b3d8f/f4c400|ffffff/d52b1e', ARM: 'd90012/0033a0|ffffff/d90012', AUT: 'ed2939/ffffff|ffffff/ed2939',
   AZE: '0092bc/ffffff|ffffff/e00034', BLR: 'c8313e/ffffff|ffffff/4aa657', BEL: 'c8102e/111111|ffffff/c8102e', BIH: '002f6c/fecb00|ffffff/002f6c',
@@ -78,7 +78,7 @@ const GRASS = '2f8a47';
 export function matchKits(hNid, aNid) {
   const H = { ...kitsOf(hNid).home };
   const A = kitsOf(aNid);
-  // gość: strój domowy, wyjazdowy albo neutralny – byle wyraźnie inny niż koszulki gospodarza
+  // gość: strój domowy, wyjazdowy albo neutralny, byle wyraźnie inny niż koszulki gospodarza
   const alts = ['ffffff', '111111', 'f5d000', '1e5bd8', 'd62828', 'ff7f11'].map((c) => ({ shirt: c, trim: lum(c) > 150 ? '333333' : 'ffffff', pat: '', num: lum(c) > 150 ? '111111' : 'ffffff' }));
   let away = [A.home, A.away].find((k) => colorDist(H.shirt, k.shirt) >= 185);
   if (!away) away = alts.slice().sort((x, y) => colorDist(H.shirt, y.shirt) - colorDist(H.shirt, x.shirt))[0];

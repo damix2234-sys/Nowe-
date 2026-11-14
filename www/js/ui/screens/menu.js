@@ -44,8 +44,8 @@ screen('menu', {
 
 // ---------------- samouczek ----------------
 const TUT = [
-  { t: 'Witaj, selekcjonerze!', b: 'Przejmujesz reprezentację na kilka tygodni przed pierwszym zgrupowaniem. Czas w grze płynie po naciśnięciu przycisku <b>Dalej</b> – gra sama zatrzyma się przy każdym ważnym wydarzeniu: powołaniach, meczach, konferencjach i telefonach od dziennikarzy.' },
-  { t: 'Powołania i skład', b: 'Przed każdym zgrupowaniem ogłaszasz kadrę (23 zawodników, na turniej 26). Przed meczem ustawiasz wyjściową jedenastkę – dotknij zawodnika na boisku, aby go zmienić. Pasek pod żetonem pokazuje kondycję, a <b>Raport asystenta</b> podpowie, kogo warto oszczędzać.' },
+  { t: 'Witaj, selekcjonerze!', b: 'Przejmujesz reprezentację na kilka tygodni przed pierwszym zgrupowaniem. Czas w grze płynie po naciśnięciu przycisku <b>Dalej</b>: gra sama zatrzyma się przy każdym ważnym wydarzeniu: powołaniach, meczach, konferencjach i telefonach od dziennikarzy.' },
+  { t: 'Powołania i skład', b: 'Przed każdym zgrupowaniem ogłaszasz kadrę: 23 zawodników, a na turniej 26. Przed meczem ustawiasz wyjściową jedenastkę, dotknij zawodnika na boisku, aby go zmienić. Pasek pod żetonem pokazuje kondycję, a <b>Raport asystenta</b> podpowie, kogo warto oszczędzać.' },
   { t: 'Zaufanie i cele', b: 'Federacja stawia cele w każdych rozgrywkach. Wyniki, decyzje kadrowe i odpowiedzi na konferencjach wpływają na zaufanie federacji, kibiców, piłkarzy i mediów. Gdy zaufanie federacji spadnie zbyt nisko, stracisz pracę i poczekasz na oferty innych krajów.' },
 ];
 const tut = { step: 0, fromAbout: false };
@@ -89,11 +89,11 @@ screen('newgame', {
         <label class="field"><span>Imię i nazwisko selekcjonera</span><input class="input" data-input="ng.name" maxlength="40" placeholder="np. Jan Kowalski" value="${esc(ng.name)}"></label>
         <div class="field"><span>Baza zawodników</span>
           <div class="opt">
-            <button class="${ng.db === 'edited' ? 'on' : ''}" data-a="ng.db" data-k="edited">Domyślna${edits ? ` (+${edits} edycji)` : ''}</button>
+            <button class="${ng.db === 'edited' ? 'on' : ''}" data-a="ng.db" data-k="edited">Domyślna${edits ? `, ${edits} edycji` : ''}</button>
             <button class="${ng.db === 'random' ? 'on' : ''}" data-a="ng.db" data-k="random">Losowa nowa</button>
           </div>
         </div>
-        <div class="field"><span>Poziom trudności (cierpliwość federacji)</span>
+        <div class="field"><span>Poziom trudności</span>
           <div class="opt">
             ${['Łagodny', 'Normalny', 'Wymagający'].map((t, i) => `<button class="${ng.diff === i ? 'on' : ''}" data-a="ng.diff" data-k="${i}">${t}</button>`).join('')}
           </div>
@@ -115,7 +115,7 @@ screen('load', {
       const nat = m.nat || m.lastNat;
       return `<div class="row tap" data-a="load.slot" data-k="${s}">
         <span class="flag" style="font-size:28px">${nat ? NAT[nat].flag : '💼'}</span>
-        <div class="main"><div class="t1">${label}: ${esc(m.manager || '')}</div><div class="t2">${nat ? esc(NAT[nat].name) : ''}${m.unemployed ? ' (bez pracy)' : ''} · ${fmtDateLong(m.day)}</div><div class="t2">zapisano ${new Date(m.saved).toLocaleString('pl-PL')}</div></div>
+        <div class="main"><div class="t1">${label}: ${esc(m.manager || '')}</div><div class="t2">${nat ? esc(NAT[nat].name) : ''}${m.unemployed ? ', bez pracy' : ''} · ${fmtDateLong(m.day)}</div><div class="t2">zapisano ${new Date(m.saved).toLocaleString('pl-PL')}</div></div>
         <button class="iconbtn" data-a="load.del" data-k="${s}" aria-label="Usuń">${icon('trash')}</button>
       </div>`;
     }).join('');
@@ -129,10 +129,10 @@ screen('about', {
       title: 'O grze', cls: 'nofoot',
       body: `<div class="card center">${LOGO.replace('<img', '<img style="width:110px;height:110px"')}<h2 class="mt">Selekcjoner</h2><div class="muted">wersja ${VERSION}</div></div>
       <div class="card"><p>Wciel się w selekcjonera reprezentacji narodowej. Powołuj zawodników, ustalaj taktykę i trening, prowadź drużynę w Lidze Narodów, eliminacjach i turniejach finałowych. Dbaj o zaufanie federacji, kibiców, piłkarzy i mediów.</p>
-      <p class="small muted">Wszyscy zawodnicy, kluby i dziennikarze są fikcyjni – nazwiska generowane są losowo. W edytorze możesz zmienić dane zawodników według własnego uznania.</p></div>
+      <p class="small muted">Wszyscy zawodnicy, kluby i dziennikarze są fikcyjni, nazwiska generowane są losowo. W edytorze możesz zmienić dane zawodników według własnego uznania.</p></div>
       <div class="card"><div class="card-h"><h3>Jak grać</h3></div>
       <button class="btn ghost small mb" data-a="menu.tutorial">${icon('help')} Pokaż samouczek</button>
-      <p class="small">• Przycisk <b>Dalej</b> przesuwa czas do kolejnego ważnego wydarzenia.<br>• Przed każdym zgrupowaniem ogłaszasz powołania (23 zawodników, na turniej 26).<br>• Przed meczem ustaw wyjściową jedenastkę i polecenia. Mecz możesz oglądać na żywo i reagować zmianami.<br>• Odpowiedzi na konferencjach wpływają na zaufanie mediów, kibiców, piłkarzy i federacji.<br>• Zbyt niskie zaufanie federacji kończy się zwolnieniem – wtedy czekasz na oferty innych krajów.</p></div>`,
+      <p class="small">• Przycisk <b>Dalej</b> przesuwa czas do kolejnego ważnego wydarzenia.<br>• Przed każdym zgrupowaniem ogłaszasz powołania: 23 zawodników, a na turniej 26.<br>• Przed meczem ustaw wyjściową jedenastkę i polecenia. Mecz możesz oglądać na żywo i reagować zmianami.<br>• Odpowiedzi na konferencjach wpływają na zaufanie mediów, kibiców, piłkarzy i federacji.<br>• Zbyt niskie zaufanie federacji kończy się zwolnieniem, wtedy czekasz na oferty innych krajów.</p></div>`,
     };
   },
 });

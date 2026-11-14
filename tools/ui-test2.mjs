@@ -113,7 +113,7 @@ await click('.ov.show [data-a="mt.subIn"]', 2);
 await click('.ov.show [data-a="mt.subDo"]');
 await page.waitForTimeout(300);
 const subsLeft = await page.locator('#mt-subs').textContent();
-ok('zmiana w meczu: ' + subsLeft, /\(4\)/.test(subsLeft));
+ok('zmiana w meczu: ' + subsLeft, /: 4$/.test(subsLeft.trim()));
 await page.screenshot({ path: `${OUT}/t2-subs.png` });
 await click('.ov.show [data-a="ui.close"]');
 await click('[data-a="mt.tactics"]');

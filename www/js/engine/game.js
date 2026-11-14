@@ -123,7 +123,7 @@ export function takeJob(nid, initial = false) {
   }
   const objs = G.objectives.filter((o) => o.nat === nid && o.status === 'open').map((o) => '• ' + o.text).join('\n');
   msg('president', 'Witamy w federacji!',
-    `Szanowny Panie,\n\nw imieniu zarządu witam na stanowisku selekcjonera reprezentacji (${n.name}). Liczymy na Pana odwagę i konsekwencję – kibice czekają na drużynę, z której znów będą dumni.\n\n` +
+    `Szanowny Panie,\n\nw imieniu zarządu witam na stanowisku selekcjonera reprezentacji: ${n.name}. Liczymy na Pana odwagę i konsekwencję, kibice czekają na drużynę, z której znów będą dumni.\n\n` +
     (objs ? `Nasze oczekiwania na najbliższy okres:\n${objs}\n\n` : '') +
     `Kontrakt obowiązuje do ${fmtDateLong(G.user.contractEnd)}.\n\nPowodzenia!\n${fullName(pres)}, prezes federacji`, { important: true });
   if (!initial) achieve('new_job');
@@ -154,9 +154,9 @@ export function msg(from, subj, body, opts = {}) {
 
 export function senderName(from) {
   const s = G.staff;
-  if (from === 'president') return s ? `${fullName(s.president)} (prezes)` : 'Prezes federacji';
-  if (from === 'assistant') return s ? `${fullName(s.assistant)} (asystent)` : 'Asystent';
-  if (from === 'doctor') return s ? `${fullName(s.doctor)} (lekarz kadry)` : 'Lekarz kadry';
+  if (from === 'president') return s ? `${fullName(s.president)}, prezes` : 'Prezes federacji';
+  if (from === 'assistant') return s ? `${fullName(s.assistant)}, asystent` : 'Asystent';
+  if (from === 'doctor') return s ? `${fullName(s.doctor)}, lekarz kadry` : 'Lekarz kadry';
   if (from === 'press') return 'Rzecznik prasowy';
   if (from === 'system') return 'Biuro rozgrywek';
   if (from && from.startsWith('fed:')) return `Federacja: ${natName(from.slice(4))}`;
@@ -471,7 +471,7 @@ function userAfterMatch(fx, r, m, capsBefore) {
     if (p && G.team.squad.includes(+pid) && available(p) && !starters.has(+pid)) {
       p.mor = clamp(p.mor - 15, 0, 100);
       trustChange({ pl: -2 });
-      msg('assistant', 'Złamana obietnica', `${fullName(p)} jest rozczarowany – obiecał mu pan miejsce w wyjściowym składzie, a nie zagrał od pierwszej minuty. Atmosfera w szatni na tym ucierpiała.`);
+      msg('assistant', 'Złamana obietnica', `${fullName(p)} jest rozczarowany, obiecał mu pan miejsce w wyjściowym składzie, a nie zagrał od pierwszej minuty. Atmosfera w szatni na tym ucierpiała.`);
     }
     delete G.team.promises[pid];
   }
@@ -613,7 +613,7 @@ function preMatchPress(d) {
   const qs = [qFor(ctx, { O: natName(opp) }, used)];
   if (chance(0.3)) qs.push(qFor('call_rival', { O: natName(opp) }, used));
   const j = availableJournalists();
-  G.queue.push({ type: 'press', kind: 'pre', fx: fx.id, title: 'Konferencja przedmeczowa', sub: `${natName(fx.h)} – ${natName(fx.a)}`, j: j.length ? pick(j) : 0, qs: qs.filter(Boolean) });
+  G.queue.push({ type: 'press', kind: 'pre', fx: fx.id, title: 'Konferencja przedmeczowa', sub: `${natName(fx.h)} vs ${natName(fx.a)}`, j: j.length ? pick(j) : 0, qs: qs.filter(Boolean) });
 }
 
 function journalistCall(d) {
@@ -704,14 +704,14 @@ function queueCallup(w) {
   const matches = G.fixtures.filter((f) => w.days.includes(f.d) && (f.h === m || f.a === m));
   const inFinals = w.kind === 'fin' && finalsCompsOf(w.y).some((c) => c.groups.some((g) => g.teams.includes(m)));
   if (!matches.length && !inFinals) {
-    msg('assistant', 'Brak meczów na zgrupowaniu', `W terminie zgrupowania (${WINDOW_NAMES[w.key]}) nie mamy zaplanowanych meczów. Wciąż można umówić mecz towarzyski w menu „Mecze towarzyskie”.`);
+    msg('assistant', 'Brak meczów na zgrupowaniu', `W terminie zgrupowania ${WINDOW_NAMES[w.key]} nie mamy zaplanowanych meczów. Wciąż można umówić mecz towarzyski w menu „Mecze towarzyskie”.`);
     return;
   }
   if (G.queue.some((e) => e.type === 'callup' && e.win === w.id)) return;
   const size = inFinals ? 26 : 23;
   const inj = userSquadPlayers().filter((p) => p.inj > 0);
   const note = inj.length ? `Kontuzjowani obecnie w kadrze: ${inj.map((p) => `${fullName(p)} (${p.inj} dni)`).join(', ')}.` : '';
-  G.queue.push({ type: 'callup', win: w.id, size, n: matches.length, title: inFinals ? 'Kadra na turniej finałowy' : `Powołania – zgrupowanie ${WINDOW_NAMES[w.key]}`, note });
+  G.queue.push({ type: 'callup', win: w.id, size, n: matches.length, title: inFinals ? 'Kadra na turniej finałowy' : `Powołania, zgrupowanie ${WINDOW_NAMES[w.key]}`, note });
 }
 
 export function confirmCallup(ev, ids) {
@@ -772,7 +772,7 @@ function friendlyPlanning(w) {
   if (cands.length && chance(0.7)) {
     G.queue.push({ type: 'friendlyInvite', from: pick(cands), d, home: chance(0.5), title: 'Zaproszenie na mecz towarzyski' });
   } else {
-    msg('assistant', 'Wolne terminy na zgrupowaniu', `Podczas najbliższego zgrupowania mamy wolne terminy: ${freeDays.map(fmtDate).join(', ')}. Warto umówić mecz towarzyski (menu „Mecze towarzyskie”).`);
+    msg('assistant', 'Wolne terminy na zgrupowaniu', `Podczas najbliższego zgrupowania mamy wolne terminy: ${freeDays.map(fmtDate).join(', ')}. Warto umówić mecz towarzyski w menu „Mecze towarzyskie”.`);
   }
 }
 
@@ -780,7 +780,7 @@ export function answerInvite(ev, accept) {
   const m = me();
   if (accept && !hasFixture(G, m, ev.d) && !hasFixture(G, ev.from, ev.d)) {
     if (ev.home) addFriendly(G, ev.d, m, ev.from); else addFriendly(G, ev.d, ev.from, m);
-    msg('system', 'Mecz towarzyski potwierdzony', `${fmtDateLong(ev.d)}: ${natName(ev.home ? m : ev.from)} – ${natName(ev.home ? ev.from : m)}.`);
+    msg('system', 'Mecz towarzyski potwierdzony', `${fmtDateLong(ev.d)}: ${natName(ev.home ? m : ev.from)} vs ${natName(ev.home ? ev.from : m)}.`);
   }
   removeEvent(ev);
 }
@@ -816,9 +816,9 @@ export function requestFriendly(d, opp, home) {
   const pr = clamp(0.55 + (G.rank[m] - G.rank[opp]) / 900 + (G.trust.fed - 50) / 250 + (home ? -0.12 : 0.12), 0.12, 0.95);
   if (Math.random() < pr) {
     if (home) addFriendly(G, d, m, opp); else addFriendly(G, d, opp, m);
-    return { ok: true, msg: `Federacja (${natName(opp)}) przyjęła zaproszenie!` };
+    return { ok: true, msg: `Federacja: ${natName(opp)} przyjęła zaproszenie!` };
   }
-  return { ok: false, msg: `Federacja (${natName(opp)}) odrzuciła zaproszenie.` };
+  return { ok: false, msg: `Federacja: ${natName(opp)} odrzuciła zaproszenie.` };
 }
 
 export function cancelFriendly(fx) {
@@ -897,7 +897,7 @@ function inComp(c, nid) {
 function handleCompEvent(c, e) {
   const m = me();
   if (e.type === 'lnFinals' && m && e.teams.includes(m)) {
-    msg('system', 'Turniej finałowy Ligi Narodów!', `Wygraliśmy grupę i zagramy w turnieju finałowym Ligi Narodów (czerwiec ${c.year + 1}).`, { important: true });
+    msg('system', 'Turniej finałowy Ligi Narodów!', `Wygraliśmy grupę i zagramy w turnieju finałowym Ligi Narodów w czerwcu ${c.year + 1}.`, { important: true });
   }
   if (e.type === 'groupsDone' && m && inComp(c, m)) {
     if (c.type === 'LN') {
@@ -940,7 +940,7 @@ function handleCompEvent(c, e) {
         achieve('qualify');
         if (rankPositions(G)[m] > 50) achieve('underdog');
         G.user.rep = clamp(G.user.rep + 5, 0, 100);
-        msg('president', 'Awans!', `Gratuluję awansu na turniej finałowy (${c.kind === 'WC' ? 'Mistrzostwa Świata' : c.name.replace('Eliminacje: ', '')})! To ogromny sukces całej drużyny i sztabu.`, { important: true });
+        msg('president', 'Awans!', `Gratuluję awansu na turniej finałowy: ${c.kind === 'WC' ? 'Mistrzostwa Świata' : c.name.replace('Eliminacje: ', '')}! To ogromny sukces całej drużyny i sztabu.`, { important: true });
       } else {
         G.recent.eliminated = true;
         G.user.rep = clamp(G.user.rep - 3, 0, 100);
@@ -958,7 +958,7 @@ function handleCompEvent(c, e) {
       trustChange({ fed: 15, fans: 20, media: 10, pl: 10 });
       if (c.type === 'LN') achieve('ln_title');
       if (c.type === 'FIN') achieve(c.kind === 'WC' ? 'wc_title' : 'cont_title');
-      msg('president', 'MISTRZOSTWO!', `Fantastycznie! ${c.name} – triumf naszej reprezentacji. Przejdzie Pan do historii!`, { important: true });
+      msg('president', 'MISTRZOSTWO!', `Fantastycznie! ${c.name}, triumf naszej reprezentacji. Przejdzie Pan do historii!`, { important: true });
     } else if (c.type === 'FIN' || (c.type === 'LN' && c.conf === 'EU')) {
       msg('system', `${c.name}: znamy zwycięzcę`, `Triumfatorem rozgrywek ${c.name} jest reprezentacja: ${natName(w)}.`);
     }
@@ -975,7 +975,7 @@ function afterCreate(comps, kind) {
     msg('system', `Losowanie: ${c.name}`, `Trafiliśmy do grupy ${c.groups[gi].name}. Rywale: ${others}.`, { important: true });
   }
   if (kind === 'FIN' && m && !comps.some((c) => inComp(c, m))) {
-    msg('system', 'Losowanie turnieju finałowego', `Odbyło się losowanie grup turnieju (${comps[0] ? comps[0].name : ''}). Niestety, nie bierzemy w nim udziału.`);
+    msg('system', 'Losowanie turnieju finałowego', `Odbyło się losowanie grup turnieju: ${comps[0] ? comps[0].name : ''}. Niestety, nie bierzemy w nim udziału.`);
   }
 }
 
@@ -1044,10 +1044,10 @@ function evalObjectives(c) {
     if (ok) {
       trustChange({ fed: 12, fans: 6 });
       G.user.rep = clamp(G.user.rep + 3, 0, 100);
-      msg('president', 'Cel zrealizowany', `Cel „${o.text}” (${o.cname}) został zrealizowany. Zarząd jest zadowolony z Pana pracy.`);
+      msg('president', 'Cel zrealizowany', `Cel „${o.text}”, ${o.cname}, został zrealizowany. Zarząd jest zadowolony z Pana pracy.`);
     } else {
       trustChange({ fed: -(10 + 8 * Math.max(1, gap)), fans: -6 });
-      msg('president', 'Cel niezrealizowany', `Nie udało się zrealizować celu „${o.text}” (${o.cname}). Zarząd oczekuje poprawy wyników.`, { important: true });
+      msg('president', 'Cel niezrealizowany', `Nie udało się zrealizować celu „${o.text}”, ${o.cname}. Zarząd oczekuje poprawy wyników.`, { important: true });
     }
     checkSack();
   }
@@ -1223,12 +1223,12 @@ export function talkTo(pid, kind) {
   const avgR = p.s && p.s.apps ? p.s.rs / p.s.apps : 6.5;
   if (kind === 'praise') {
     if (p.form >= 1 || avgR >= 7) { dm = rint(6, 10); text = `${n} dziękuje za słowa uznania i obiecuje, że nie zwolni tempa.`; }
-    else { dm = rint(-1, 3); dpl = -1; text = `${n} wydaje się zaskoczony pochwałą – jego ostatnie występy nie były najlepsze.`; }
+    else { dm = rint(-1, 3); dpl = -1; text = `${n} wydaje się zaskoczony pochwałą, jego ostatnie występy nie były najlepsze.`; }
   } else if (kind === 'motivate') {
     if (p.a.ld >= 60 || chance(0.6)) { dm = rint(3, 7); if (chance(0.4)) p.form = clamp(p.form + 1, -2, 2); text = `${n} wziął sobie pana słowa do serca. Widać w nim nową energię.`; }
-    else { dm = rint(-6, -2); text = `Rozmowa nie poszła najlepiej – ${n} uważa, że i tak daje z siebie wszystko.`; }
+    else { dm = rint(-6, -2); text = `Rozmowa nie poszła najlepiej, ${n} uważa, że i tak daje z siebie wszystko.`; }
   } else if (kind === 'promise') {
-    dm = rint(8, 12); t.promises[pid] = G.day; text = `${n} jest wyraźnie zadowolony. Pamiętaj jednak o złożonej obietnicy – musi zagrać od pierwszej minuty w najbliższym meczu!`;
+    dm = rint(8, 12); t.promises[pid] = G.day; text = `${n} jest wyraźnie zadowolony. Pamiętaj jednak o złożonej obietnicy, musi zagrać od pierwszej minuty w najbliższym meczu!`;
   } else if (kind === 'criticize') {
     if (p.form <= -1) { dm = rint(-4, 0); if (chance(0.5)) p.form = clamp(p.form + 1, -2, 2); text = `${n} przyjął krytykę z pokorą i obiecuje poprawę.`; }
     else { dm = rint(-12, -6); dpl = -2; text = `${n} jest wyraźnie urażony. Uważa, że krytyka była niesprawiedliwa.`; }
@@ -1236,7 +1236,7 @@ export function talkTo(pid, kind) {
     dm = rint(1, 3);
     const club = G.clubs[p.club];
     const st = CLUB_STATUS[p.cst].toLowerCase();
-    text = p.cst <= 1 ? `${n}: „W ${club.n} czuję się świetnie, trener na mnie stawia (${st}).”` : p.cst === 2 ? `${n}: „W ${club.n} gram w rotacji. Chciałbym grać więcej.”` : `${n}: „W ${club.n} jestem tylko rezerwowym. Myślę o zmianie klubu.”`;
+    text = p.cst <= 1 ? `${n}: „W ${club.n} czuję się świetnie, trener na mnie stawia, jestem tam ${st}.”` : p.cst === 2 ? `${n}: „W ${club.n} gram w rotacji. Chciałbym grać więcej.”` : `${n}: „W ${club.n} jestem tylko rezerwowym. Myślę o zmianie klubu.”`;
   }
   p.mor = clamp(p.mor + dm, 0, 100);
   if (dpl) trustChange({ pl: dpl });

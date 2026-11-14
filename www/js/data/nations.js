@@ -154,7 +154,7 @@ export function starsFor(str) {
   return Math.max(0.5, Math.min(5, Math.round(s * 2) / 2));
 }
 
-/** Ligi klubowe – gdzie grają najlepsi zawodnicy. tier: 1 = najmocniejsza liga. */
+/** Ligi klubowe, gdzie grają najlepsi zawodnicy. tier: 1 = najmocniejsza liga. */
 export const LEAGUES = {
   ENG: { tier: 1, cities: ['Londyn', 'Manchester', 'Liverpool', 'Birmingham', 'Leeds', 'Newcastle', 'Brighton', 'Southampton', 'Bristol', 'Nottingham', 'Leicester', 'Sheffield'], style: 'en' },
   ESP: { tier: 1, cities: ['Madryt', 'Barcelona', 'Sewilla', 'Walencja', 'Bilbao', 'Malaga', 'Vigo', 'Saragossa', 'Grenada', 'Kadyks'], style: 'es' },

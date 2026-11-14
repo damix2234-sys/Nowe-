@@ -7,7 +7,7 @@ const TAU = Math.PI * 2;
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
-/** Rysuje pełną klatkę. P – instancja Pitch2D. */
+/** Rysuje pełną klatkę. P, instancja Pitch2D. */
 export function render(P) {
   const c = P.ctx, W = P.W, H = P.H;
   if (!c || !W) return;
@@ -137,7 +137,7 @@ function drawLines(V) {
   }
 }
 
-/** stat – rysowanie do tła (siatka w spoczynku); inaczej tylko wybrzuszona siatka po golu. */
+/** stat, rysowanie do tła (siatka w spoczynku); inaczej tylko wybrzuszona siatka po golu. */
 function drawGoal(V, P, y0, d, stat) {
   const { c, k, X, Y } = V;
   let bulge = 0, bx = 34;
@@ -249,7 +249,7 @@ function drawPlayer(V, P, p) {
   c.strokeStyle = 'rgba(0,0,0,0.6)';
   c.stroke();
   c.restore();
-  // kierunek patrzenia – jasny łuk na obwodzie
+  // kierunek patrzenia, jasny łuk na obwodzie
   if (p.state === 'play' || p.state === 'jump') {
     const a = -p.face;
     c.beginPath();
@@ -322,7 +322,7 @@ function drawBall(V, P) {
   c.arc(x, by, r, 0, TAU);
   c.fillStyle = g;
   c.fill();
-  // łaty – obrót zależny od drogi przebytej przez piłkę
+  // łaty, obrót zależny od drogi przebytej przez piłkę
   c.save();
   c.beginPath();
   c.arc(x, by, r * 0.98, 0, TAU);

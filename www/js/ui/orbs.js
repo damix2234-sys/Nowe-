@@ -103,7 +103,7 @@ const G = {
 // przyciski zaprojektowane jako grafiki (z napisem)
 const IMG = { squad: 'kadra', tactics: 'taktyka', training: 'trening', opponents: 'przeciwnicy', comps: 'rozgrywki', friendlies: 'towarzyskie', u21: 'u21', federation: 'federacja', ranking: 'ranking', stats: 'statystyki', offers: 'oferty', achievements: 'osiagniecia', messages: 'wiadomosci', save: 'zapisz', settings: 'ustawienia' };
 
-/** Okrągły przycisk menu. ic – nazwa ikony, label – napis na plakietce. „Kadra” to grafika z projektu. */
+/** Okrągły przycisk menu. ic, nazwa ikony, label, napis na plakietce. „Kadra” to grafika z projektu. */
 export function orb(ic, label, attrs, badge = 0) {
   const b = badge ? `<span class="badge">${badge}</span>` : '';
   if (IMG[ic]) {

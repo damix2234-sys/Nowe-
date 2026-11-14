@@ -82,7 +82,7 @@ function inviteModal(ev) {
   modal({
     head: `<div class="m-head">${flag(ev.from, 'xl')}<div><div class="label">Zaproszenie</div><b>${esc(natName(ev.from))}</b><div>${natStars(ev.from)}</div></div></div>`,
     title: 'Mecz towarzyski',
-    body: `<p>Federacja (${esc(natName(ev.from))}) proponuje rozegranie meczu towarzyskiego <b>${fmtDateLong(ev.d)}</b> ${ev.home ? 'na naszym stadionie' : 'na wyjeździe'}.</p><p class="small muted">Rywal zajmuje ${pos}. miejsce w rankingu światowym.</p>`,
+    body: `<p>Federacja: ${esc(natName(ev.from))} proponuje rozegranie meczu towarzyskiego <b>${fmtDateLong(ev.d)}</b> ${ev.home ? 'na naszym stadionie' : 'na wyjeździe'}.</p><p class="small muted">Rywal zajmuje ${pos}. miejsce w rankingu światowym.</p>`,
     dismiss: false,
     buttons: [{ label: 'Odrzuć', cls: 'ghost', a: 'flow.invite', x: { v: 0 } }, { label: 'Przyjmij', a: 'flow.invite', x: { v: 1 } }],
   });
@@ -94,7 +94,7 @@ function offerModal(ev) {
   modal({
     head: `<div class="m-head">${flag(ev.nat, 'xl')}<div><div class="label">Oferta pracy</div><b>${esc(n.name)}</b><div>${natStars(ev.nat)}</div></div></div>`,
     title: 'Propozycja objęcia kadry',
-    body: `<p>Federacja (${esc(n.name)}) szuka nowego selekcjonera i składa Panu ofertę pracy.</p><p class="small muted">Ranking światowy: ${pos}. miejsce · ${esc(natName(ev.nat))} ${me() ? '· przyjęcie oznacza odejście z obecnej kadry' : ''}</p>`,
+    body: `<p>Federacja: ${esc(n.name)} szuka nowego selekcjonera i składa Panu ofertę pracy.</p><p class="small muted">Ranking światowy: ${pos}. miejsce · ${esc(natName(ev.nat))} ${me() ? '· przyjęcie oznacza odejście z obecnej kadry' : ''}</p>`,
     dismiss: false,
     buttons: [{ label: 'Odrzuć', cls: 'ghost', a: 'flow.offer', x: { v: 'no' } }, { label: 'Później', cls: 'ghost', a: 'flow.offer', x: { v: 'later' } }, { label: 'Przyjmij', a: 'flow.offer', x: { v: 'yes' } }],
   });
@@ -104,7 +104,7 @@ function contractModal(ev) {
   modal({
     title: 'Koniec kontraktu',
     body: ev.offer
-      ? '<p>Pana umowa dobiega końca. Zarząd jest zadowolony ze współpracy i proponuje przedłużenie kontraktu na kolejny cykl (do końca następnego turnieju).</p>'
+      ? '<p>Pana umowa dobiega końca. Zarząd jest zadowolony ze współpracy i proponuje przedłużenie kontraktu na kolejny cykl, do końca następnego turnieju.</p>'
       : '<p>Pana umowa dobiega końca. Zarząd federacji zdecydował, że nie przedłuży kontraktu. Dziękujemy za współpracę.</p>',
     dismiss: false,
     buttons: ev.offer
@@ -117,7 +117,7 @@ function sackedModal(ev) {
   modal({
     head: `<div class="m-head">${flag(ev.nat, 'xl')}<div><div class="label">Zwolnienie</div><b>${esc(natName(ev.nat))}</b></div></div>`,
     title: 'Koniec pracy',
-    body: '<p>Zarząd federacji rozwiązał z Panem umowę ze skutkiem natychmiastowym. Wyniki nie spełniły oczekiwań.</p><p class="small muted">Możesz czekać na oferty od innych federacji – czas płynie po naciśnięciu „Dalej”.</p>',
+    body: '<p>Zarząd federacji rozwiązał z Panem umowę ze skutkiem natychmiastowym. Wyniki nie spełniły oczekiwań.</p><p class="small muted">Możesz czekać na oferty od innych federacji, czas płynie po naciśnięciu „Dalej”.</p>',
     dismiss: false,
     buttons: [{ label: 'Rozumiem', a: 'flow.sacked' }],
   });

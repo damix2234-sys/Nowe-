@@ -1,4 +1,4 @@
-// Dźwięki meczu generowane w przeglądarce (Web Audio) – gwizdek i kibice, bez plików audio.
+// Dźwięki meczu generowane w przeglądarce (Web Audio), gwizdek i kibice, bez plików audio.
 import { getSettings, setSettings } from '../core/storage.js';
 
 let ctx = null, master = null, noiseBuf = null, amb = null;
@@ -23,7 +23,7 @@ function ac() {
   }
 }
 
-/** Wywołać w obsłudze dotknięcia – przeglądarki wymagają gestu, by odtwarzać dźwięk. */
+/** Wywołać w obsłudze dotknięcia, przeglądarki wymagają gestu, by odtwarzać dźwięk. */
 export function unlockAudio() { ac(); }
 
 function noise() {
@@ -135,7 +135,7 @@ export function kick(power = 1) {
   src.start(t, Math.random()); src.stop(t + 0.07);
 }
 
-/** Piłka w słupek lub poprzeczkę – metaliczny dźwięk. */
+/** Piłka w słupek lub poprzeczkę, metaliczny dźwięk. */
 export function post() {
   const c = ac();
   if (!c) return;

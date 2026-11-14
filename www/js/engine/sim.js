@@ -17,7 +17,7 @@ const PERIOD_END = [0, 2700, 5400, 6300, 7200];
 const NUMS = { GK: [1], RB: [2], LB: [3], CB: [4, 5, 15], DM: [6, 16], CM: [8, 14, 18], AM: [10, 20], RW: [7, 17], LW: [11, 21], CF: [9, 19, 22] };
 const SHW = [0.45, 1, 1.6];         // skłonność do strzałów (polecenie)
 const DRW = [0.55, 1, 1.5];         // skłonność do dryblingu
-const TK_RATE = [0.45, 0.75, 1.15]; // próby odbioru na sekundę (delikatny / normalny / ostry) – obrońca najpierw asekuruje
+const TK_RATE = [0.45, 0.75, 1.15]; // próby odbioru na sekundę (delikatny / normalny / ostry), obrońca najpierw asekuruje
 const ATTR_SPREAD = 0.7;            // różnice umiejętności w meczu (1 = pełne); pojedynki mają też losowość
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -168,7 +168,7 @@ export class LiveMatch extends Match {
   /** Mnożnik błędów: słaba ocena i zmęczenie zwiększają rozrzut. */
   errMul(a) {
     const st = this.sides[a.side].st[a.pid] ?? 90;
-    // słaba Koncentracja – więcej błędów, zwłaszcza w końcówce meczu
+    // słaba Koncentracja, więcej błędów, zwłaszcza w końcówce meczu
     const late = this.clk > 4500 ? 1 + Math.max(0, 70 - this.E(a, 'con')) / 250 : 1 + Math.max(0, 60 - this.E(a, 'con')) / 400;
     return (1 + Math.max(0, 6.3 - a.rating) * 0.25) * (1 + Math.max(0, 60 - st) / 120) * late;
   }
@@ -193,7 +193,7 @@ export class LiveMatch extends Match {
   /** Komunikacja bramkarza porządkuje krycie obrońców (do ok. 4%). */
   teamCom(s) { const g = this.gkOf(s); return g ? Math.max(0, (this.E(g, 'com') - 40) / 1500) : 0; }
 
-  /** Przyspieszenie (m/s²) – realistyczne: ok. 6–6,7 u najszybszych. */
+  /** Przyspieszenie (m/s²), realistyczne: ok. 6–6,7 u najszybszych. */
   accel(a) { return 4.3 + 2.7 * this.E(a, 'acc') / 100; }
 
   /** Czas dobiegnięcia na odległość d z uwzględnieniem rozpędzania się. */
@@ -261,7 +261,7 @@ export class LiveMatch extends Match {
     return clamp(v, 0.004, 0.85);
   }
 
-  /** Presja na zawodnika: rywale w promieniu ok. 4,5 m (bliżej i w biegu na niego – mocniej). */
+  /** Presja na zawodnika: rywale w promieniu ok. 4,5 m (bliżej i w biegu na niego, mocniej). */
   pressure(a) {
     let p = 0;
     for (const o of this.active(1 - a.side)) {
@@ -479,7 +479,7 @@ export class LiveMatch extends Match {
         else {
           const d = hyp(bx - 34, by);
           Y = clamp(1.2 + d * 0.06, 1.2, 10);
-          // sam na sam: zawodnik z piłką blisko i nikogo między nim a bramką – bramkarz skraca kąt
+          // sam na sam: zawodnik z piłką blisko i nikogo między nim a bramką, bramkarz skraca kąt
           if (b.owner && b.owner.side !== s && d < 19) {
             let free = true;
             for (const q of this.active(s)) {
@@ -655,7 +655,7 @@ export class LiveMatch extends Match {
     const cy = this.ry(s, o.y);
     const st = (this.sides[s].tac.style ?? 2) - 2;
     const off = PL - this.teams[1 - s].line;
-    // wysoko ustawiona obrona rywala: dużo miejsca za jej plecami – wybiegnięcia już przy rozegraniu od tyłu
+    // wysoko ustawiona obrona rywala: dużo miejsca za jej plecami, wybiegnięcia już przy rozegraniu od tyłu
     const highLine = this.teams[1 - s].line > 30;
     if (cy < (highLine ? 12 : 32)) return;
     const pres = this.pressure(o);
@@ -831,7 +831,7 @@ export class LiveMatch extends Match {
     const b = this.ball;
     const o = b.owner;
     if (!o) return;
-    // bramkarz z piłką w rękach – chwila na ustawienie się drużyny
+    // bramkarz z piłką w rękach, chwila na ustawienie się drużyny
     if (o.gk && o.holdT > 0) {
       o.holdT -= h;
       o.act = null;
@@ -871,7 +871,7 @@ export class LiveMatch extends Match {
     return clamp(0.22 + Math.random() * 0.45 * (1.15 - (0.6 * this.E(a, 'dec') + 0.4 * this.E(a, 'ft')) / 100) + (1 - pr) * 0.15, 0.12, 0.9);
   }
 
-  /** Wybór akcji zawodnika z piłką – oceny opcji z uwzględnieniem ryzyka i umiejętności. */
+  /** Wybór akcji zawodnika z piłką, oceny opcji z uwzględnieniem ryzyka i umiejętności. */
   decide(a) {
     const s = a.side, S = this.sides[s];
     const b = this.ball;
@@ -882,7 +882,7 @@ export class LiveMatch extends Match {
     const style = (tac.style ?? 2) - 2;
     // defensywny styl = gra bezpośrednia (szybko do przodu, mało podań z tyłu); ofensywny = cierpliwe rozegranie
     const risk = [0.88, 0.94, 1, 1.02, 1.04][tac.style ?? 2];
-    // kontratak: świeżo odzyskana piłka – gra do przodu, zanim rywal się ustawi (bardziej przy defensywnym stylu)
+    // kontratak: świeżo odzyskana piłka, gra do przodu, zanim rywal się ustawi (bardziej przy defensywnym stylu)
     const counter = this.t - (this.wonT[s] ?? -9) < 4.5 ? 1 + Math.max(0, -style) * 0.35 : 0;
     const wasting = tac.tw === 2 || (tac.tw === 1 && S.goals > this.sides[1 - s].goals && this.clk > 3600);
     const behind = this.sides[1 - s].goals - S.goals;
@@ -1001,7 +1001,7 @@ export class LiveMatch extends Match {
     const s = a.side;
     let R;
     if (kind === 'through' || (kind === 'air' && m.runT > 0 && m.runTo)) {
-      // podanie prostopadłe / za linię obrony (po ziemi albo górą nad obrońcami) – na wybieg partnera
+      // podanie prostopadłe / za linię obrony (po ziemi albo górą nad obrońcami), na wybieg partnera
       const dir = m.runT > 0 && m.runTo ? Math.atan2(m.runTo.y - m.y, m.runTo.x - m.x) : Math.atan2(this.goalY(s) - m.y, 34 - m.x);
       const lead = m.runT > 0 ? rnd(5, 9) * (kind === 'air' ? 1.4 : 1) : rnd(3, 6);
       R = { x: clamp(m.x + Math.cos(dir) * lead, 1.5, PW - 1.5), y: clamp(m.y + Math.sin(dir) * lead, 1.5, PL - 1.5) };
@@ -1039,7 +1039,7 @@ export class LiveMatch extends Match {
     const space = this.nearestOppDist(s, R);
     V *= 0.75 + 0.25 * Math.min(1, space / 5);
     let u = ps * V - (1 - ps) * lc * risk;
-    // podanie do zawodnika na spalonym – dobry rozgrywający to widzi
+    // podanie do zawodnika na spalonym, dobry rozgrywający to widzi
     if (kind === 'through' || kind === 'air') {
       const off = PL - this.teams[1 - s].line;
       if (this.ry(s, m.y) > Math.max(off, this.ry(s, a.y)) + 0.4 && this.ry(s, m.y) > PL / 2) {
@@ -1084,7 +1084,7 @@ export class LiveMatch extends Match {
     const roll = Math.random();
     const won = roll < pWin * (takeon ? 1 : 0.75);
     // próba odbioru przez obrońcę: często nic się nie dzieje (zawodnik zasłania piłkę), czasem obrońca zostaje minięty
-    if (!won && !takeon && roll > 1 - pBeat * 0.55) { /* minięty – niżej */ } else if (!won && !takeon) {
+    if (!won && !takeon && roll > 1 - pBeat * 0.55) { /* minięty, niżej */ } else if (!won && !takeon) {
       d.tackleCd = 0.7;
       a.decT = Math.min(a.decT, 0.15);
       return;
@@ -1227,7 +1227,7 @@ export class LiveMatch extends Match {
   clear(a, header = false) {
     const s = a.side, b = this.ball;
     let away = this.w(s, clamp(this.rx(s, a.x) + rnd(-18, 18), 3, PW - 3), clamp(this.ry(s, a.y) + rnd(25, 40), 20, 75));
-    // pod presją blisko własnej bramki – bezpiecznie za linię końcową albo na aut
+    // pod presją blisko własnej bramki, bezpiecznie za linię końcową albo na aut
     const Yc = this.ry(s, a.y), Xc = this.rx(s, a.x);
     if (Yc < 55 && Yc >= 13 && (Xc < 14 || Xc > PW - 14) && Math.random() < 0.15 + this.pressure(a) * 0.35) {
       away = this.w(s, Xc < 34 ? -5 : PW + 5, Yc + rnd(6, 25));
@@ -1368,7 +1368,7 @@ export class LiveMatch extends Match {
     }
     b.x += b.vx * h; b.y += b.vy * h;
     if (this.phase === 'PEN') {
-      // seria rzutów karnych: wynik każdego strzału rozstrzyga penTick – piłka tylko zatrzymuje się w siatce
+      // seria rzutów karnych: wynik każdego strzału rozstrzyga penTick, piłka tylko zatrzymuje się w siatce
       this.netClamp();
       return;
     }
@@ -1438,7 +1438,7 @@ export class LiveMatch extends Match {
     }
   }
 
-  /** Przebieg strzału: blok, parada, chwyt – zgodnie z rozstrzygnięciem pojedynku. */
+  /** Przebieg strzału: blok, parada, chwyt, zgodnie z rozstrzygnięciem pojedynku. */
   shotFlight() {
     const sh = this.shot, b = this.ball;
     const el = this.t - sh.t;
@@ -1492,7 +1492,7 @@ export class LiveMatch extends Match {
             // w bok, lekko w pole
             b.vx = sideSign * rnd(6, 11); b.vy = away * rnd(0.5, 3); b.vz = rnd(0.5, 3);
           } else {
-            // odbita przed siebie – szansa na dobitkę
+            // odbita przed siebie, szansa na dobitkę
             const ang = Math.atan2(away, rnd(-1, 1)), sp = rnd(6, 11);
             b.vx = Math.cos(ang) * sp; b.vy = Math.sin(ang) * sp; b.vz = rnd(0.5, 3);
           }
@@ -1553,7 +1553,7 @@ export class LiveMatch extends Match {
     this.key.push({ min: this.minLabel(), side: att, type: 'goal', pid: scorer ? scorer.pid : null, pid2: assist ? assist.pid : null, og: !!og, pen });
     this.shot = null;
     this.lastPass = null;
-    this.addFx('goal', { s: att, name: scorer ? scorer.ln + (og ? ' (sam.)' : '') : '' });
+    this.addFx('goal', { s: att, name: scorer ? scorer.ln + (og ? ', samobój' : '') : '' });
     this.addFx('net', { y: gy, x: clamp(b.x, 34 - GHW, 34 + GHW) });
     this.emit('goal', { side: att, a: scorer, assist, og: !!og, pen, kind: sh ? sh.kind : 'foot', score: [this.sides[0].goals, this.sides[1].goals] });
     this.setDead('goal', def, PW / 2, PL / 2, { scorer, att });
@@ -1610,7 +1610,7 @@ export class LiveMatch extends Match {
     const sides = new Set(cands.map((c) => c.a.side));
     let who = cands[0].a;
     if (sides.size > 1) {
-      // dwóch zawodników przy piłce – siła, technika i szybkość
+      // dwóch zawodników przy piłce, siła, technika i szybkość
       const A = cands.find((c) => c.a.side === 0).a, B = cands.find((c) => c.a.side === 1).a;
       const sc = (x) => this.E(x, 'st') * 0.22 + this.E(x, 'bal') * 0.18 + this.E(x, 'acc') * 0.18 + this.E(x, 'ant') * 0.14 + this.E(x, 'ft') * 0.14 + this.E(x, 'brv') * 0.14 + gaussR() * 14;
       who = sc(A) >= sc(B) ? A : B;
@@ -1903,7 +1903,7 @@ export class LiveMatch extends Match {
   }
 
   // =====================================================================
-  // stałe fragmenty i wznowienia – tylko z prawdziwych sytuacji
+  // stałe fragmenty i wznowienia, tylko z prawdziwych sytuacji
   // =====================================================================
   setDead(type, side, x, y, o = {}) {
     const b = this.ball;
@@ -1963,7 +1963,7 @@ export class LiveMatch extends Match {
     const ready = dSpot < 1.4 || (tk.goal && D2(tk, tk.goal) < 0.9);
     const [mn, mx] = { kickoff: [0.9, 4.5], throw: [0.9, 2.6], goalkick: [1.4, 3.2], corner: [1.9, 3.6], freekick: [1.4, 3.6], penalty: [2.6, 4.2], dropball: [0.6, 1.6] }[d.type] || [1, 3];
     if (!d.runup && (el < mn || !ready)) {
-      // wykonawca nie zdążył dobiec – piłkę bierze najbliższy zawodnik (nikt nie jest przenoszony)
+      // wykonawca nie zdążył dobiec, piłkę bierze najbliższy zawodnik (nikt nie jest przenoszony)
       if (el > mx + 1.5 && !ready && !d.repicked && d.type !== 'penalty') {
         d.repicked = true;
         const nt = this.nearestTo(d.side, sp.x, sp.y, d.type !== 'goalkick');
@@ -2179,7 +2179,7 @@ export class LiveMatch extends Match {
   // =====================================================================
   // zmiany, taktyka, decyzje sztabu rywala
   // =====================================================================
-  /** Zmiana – wykonywana przy najbliższej przerwie w grze. */
+  /** Zmiana, wykonywana przy najbliższej przerwie w grze. */
   sub(sideIdx, outPid, inPid) {
     const S = this.sides[sideIdx];
     if (S.subsLeft <= 0 || this.done) return false;

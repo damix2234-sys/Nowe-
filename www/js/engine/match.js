@@ -1,4 +1,4 @@
-// Silnik meczu – symulacja minuta po minucie z komentarzem.
+// Silnik meczu, symulacja minuta po minucie z komentarzem.
 import { clamp, gauss, pick, wpick, rint } from '../core/util.js';
 import { familiarity, stateFactor, slotRating, POS_GROUP } from './player.js';
 import { FORMATIONS, slotWeights, UNIT_BASE, defaultInstr, defaultSetPieces, autoLineup } from './tactics.js';
@@ -586,7 +586,7 @@ export class Match {
   }
 
   // ---------------- strzał ----------------
-  /** act – akcja przygotowania strzału (ostatnia linia narracji); dostaje wynik (res) i bramkarza (g). */
+  /** act, akcja przygotowania strzału (ostatnia linia narracji); dostaje wynik (res) i bramkarza (g). */
   shot(A, D, s, type, ast, st, setPiece = false, act = null) {
     const p = s.p, a = p.a;
     const f = familiarity(p, s.pos) * stateFactor(p) * stamF(A.st[s.pid]);
@@ -890,7 +890,7 @@ export class Match {
       const ok = R() < pr;
       if (ok) sc[si]++;
       const how = ok ? 'goal' : R() < 0.6 ? 'save' : 'miss';
-      const txt = ok ? `${S.name}: ${nm(s.p)} – gol!` : `${S.name}: ${nm(s.p)} – ${how === 'save' ? 'obronił ' + (gk ? nm(gk.p) : 'bramkarz') : 'pudło'}!`;
+      const txt = ok ? `${S.name}: ${nm(s.p)}, gol!` : `${S.name}: ${nm(s.p)}, ${how === 'save' ? 'obronił ' + (gk ? nm(gk.p) : 'bramkarz') : 'pudło'}!`;
       st.raw(`${txt} (${sc[0]}:${sc[1]})`, { t: 'pk', s: si, a: s.pid, g: gk ? gk.pid : null, v: how, score: [sc[0], sc[1]], n: kicks.length });
       kicks.push({ side: si, pid: s.pid, ok, score: [sc[0], sc[1]] });
     };

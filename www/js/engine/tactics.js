@@ -2,7 +2,7 @@
 import { clamp, wpick } from '../core/util.js';
 import { slotRating, ovr, POS_GROUP, stateFactor } from './player.js';
 
-// [pozycja, x (0 lewa – 100 prawa), y (0 własna bramka – 100 bramka rywala)]
+// [pozycja, x (0 lewa, 100 prawa), y (0 własna bramka, 100 bramka rywala)]
 export const FORMATIONS = {
   '4-4-2': [['GK', 50, 5], ['LB', 14, 24], ['CB', 38, 19], ['CB', 62, 19], ['RB', 86, 24], ['LW', 14, 52], ['CM', 38, 48], ['CM', 62, 48], ['RW', 86, 52], ['CF', 38, 80], ['CF', 62, 80]],
   '4-3-3': [['GK', 50, 5], ['LB', 14, 24], ['CB', 38, 19], ['CB', 62, 19], ['RB', 86, 24], ['CM', 30, 50], ['DM', 50, 38], ['CM', 70, 50], ['LW', 16, 76], ['CF', 50, 83], ['RW', 84, 76]],
@@ -26,7 +26,7 @@ export function slotWeights(y) {
   };
 }
 
-// Bazowe sumy wag (średnia ze wszystkich formacji) – normalizacja siły formacji.
+// Bazowe sumy wag (średnia ze wszystkich formacji), normalizacja siły formacji.
 export const UNIT_BASE = (() => {
   let d = 0, m = 0, a = 0;
   const fs = Object.values(FORMATIONS);

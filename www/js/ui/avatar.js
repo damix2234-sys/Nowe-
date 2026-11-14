@@ -1,4 +1,4 @@
-// Proceduralne awatary (płaskie portrety) generowane z ziarna – własna oprawa graficzna gry.
+// Proceduralne awatary (płaskie portrety) generowane z ziarna, własna oprawa graficzna gry.
 import { mkRng } from '../core/util.js';
 
 const SKIN = ['#F6D5B8', '#EEC39F', '#E2AF86', '#CF9A6E', '#B47D52', '#94613D', '#74472A', '#5A3620'];

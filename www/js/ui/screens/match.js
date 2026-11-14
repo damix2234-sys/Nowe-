@@ -13,7 +13,7 @@ import { nextEvent } from '../flow.js';
 import { Pitch2D } from '../pitch2d.js';
 import { whistle, crowd, kick, post, ambience, unlockAudio, soundOn, setSound } from '../sound.js';
 
-// rate – sekundy symulacji na sekundę rzeczywistą (sekunda symulacji = 10 s zegara meczu)
+// rate, sekundy symulacji na sekundę rzeczywistą (sekunda symulacji = 10 s zegara meczu)
 const SPEEDS = [{ rate: 0.8, label: '½×' }, { rate: 1.5, label: '1×' }, { rate: 3, label: '2×' }, { rate: 6, label: '4×' }];
 const WAIT_LABEL = { HT: 'Przerwa', ETB: 'Przed dogrywką', ETH: 'Przerwa w dogrywce', PENB: 'Przed karnymi' };
 
@@ -79,14 +79,14 @@ screen('match', {
         <div class="scorers" id="mt-scorers"></div>
       </div>
       <div class="pitch-wrap" id="mt-wrap">
-        <canvas id="mt-pitch" aria-label="Boisko – animacja meczu"></canvas>
+        <canvas id="mt-pitch" aria-label="Boisko, animacja meczu"></canvas>
         <button class="pitch-cam" data-a="mt.cam" aria-label="Zmień widok">${icon('target')}</button>
         <div class="mom" id="mt-mom" style="--p:50%"></div>
         <div id="mt-banner"></div>
       </div>
       <div class="bubble" id="mt-bubble">${icon('mic')}<span id="mt-line">${esc(lastLine)}</span></div>
       <div class="ctrl mt-ctrl">
-        <button data-a="mt.subs">${icon('swap')}<span id="mt-subs">Zmiany (${M.sides[us()].subsLeft})</span></button>
+        <button data-a="mt.subs">${icon('swap')}<span id="mt-subs">Zmiany: ${M.sides[us()].subsLeft}</span></button>
         <button data-a="mt.tactics">${icon('clipboard')}Taktyka</button>
         <button class="main" data-a="mt.play" id="mt-play">${icon(playing ? 'pause' : 'play')}<span>${playing ? 'Pauza' : 'Graj'}</span></button>
         <button data-a="mt.speed" id="mt-speed">${icon('ff')}<span>${SPEEDS[speed].label}</span></button>
@@ -95,7 +95,7 @@ screen('match', {
       <div class="mt">${seg('mt.tab', [['feed', 'Relacja'], ['lineups', 'Składy'], ['stats', 'Statystyki']], tab)}</div>
       <div class="card" id="mt-tabbody"></div>`;
     const sub = `${c ? c.short + ' · ' : ''}${fixtureStage(G, f)} · ${f.city}`;
-    return { title: `${H.name} – ${A.name}`, sub, back: false, body, cls: 'nofoot match-view', right: `<button class="iconbtn" id="mt-snd" data-a="mt.sound" aria-label="Dźwięk">${icon(soundOn() ? 'volume' : 'mute')}</button>` };
+    return { title: `${H.name} vs ${A.name}`, sub, back: false, body, cls: 'nofoot match-view', right: `<button class="iconbtn" id="mt-snd" data-a="mt.sound" aria-label="Dźwięk">${icon(soundOn() ? 'volume' : 'mute')}</button>` };
   },
   mount() {
     sizePitch();
@@ -177,13 +177,13 @@ function updateDyn() {
   }
   const mom = $('mt-mom'); if (mom) mom.style.setProperty('--p', `${Math.round(50 + (M.mom || 0) * 50)}%`);
   const S = M.sides[us()];
-  const subs = $('mt-subs'); if (subs) subs.textContent = `Zmiany (${S.subsLeft})`;
+  const subs = $('mt-subs'); if (subs) subs.textContent = `Zmiany: ${S.subsLeft}`;
   const pl = $('mt-play'); if (pl) pl.innerHTML = `${icon(playing ? 'pause' : 'play')}<span>${playing ? 'Pauza' : 'Graj'}</span>`;
   const sp = $('mt-speed'); if (sp) sp.innerHTML = `${icon('ff')}<span>${SPEEDS[speed].label}</span>`;
   const scr = $('mt-scorers');
   if (scr) {
     const goals = M.key.filter((k) => k.type === 'goal');
-    const col = (side) => goals.filter((g) => g.side === side).map((g) => `${esc(g.pid != null ? nameOf(g.pid) : '?')} ${g.min}${g.og ? ' (sam.)' : g.pen ? ' (k)' : ''}`).join('<br>');
+    const col = (side) => goals.filter((g) => g.side === side).map((g) => `${esc(g.pid != null ? nameOf(g.pid) : '?')} ${g.min}${g.og ? ' samobój' : g.pen ? ' karny' : ''}`).join('<br>');
     scr.innerHTML = goals.length ? `<div>${col(0)}</div><div style="text-align:right">${col(1)}</div>` : '';
   }
 }
@@ -233,10 +233,10 @@ function renderTab() {
           return `<div class="lu-p">${numOf(S.idx, s.pid)}${posBadge(s.pos)}<span class="nm">${esc(s.p.ln)}${pend.has(s.pid) ? ' 🔁' : ''}</span><span>${icons(s.pid)}</span>${r != null ? matchRating(r) : ''}${stm(S.st[s.pid] ?? 0)}</div>`;
         }).join('')}
         ${off.length ? `<div class="small muted mt">Zeszli: ${off.map((pid) => esc(S.spec.players[pid].ln) + ' ' + icons(pid)).join(', ')}</div>` : ''}
-        <div class="small muted mt">Ławka: ${S.bench.map((pid) => esc(S.spec.players[pid].ln)).join(', ') || '—'}</div></div>`;
+        <div class="small muted mt">Ławka: ${S.bench.map((pid) => esc(S.spec.players[pid].ln)).join(', ') || ''}</div></div>`;
     };
     const u = us();
-    el.innerHTML = `<div class="small muted mb">Ocena na żywo: od 7,0 zawodnik dostaje premię do umiejętności, poniżej 6,3 – karę i częściej się myli. Procent to świeżość (zmęczenie obniża umiejętności).</div><div class="lineups one">${col(M.sides[u])}${col(M.sides[1 - u])}</div>`;
+    el.innerHTML = `<div class="small muted mb">Ocena na żywo: od 7,0 zawodnik dostaje premię do umiejętności, a poniżej 6,3 karę i częściej się myli. Procent to świeżość, a zmęczenie obniża umiejętności.</div><div class="lineups one">${col(M.sides[u])}${col(M.sides[1 - u])}</div>`;
   } else {
     const r = M.result();
     const [a, b] = r.stats;
@@ -247,7 +247,7 @@ function renderTab() {
     el.innerHTML = `<div class="small muted center mb">Widzów: ${(M.attendance || 0).toLocaleString('pl-PL')}</div>`
       + row('Posiadanie piłki', a.poss, b.poss, (v) => v + '%') + row('Strzały', a.shots, b.shots) + row('Strzały celne', a.sot, b.sot)
       + row('Rzuty rożne', a.corners, b.corners) + row('Faule', a.fouls, b.fouls) + row('Spalone', a.offsides, b.offsides)
-      + row('Żółte kartki', a.yc, b.yc) + row('Czerwone kartki', a.rc, b.rc) + row('Oczekiwane gole (xG)', a.xg, b.xg, (v) => (+v).toFixed(2));
+      + row('Żółte kartki', a.yc, b.yc) + row('Czerwone kartki', a.rc, b.rc) + row('Oczekiwane gole xG', a.xg, b.xg, (v) => (+v).toFixed(2));
   }
 }
 
@@ -340,7 +340,7 @@ function showBreakBanner() {
   if (!b || !M) return;
   const w = M.waiting;
   const sc = `${M.sides[0].name} ${M.sides[0].goals}:${M.sides[1].goals} ${M.sides[1].name}`;
-  const label = w === 'HT' ? 'Przerwa' : w === 'ETB' ? 'Remis – będzie dogrywka' : w === 'ETH' ? 'Przerwa w dogrywce' : w === 'PENB' ? 'Rzuty karne' : 'Przerwa';
+  const label = w === 'HT' ? 'Przerwa' : w === 'ETB' ? 'Remis, będzie dogrywka' : w === 'ETH' ? 'Przerwa w dogrywce' : w === 'PENB' ? 'Rzuty karne' : 'Przerwa';
   b.innerHTML = `<div class="note pitch-note"><b>${esc(label)}</b> · ${esc(sc)}<div class="small muted">Możesz teraz wprowadzić zmiany lub skorygować taktykę.</div>
     <div class="btnrow mt"><button class="btn ghost small" data-a="mt.subs">${icon('swap')} Zmiany</button><button class="btn ghost small" data-a="mt.tactics">${icon('clipboard')} Taktyka</button><button class="btn small" data-a="mt.play">${icon('play')} Wznów</button></div></div>`;
 }
@@ -363,11 +363,11 @@ function finishMatch() {
 
 function showFinishBanner() {
   const b = $('mt-banner');
-  if (b) b.innerHTML = `<div class="note pitch-note"><b>Koniec meczu!</b> ${esc(M.sides[0].name)} ${M.sides[0].goals}:${M.sides[1].goals} ${esc(M.sides[1].name)}${M.pens ? ` (karne ${M.pens[0]}:${M.pens[1]})` : ''}
+  if (b) b.innerHTML = `<div class="note pitch-note"><b>Koniec meczu!</b> ${esc(M.sides[0].name)} ${M.sides[0].goals}:${M.sides[1].goals} ${esc(M.sides[1].name)}${M.pens ? `, karne ${M.pens[0]}:${M.pens[1]}` : ''}
     <div class="btnrow mt"><button class="btn" data-a="mt.summary">Podsumowanie ${icon('right')}</button></div></div>`;
 }
 
-/** Reszta meczu bez animacji – w porcjach, by nie blokować ekranu. */
+/** Reszta meczu bez animacji, w porcjach, by nie blokować ekranu. */
 async function simulateToEnd() {
   if (!M || finished || simBusy) return;
   const m = M;
@@ -408,7 +408,7 @@ function subsHTML() {
   const pendHTML = pend.length ? `<div class="note small mb">🔁 Czeka na przerwę w grze: ${pend.map((q) => `${esc(S.spec.players[q.in].ln)} za ${esc(S.spec.players[q.out].ln)}`).join(', ')}</div>` : '';
   return `<p class="small muted">Pozostało zmian: <b>${S.subsLeft}</b>. Wybierz zawodnika schodzącego, a potem wchodzącego. Zmiana nastąpi przy najbliższej przerwie w grze.</p>
     ${pendHTML}
-    <div class="label mb">Na boisku <span class="muted small">(ocena na żywo · świeżość)</span></div>
+    <div class="label mb">Na boisku <span class="muted small">ocena na żywo · świeżość</span></div>
     <div class="list">${on.filter((s) => !pendOut.has(s.pid)).map((s) => {
       const ps = S.ps[s.pid] || {};
       const r = M.liveRating(S.idx, s.pid);
@@ -479,7 +479,7 @@ actions({
       refreshSubs();
       updateDyn();
       renderTab();
-      toast(done ? 'Zmiana przeprowadzona.' : `${esc(inP.ln)} za ${esc(outP.ln)} – przy najbliższej przerwie w grze.`, 'good');
+      toast(done ? 'Zmiana przeprowadzona.' : `${esc(inP.ln)} za ${esc(outP.ln)}, przy najbliższej przerwie w grze.`, 'good');
     }
   },
   'mt.tactics': () => {
@@ -516,7 +516,7 @@ actions({
 
 function closeOverlayIfAny() { while (UIS.overlays.length) closeOverlay(); }
 
-/** Szybka symulacja meczu (bez oglądania) – w porcjach, z postępem na ekranie. */
+/** Szybka symulacja meczu (bez oglądania), w porcjach, z postępem na ekranie. */
 export async function quickSim(f, onProgress) {
   const m = prepareMatch(f, { quick: true });
   while (!m.done) {
@@ -542,7 +542,7 @@ screen('postmatch', {
     const usSide = f.h === h.nat ? 0 : 1;
     const scH = h.sc.filter((s) => (usSide === 0 ? s.own : !s.own));
     const scA = h.sc.filter((s) => (usSide === 0 ? !s.own : s.own));
-    const scList = (l) => l.map((s) => `${esc(s.n)} ${s.m}${s.pen ? ' (k)' : ''}${s.og ? ' (sam.)' : ''}`).join('<br>') || '—';
+    const scList = (l) => l.map((s) => `${esc(s.n)} ${s.m}${s.pen ? ' karny' : ''}${s.og ? ' samobój' : ''}`).join('<br>') || '';
     const [a, b] = h.st || [{}, {}];
     const statRow = (lbl, x, y, fmt = (v) => v) => {
       const t = (x + y) || 1;
@@ -555,7 +555,7 @@ screen('postmatch', {
       ratings = `<div class="card"><div class="card-h"><h3>Oceny zawodników</h3></div><div class="list">${list.map(({ p, s }) => `<div class="row tap" data-a="pl.open" data-k="${p.id}">${posBadge(s.pos || p.pos)}<div class="main"><div class="t1">${esc(fullName(p))} ${'⚽'.repeat(s.g)}${s.a ? '🅰️'.repeat(Math.min(s.a, 3)) : ''}${s.yc ? '🟨' : ''}${s.rc ? '🟥' : ''}${s.inj ? '✚' : ''}</div><div class="t2">${s.min || 0}' ${r.motm && r.motm.pid == p.id ? '· ⭐ zawodnik meczu' : ''}</div></div>${matchRating(s.r)}</div>`).join('')}</div></div>`;
     }
     const others = G.fixtures.filter((x) => x.d === f.d && x.id !== f.id && x.res && (x.comp === f.comp || G.comps[x.comp]?.type !== 'FRI')).slice(0, 12);
-    const othersHTML = others.length ? `<div class="card"><div class="card-h"><h3>Inne wyniki</h3></div>${others.map((x) => `<div class="fx-row"><span class="d">${esc(G.comps[x.comp]?.short || '')}</span><span class="teams">${flag(x.h)}<span class="tn">${esc(natName(x.h))}</span><span class="muted">–</span>${flag(x.a)}<span class="tn">${esc(natName(x.a))}</span></span><span class="r">${x.res.hg}:${x.res.ag}${x.res.pens ? '*' : ''}</span></div>`).join('')}</div>` : '';
+    const othersHTML = others.length ? `<div class="card"><div class="card-h"><h3>Inne wyniki</h3></div>${others.map((x) => `<div class="fx-row"><span class="d">${esc(G.comps[x.comp]?.short || '')}</span><span class="teams">${flag(x.h)}<span class="tn">${esc(natName(x.h))}</span><span class="muted">vs</span>${flag(x.a)}<span class="tn">${esc(natName(x.a))}</span></span><span class="r">${x.res.hg}:${x.res.ag}${x.res.pens ? '*' : ''}</span></div>`).join('')}</div>` : '';
     const body = `<div class="card">
         <div class="match-meta">${esc(h.comp)} · ${esc(h.stage)} · ${fmtDateLong(f.d)}</div>
         <div class="score"><div class="tm">${flag(f.h)}<span class="tn">${esc(natName(f.h))}</span></div>

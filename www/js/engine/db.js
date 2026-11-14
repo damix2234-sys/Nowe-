@@ -157,7 +157,7 @@ export function genName(nat, r = Math.random, used = null) {
   return res;
 }
 
-/** Generator losowy nowych umiejętności – osobny strumień z id zawodnika (baza świata pozostaje taka sama). */
+/** Generator losowy nowych umiejętności, osobny strumień z id zawodnika (baza świata pozostaje taka sama). */
 export const attrRng = (id) => mkRng(((id * 2654435761) ^ 0x5bd1e995) >>> 0);
 
 // Podstawowe 10 umiejętności (dawny zestaw); nowe uzupełnia extendAttrs.
@@ -199,7 +199,7 @@ export function makePlayer(world, natId, pos, target, age, r = Math.random, used
     a: genAttrs(pos, target, age, r), pot: target, club: 0, cst: 1,
     caps: 0, goals: 0, form: 0, cond: 95, mor: 55, inj: 0, susp: 0,
   };
-  // pozycje alternatywne według dawnych wag (ta sama sekwencja losowań – baza świata bez zmian)
+  // pozycje alternatywne według dawnych wag (ta sama sekwencja losowań, baza świata bez zmian)
   const o = oldRating(p.a, pos);
   for (const [q, c] of ALT_CHANCES[pos]) {
     if (p.alt.length < 2 && r() < c && oldRating(p.a, q) >= o - 7) p.alt.push(q);
