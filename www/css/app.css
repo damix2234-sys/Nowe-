@@ -33,6 +33,7 @@ body {
   min-height: 100dvh;
   background-color: var(--bg);
   background-image:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0) 0 90px, rgba(200, 150, 255, 0.05) 90px 150px, rgba(255, 255, 255, 0) 150px 240px),
     radial-gradient(900px 600px at 0% 0%, rgba(230, 30, 90, 0.42), transparent 60%),
     radial-gradient(900px 700px at 100% 100%, rgba(120, 30, 230, 0.45), transparent 60%),
     linear-gradient(160deg, #4a0828 0%, #3a0b4e 38%, #2a0b66 65%, #120436 100%);
@@ -55,10 +56,13 @@ a { color: var(--accent); }
 header.top {
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; gap: 8px;
-  padding: calc(var(--sat) + 8px) 10px 8px;
-  background: rgba(40, 6, 40, 0.55);
+  padding: calc(var(--sat) + 8px) 14px 8px;
+  margin: 0 10px;
+  background: linear-gradient(180deg, rgba(60, 14, 110, 0.78), rgba(30, 6, 60, 0.78));
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--line);
+  border: 1.5px solid rgba(190, 120, 255, 0.55); border-top: 0;
+  border-radius: 0 0 18px 18px;
+  box-shadow: 0 4px 18px rgba(140, 50, 255, 0.35), inset 0 -1px 0 rgba(230, 200, 255, 0.25);
   min-height: 56px;
 }
 header.top .ttl { flex: 1; min-width: 0; }
