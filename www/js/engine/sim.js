@@ -15,7 +15,7 @@ const PW = 68, PL = 105, GHW = 3.66, GH = 2.44, GRAV = 9.81;
 const ROLL_A = 1.3, ROLL_K = 0.22;  // toczenie piłki: dv/dt = -(A + K·v)
 const PERIOD_END = [0, 2700, 5400, 6300, 7200];
 const NUMS = { GK: [1], RB: [2], LB: [3], CB: [4, 5, 15], DM: [6, 16], CM: [8, 14, 18], AM: [10, 20], RW: [7, 17], LW: [11, 21], CF: [9, 19, 22] };
-const SHW = [0.45, 1, 1.6];         // skłonność do strzałów (polecenie)
+const SHW = [0.5, 1, 1.3];          // skłonność do strzałów (polecenie)
 const DRW = [0.55, 1, 1.5];         // skłonność do dryblingu
 const TK_RATE = [0.45, 0.75, 1.15]; // próby odbioru na sekundę (delikatny / normalny / ostry) – obrońca najpierw asekuruje
 const ATTR_SPREAD = 0.7;            // różnice umiejętności w meczu (1 = pełne); pojedynki mają też losowość
@@ -882,7 +882,7 @@ export class LiveMatch extends Match {
     // strzał
     if (Y > 66) {
       const xg = this.xg(s, a.x, a.y, a);
-      if (xg > 0.012) opts.push({ k: 'shot', u: xg * SHW[ins.sh] * (1 + desperate) * (wasting ? 0.8 : 1) * 1.35 });
+      if (xg > 0.012) opts.push({ k: 'shot', u: xg * SHW[ins.sh] * (1 + desperate) * (wasting ? 0.8 : 1) * 1.2 });
     }
     // podania
     const mates = this.active(s);
