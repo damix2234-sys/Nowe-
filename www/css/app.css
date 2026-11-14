@@ -663,3 +663,24 @@ main.view.match-view { padding-top: 8px; }
 .attr2.key { background: linear-gradient(90deg, rgba(150, 80, 255, 0.28), rgba(150, 80, 255, 0.08)); box-shadow: inset 3px 0 0 #c99bff; }
 .attr2.key .an { color: #fff; font-weight: 750; }
 .attr2 .a5 { color: #7dff9a; } .attr2 .a4 { color: #c8f56a; } .attr2 .a3 { color: #f3e37a; } .attr2 .a2 { color: #f4ad62; } .attr2 .a1 { color: #f37f71; }
+
+.train-row.low { box-shadow: inset 3px 0 0 #f37f71; padding-left: 10px; }
+.train-attrs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.train-attrs span { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: rgba(150, 80, 255, 0.16); color: var(--text2); }
+/* poradnik */
+.guide-sec { border: 1px solid var(--line); border-radius: 14px; margin-bottom: 10px; background: rgba(20, 8, 48, 0.55); overflow: hidden; }
+.guide-sec > summary { list-style: none; cursor: pointer; padding: 14px 14px; font-weight: 850; font-size: 16px; display: flex; align-items: center; gap: 10px; }
+.guide-sec > summary::-webkit-details-marker { display: none; }
+.guide-sec > summary::after { content: '›'; margin-left: auto; font-size: 22px; color: var(--text2); transition: transform 0.2s; }
+.guide-sec[open] > summary::after { transform: rotate(90deg); }
+.guide-sec > summary .gi { font-size: 22px; }
+.guide-body { padding: 0 14px 14px; font-size: 14px; line-height: 1.5; }
+.guide-body h4 { margin: 14px 0 6px; font-size: 14px; color: #d9b8ff; }
+.guide-body p { margin: 6px 0; }
+.guide-body ul { margin: 6px 0; padding-left: 18px; }
+.guide-body li { margin: 3px 0; }
+.guide-body .tip { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: rgba(125, 255, 154, 0.08); border-left: 3px solid #7dff9a; }
+.guide-body .warn { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: rgba(243, 127, 113, 0.08); border-left: 3px solid #f37f71; }
+.guide-body table { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 13px; }
+.guide-body td, .guide-body th { padding: 5px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.guide-body th { color: var(--text2); font-weight: 700; }

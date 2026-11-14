@@ -1,0 +1,218 @@
+// Poradnik: wszystkie najważniejsze mechaniki gry opisane prostym językiem.
+import { screen, actions, go } from '../ui.js';
+import { ATTR_NAMES, ATTR_HINTS, ATTR_GROUPS, POS_W, POS_NAMES, FORM_NAMES, FORM_MUL } from '../../engine/player.js';
+import { TRAIN_KEYS, TRAIN_NAMES, TRAIN_ATTRS, TRAIN_BUDGET, TRAIN_MAX, TRAIN_MIN, trainPct, monthlyGain } from '../../engine/training.js';
+
+const POS_LIST = ['GK', 'CB', 'LB', 'DM', 'CM', 'AM', 'LW', 'CF'];
+const pl = (v) => String(v).replace('.', ',');
+
+function attrTables() {
+  const seen = new Set();
+  return ATTR_GROUPS.map(([name, keys]) => `<h4>${name}</h4><table>${keys.filter((k) => !seen.has(k) && seen.add(k)).map((k) => `<tr><td><b>${ATTR_NAMES[k]}</b></td><td>${ATTR_HINTS[k] || ''}</td></tr>`).join('')}</table>`).join('');
+}
+
+function posTables() {
+  return POS_LIST.map((pos) => {
+    const w = Object.entries(POS_W[pos]).sort((a, b) => b[1] - a[1]);
+    return `<h4>${POS_NAMES[pos]}${pos === 'LB' ? ' i prawy obrońca' : pos === 'LW' ? ' i prawy skrzydłowy' : ''}</h4><p>${w.map(([k, v]) => `${ATTR_NAMES[k]} <b>${Math.round(v * 100)}%</b>`).join(', ')}</p>`;
+  }).join('');
+}
+
+function trainTable() {
+  return `<table><tr><th>Kategoria</th><th>Atrybuty</th></tr>${TRAIN_KEYS.map((k) => `<tr><td><b>${TRAIN_NAMES[k]}</b></td><td>${TRAIN_ATTRS[k].map((a) => ATTR_NAMES[a]).join(', ')}</td></tr>`).join('')}</table>`;
+}
+
+function trainLevels() {
+  const rows = [10, 8, 6, 5, 4, 3, 2, 0].map((p) => {
+    const pct = trainPct(p); const g = monthlyGain(p);
+    return `<tr><td><b>${p} pkt</b></td><td class="${pct > 0 ? 'good-t' : pct < 0 ? 'bad-t' : ''}">${pct > 0 ? '+' : ''}${pct}%</td><td class="${g > 0 ? 'good-t' : g < 0 ? 'bad-t' : ''}">${g > 0 ? '+' : ''}${pl(g.toFixed(2))}</td></tr>`;
+  }).join('');
+  return `<table><tr><th>Punkty</th><th>W meczu</th><th>Co miesiąc, kluczowe atrybuty</th></tr>${rows}</table>`;
+}
+
+const SECTIONS = [
+  { id: 'start', ic: '🚀', t: 'Jak grać, krok po kroku', b: () => `
+    <p>Jesteś selekcjonerem reprezentacji. Nie kupujesz zawodników, tylko wybierasz najlepszych z tych, którzy grają w klubach, i prowadzisz ich w meczach.</p>
+    <ul>
+      <li><b>Dalej</b> przesuwa czas. Gra sama się zatrzyma, gdy coś wymaga Twojej decyzji: powołania, mecz, konferencja, wiadomość.</li>
+      <li><b>Powołania.</b> Przed każdym zgrupowaniem wybierasz 23 zawodników, a na turniej 26. Patrz na OVR, formę, świeżość i kontuzje.</li>
+      <li><b>Taktyka.</b> Wybierz formację i ustaw wyjściową jedenastkę. Liczba na żetonie to siła zawodnika na tej pozycji.</li>
+      <li><b>Trening.</b> Rozdziel punkty treningu. To daje bonus w meczu i rozwija zawodników co miesiąc.</li>
+      <li><b>Mecz.</b> Oglądasz go na żywo albo symulujesz. W trakcie robisz zmiany i zmieniasz taktykę.</li>
+      <li><b>Konferencje i rozmowy</b> zmieniają nastroje mediów, kibiców i zawodników.</li>
+      <li><b>Federacja</b> ocenia Twoją pracę. Gdy jej zaufanie spadnie za nisko, zostaniesz zwolniony.</li>
+    </ul>
+    <div class="tip">Najprostszy przepis na sukces: powołuj zawodników w dobrej formie i świeżych, wystawiaj ich na ich nominalnych pozycjach, trenuj to, czego potrzebuje Twój styl gry, i dawaj minuty młodym.</div>` },
+
+  { id: 'ovr', ic: '⭐', t: 'OVR, czyli ocena ogólna', b: () => `
+    <p>OVR to jedna liczba, która mówi, jak dobry jest zawodnik <b>na swojej pozycji</b>. Liczy się ją jako średnią ważoną tylko tych atrybutów, które są ważne dla tej pozycji. W profilu zawodnika są podświetlone.</p>
+    <p>Przykład: napastnik z Wykończeniem 90 i Odbiorem 30 ma wysoki OVR, bo Odbiór w ogóle nie wchodzi do oceny napastnika. Ten sam zawodnik jako obrońca miałby bardzo niską ocenę.</p>
+    <div class="tip">Atrybuty spoza OVR nadal działają na boisku. Napastnik z dobrym Odbiorem naprawdę częściej odbierze piłkę, tylko jego OVR tego nie pokazuje.</div>
+    <h4>Gra poza swoją pozycją</h4>
+    <ul>
+      <li>Swoja pozycja: <b>100%</b> siły.</li>
+      <li>Pozycja alternatywna, podana w profilu: <b>96%</b>.</li>
+      <li>Pozycja zbliżona, na przykład środkowy obrońca jako defensywny pomocnik: <b>88%</b>.</li>
+      <li>Zupełnie obca pozycja: <b>75%</b>.</li>
+      <li>Zawodnik z pola w bramce: <b>25%</b>.</li>
+    </ul>
+    <p>Kolor obwódki żetonu w taktyce to pokazuje: zielony oznacza swoją pozycję, żółty zbliżoną, a czerwony obcą.</p>
+    <h4>Co liczy się do OVR na każdej pozycji</h4>${posTables()}` },
+
+  { id: 'attrs', ic: '📊', t: 'Atrybuty i co robią', b: () => `
+    <p>Każdy zawodnik ma 47 atrybutów w skali od 1 do 99. Do tego wzrost i waga. Każdy atrybut jest używany w meczu do konkretnej czynności, więc nie ma atrybutów bez znaczenia.</p>
+    <ul>
+      <li><b>Kolory liczb:</b> zielony to świetnie, żółty przeciętnie, pomarańczowy i czerwony słabo.</li>
+      <li><b>Wzrost</b> pomaga w walce o górne piłki. Każdy centymetr ponad 180 to mała przewaga. U bramkarza wzrost zwiększa zasięg parady.</li>
+      <li><b>Pojedynki.</b> Drybling zawsze walczy z Odbiorem, Gra głową ze Skocznością i Siłą rywala, a Wykończenie z Refleksem bramkarza.</li>
+    </ul>${attrTables()}` },
+
+  { id: 'pot', ic: '🔮', t: 'Potencjał', b: () => `
+    <p>Potencjał to <b>sufit</b>, do którego zawodnik może dorosnąć. Każdy zawodnik ma go ukrytego od początku gry.</p>
+    <ul>
+      <li>Młody zawodnik rośnie tym szybciej, im większa różnica między potencjałem a obecnym OVR. Gdy zbliża się do potencjału, rośnie coraz wolniej.</li>
+      <li>Od 27 lat potencjał powoli opada do poziomu obecnego OVR. Zawodnik po prostu przestaje się rozwijać.</li>
+      <li>Trening może podnieść zawodnika najwyżej o 3 punkty ponad jego potencjał.</li>
+    </ul>
+    <h4>Jak sprawdzić potencjał</h4>
+    <ul>
+      <li>Wejdź w <b>Federacja</b> i poproś zarząd o <b>Sieć skautów</b>. Zarząd się zgodzi, jeśli ma do Ciebie wystarczające zaufanie.</li>
+      <li>Od tej chwili w profilu każdego zawodnika poniżej 27 lat zobaczysz liczbę potencjału.</li>
+      <li>🔥 przy liczbie oznacza, że zawodnik może urosnąć o 10 lub więcej punktów. ↗ oznacza 5 lub więcej.</li>
+      <li>U zawodników od 27 lat zobaczysz napis <b>osiągnięty</b>, bo już się nie rozwiną.</li>
+    </ul>
+    <div class="tip">Szukaj młodych z 🔥 i dawaj im grać w kadrze lub w U-21. To przyszłe gwiazdy Twojej reprezentacji.</div>` },
+
+  { id: 'dev', ic: '📈', t: 'Rozwój zawodników', b: () => `
+    <p>Raz w miesiącu każdy zawodnik zyskuje albo traci trochę OVR. O tym, ile, decydują:</p>
+    <h4>1. Wiek</h4>
+    <table>
+      <tr><td><b>do 20 lat</b></td><td>zyskuje co miesiąc 4,5% odległości do potencjału. Przykład: OVR 60 i potencjał 80, różnica 20, więc rośnie o ok. 0,9 na miesiąc.</td></tr>
+      <tr><td><b>21 do 23</b></td><td>3,5% tej różnicy, czyli dalej szybko.</td></tr>
+      <tr><td><b>24 do 27</b></td><td>2% tej różnicy, czyli już powoli.</td></tr>
+      <tr><td><b>28 do 30</b></td><td>lekki spadek, ok. 0,05 na miesiąc.</td></tr>
+      <tr><td><b>31 do 32</b></td><td>spadek ok. 0,2 na miesiąc.</td></tr>
+      <tr><td><b>33 i więcej</b></td><td>spadek ok. 0,34 na miesiąc. Najszybciej spada szybkość, przyspieszenie, zwinność i wytrzymałość.</td></tr>
+    </table>
+    <h4>2. Status w klubie</h4>
+    <p>Kluczowy zawodnik dostaje +0,08 na miesiąc, ważny +0,04, rotacyjny nic, a rezerwowy traci 0,07. Kto nie gra w klubie, ten się cofa.</p>
+    <h4>3. Gra w kadrze lub U-21</h4>
+    <p>Zawodnik do 23 lat, który zagrał w tym miesiącu, dostaje dodatkowo do +0,24.</p>
+    <h4>4. Trening kadry</h4>
+    <p>Zawodnicy powołani do kadry i U-21 co miesiąc dostają albo tracą punkty w atrybutach według Twojego planu treningowego. Szczegóły w części Trening.</p>
+    <h4>5. Kontuzje i doświadczenie</h4>
+    <p>Kontuzja dłuższa niż 20 dni zabiera 0,1. Z wiekiem rosną powoli doświadczenie i głowa: Przywództwo, Opanowanie, Decyzje, Przewidywanie, Ustawianie się i Koncentracja.</p>
+    <div class="tip">Zawodnik przed trzydziestką to najlepszy moment. Po trzydziestce warto szukać jego następcy.</div>` },
+
+  { id: 'train', ic: '🏋️', t: 'Trening', b: () => `
+    <p>Masz <b>${TRAIN_BUDGET} punktów</b> do rozdzielenia na ${TRAIN_KEYS.length} kategorii, maksymalnie <b>${TRAIN_MAX}</b> na jedną. Każda kategoria trenuje swoje atrybuty.</p>
+    <h4>Co daje trening</h4>
+    <ul>
+      <li><b>Bonus w meczu.</b> Każdy punkt powyżej ${TRAIN_MIN} wzmacnia w meczu atrybuty z tej kategorii o 2%. Przy ${TRAIN_MAX} punktach to +${trainPct(TRAIN_MAX)}%.</li>
+      <li><b>Rozwój co miesiąc.</b> Zawodnicy kadry i U-21 dostają punkty w atrybutach tej kategorii. Najwięcej w atrybutach kluczowych dla swojej pozycji, a w pozostałych trzy razy mniej. Młodzi rosną szybciej, starsi wolniej.</li>
+      <li><b>Kondycja</b> dodatkowo sprawia, że zawodnicy wolniej się męczą w meczu i rzadziej łapią kontuzje.</li>
+    </ul>
+    <div class="warn"><b>Zaniedbanie.</b> Jeśli kategoria ma mniej niż ${TRAIN_MIN} punkty, jej atrybuty działają w meczu słabiej, a przy 0 punktach aż o ${-trainPct(0)}%. Do tego co miesiąc zawodnicy tracą w nich punkty. Przykład: 0 punktów w Treningu bramkarzy to słabszy bramkarz w każdym meczu.</div>
+    <h4>Ile daje ile punktów</h4>${trainLevels()}
+    <h4>Które atrybuty należą do której kategorii</h4>${trainTable()}
+    <h4>Przykładowe plany</h4>
+    <ul>
+      <li><b>Zrównoważony:</b> po 5 w każdej kategorii. Wszędzie mały bonus, żadnych kar.</li>
+      <li><b>Atak:</b> Ofensywa 10, Posiadanie 6, Kondycja 5, Bramkarze 4, Defensywa 4, Stałe fragmenty 4, Mentalne 2. Duży bonus dla napastników, mała kara w głowie.</li>
+      <li><b>Mur:</b> Defensywa 10, Kondycja 6, Bramkarze 6, Stałe fragmenty 5, Posiadanie 4, Mentalne 4, Ofensywa 0. Bardzo szczelna obrona, ale słaby atak.</li>
+    </ul>
+    <div class="tip">Trenuj to, co pasuje do Twojej taktyki i Twoich najlepszych zawodników. Uważaj z wartościami poniżej ${TRAIN_MIN}, bo kara działa w każdym meczu i co miesiąc obniża atrybuty.</div>
+    <p>Prośba do federacji o <b>Obóz przygotowawczy</b> daje zawodnikom kadry od razu efekt dwóch miesięcy treningu.</p>` },
+
+  { id: 'form', ic: '🔥', t: 'Forma, morale i świeżość', b: () => `
+    <p>To dyspozycja dnia. Te same atrybuty mogą dać w meczu dużo więcej albo dużo mniej.</p>
+    <h4>Forma</h4>
+    <table>${[2, 1, 0, -1, -2].map((f) => `<tr><td><b>${FORM_NAMES[f + 2]}</b></td><td class="${f > 0 ? 'good-t' : f < 0 ? 'bad-t' : ''}">${f === 0 ? 'bez zmian' : `${f > 0 ? '+' : ''}${Math.round((FORM_MUL[f] - 1) * 100)}% do wszystkich atrybutów`}</td></tr>`).join('')}</table>
+    <p>Forma co tydzień może się zmienić o jeden poziom. Zawodnicy kluczowi w klubach częściej idą w górę. Rozmowa z zawodnikiem może ją poprawić.</p>
+    <h4>Morale</h4>
+    <p>Morale od 0 do 100 daje w meczu do 3% w górę albo w dół. Wygrana daje +4, remis +1, porażka 3 w dół. Świetna ocena w meczu dodaje 3, słaba zabiera 3. Pominięcie w powołaniach, złamana obietnica i źle przeprowadzona rozmowa obniżają morale. Z czasem morale wraca w okolice 55.</p>
+    <h4>Świeżość</h4>
+    <ul>
+      <li>Procent przy zawodniku to jego świeżość. W meczu spada, wolniej u zawodników z dobrą Wytrzymałością.</li>
+      <li>Zmęczenie obniża atrybuty fizyczne nawet o 44%, a techniczne o 30%. Zmęczony zawodnik częściej się myli.</li>
+      <li>Między meczami świeżość wraca o 2,5% dziennie. Naturalna kondycja przyspiesza regenerację.</li>
+      <li>Wysoki pressing i ofensywny styl męczą szybciej. Trening Kondycji męczy wolniej.</li>
+    </ul>
+    <div class="tip">Zawodnik w formie Znakomitej z OVR 72 gra często lepiej niż zawodnik w formie Fatalnej z OVR 77. Patrz na formę przy powołaniach.</div>` },
+
+  { id: 'match', ic: '⚽', t: 'Mecz: jak to działa', b: () => `
+    <p>Na boisku każdy zawodnik sam decyduje, co robi: podaje, drybluje, strzela, biega bez piłki, pressuje i kryje. Każde starcie rozstrzyga porównanie atrybutów obu zawodników, z odrobiną szczęścia.</p>
+    <h4>Siła zawodnika w danej chwili</h4>
+    <p>Atrybut razy forma, morale, ocena na żywo, zmęczenie, dopasowanie do pozycji, trening, atut własnego boiska i kapitan.</p>
+    <h4>Ocena na żywo</h4>
+    <ul>
+      <li>Każdy zaczyna od 6,5. Dobre zagrania podnoszą ocenę, błędy obniżają.</li>
+      <li>Od 7,0 zawodnik dostaje do +6% do umiejętności. Rozpędzony gra coraz lepiej.</li>
+      <li>Poniżej 6,3 dostaje do 8% kary i częściej się myli. Warto go wtedy zmienić.</li>
+    </ul>
+    <h4>Inne czynniki</h4>
+    <ul>
+      <li><b>Własne boisko</b> daje drużynie +3%.</li>
+      <li><b>Kapitan</b> z wysokim Przywództwem daje do +2% całej drużynie.</li>
+      <li><b>Determinacja</b> pomaga, gdy przegrywacie. <b>Koncentracja</b> zmniejsza błędy w końcówce.</li>
+      <li><b>Charakter</b> zmienia styl gry: Polot to więcej dryblingu i strzałów z daleka, Agresja więcej odbiorów i fauli, Pracowitość mocniejszy pressing.</li>
+    </ul>
+    <h4>Zmiany w meczu</h4>
+    <p>Masz 5 zmian. Zmiana wchodzi przy najbliższej przerwie w grze. Zmieniaj zmęczonych i tych z oceną poniżej 6,3.</p>` },
+
+  { id: 'tactics', ic: '🧠', t: 'Taktyka', b: () => `
+    <ul>
+      <li><b>Formacja.</b> Dobierz ją do zawodników, których masz. Lepiej mieć silnych zawodników na swoich pozycjach niż modną formację.</li>
+      <li><b>Styl gry.</b> Ofensywny daje więcej okazji, ale zostawia miejsce rywalowi. Defensywny odwrotnie.</li>
+      <li><b>Pressing.</b> Wysoki odbiera piłkę wyżej, ale szybko męczy. Niski oszczędza siły.</li>
+      <li><b>Gra na czas.</b> Pomaga dowieźć prowadzenie, ale zmniejsza liczbę Twoich akcji.</li>
+      <li><b>Pułapki ofsajdowe.</b> Więcej spalonych rywala, ale gdy się nie uda, rywal wychodzi sam na sam.</li>
+      <li><b>Polecenia indywidualne.</b> Jak często strzelać, dryblować, jakie podania grać i jak ostro odbierać. Ostry odbiór to więcej kartek.</li>
+      <li><b>Stałe fragmenty.</b> Wybierz wykonawców: do rożnych zawodnika z dobrymi Rzutami rożnymi, do karnych z Rzutami karnymi i Opanowaniem. W pole karne wysyłaj wysokich z dobrą Grą głową.</li>
+    </ul>
+    <div class="tip">Przed meczem czytaj Raport asystenta. Podpowiada, kto jest zmęczony, kto gra poza pozycją i jakie słabości ma rywal.</div>` },
+
+  { id: 'squad', ic: '👥', t: 'Powołania i prowadzenie zawodników', b: () => `
+    <ul>
+      <li><b>Kogo powoływać:</b> wysoki OVR, dobra forma, świeżość powyżej 80%, brak kontuzji. Miej po dwóch zawodników na każdą pozycję.</li>
+      <li><b>Status w klubie</b> mówi, czy zawodnik gra regularnie. Rezerwowi w klubach tracą formę i się cofają.</li>
+      <li><b>Pominięcie gwiazdy</b> obniża jej morale i zaufanie zawodników do Ciebie.</li>
+      <li><b>Rozmowy.</b> Pochwała pomaga zawodnikom w formie, krytyka może pobudzić tych w słabszej formie. Obietnica gry w pierwszym składzie daje dużo morale, ale jej złamanie mocno boli.</li>
+      <li><b>Kartki.</b> Czerwona kartka to pauza w następnym meczu. Dwie żółte w meczach o punkty to również pauza.</li>
+      <li><b>U-21.</b> Młodzi do 21 lat rozwijają się szybciej, gdy grają w kadrze U-21.</li>
+    </ul>` },
+
+  { id: 'fed', ic: '🏛️', t: 'Federacja, kibice i media', b: () => `
+    <ul>
+      <li><b>Zaufanie federacji</b> to Twoja posada. Rośnie po wygranych i zrealizowanych celach, spada po porażkach. Gdy spadnie za nisko, zostaniesz zwolniony. Wcześniej dostaniesz ostrzeżenie.</li>
+      <li><b>Cele</b> od zarządu znajdziesz w menu Federacja. Ich realizacja mocno podnosi zaufanie.</li>
+      <li><b>Kibice</b> reagują na wyniki i styl gry. <b>Zawodnicy</b> na powołania i Twoje słowa. <b>Media</b> na konferencje prasowe.</li>
+      <li><b>Prośby do zarządu:</b> obóz treningowy, sztab medyczny leczący kontuzje szybciej, sieć skautów pokazująca potencjał i prestiżowy sparing. Każda prośba kosztuje trochę zaufania.</li>
+      <li><b>Ranking</b> rośnie po wygranych z silnymi rywalami. Wyższy ranking to łatwiejsze losowania i lepsze oferty pracy.</li>
+    </ul>` },
+
+  { id: 'tips', ic: '💡', t: 'Złote rady', b: () => `
+    <ul>
+      <li>Forma i świeżość są równie ważne jak OVR.</li>
+      <li>Nie wystawiaj zawodników poza ich pozycją, chyba że musisz.</li>
+      <li>Trenuj zgodnie ze stylem gry i nie zostawiaj ważnych kategorii poniżej ${TRAIN_MIN} punktów.</li>
+      <li>Zatrudnij skautów jak najszybciej i inwestuj minuty w młodych z dużym potencjałem.</li>
+      <li>W meczu zmieniaj zawodników zmęczonych i z niską oceną na żywo.</li>
+      <li>Rotuj składem w meczach towarzyskich, żeby gwiazdy były świeże na mecze o punkty.</li>
+      <li>Dbaj o zaufanie federacji: realizuj cele i nie przegrywaj z dużo słabszymi.</li>
+    </ul>` },
+];
+
+let openId = null;
+
+screen('guide', {
+  render(params = {}) {
+    if (params.sec) { openId = params.sec; params.sec = null; }
+    const body = `<p class="small muted mb">Dotknij tematu, aby go rozwinąć.</p>${SECTIONS.map((s) => `<details class="guide-sec" ${openId === s.id ? 'open' : ''}><summary><span class="gi">${s.ic}</span>${s.t}</summary><div class="guide-body">${s.b()}</div></details>`).join('')}`;
+    return { title: 'Poradnik', sub: 'Jak prowadzić reprezentację', cls: 'nofoot', body };
+  },
+});
+
+actions({
+  'guide.open': (d) => go('guide', { sec: d.k === 'training' ? 'train' : d.k || null }),
+});

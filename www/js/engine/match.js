@@ -122,7 +122,7 @@ export class Match {
   onSlots(S) { return S.on.filter(Boolean); }
   slotOf(S, pid) { return S.on.find((s) => s && s.pid === pid) || null; }
   gkSlot(S) { return S.on.find((s) => s && s.pos === 'GK') || null; }
-  lvl(S, k) { return (S.train[k] || 0) / 100; }
+  lvl(S, k) { return (S.train[k] ?? 5) / 10; }
 
   pickSlot(S, wf, excl = null) {
     const c = this.onSlots(S).filter((s) => s.pid !== excl);

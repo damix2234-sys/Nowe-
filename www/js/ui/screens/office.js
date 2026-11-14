@@ -1,5 +1,6 @@
 // Trening, federacja, oferty, statystyki, osiągnięcia, ustawienia, zapis gry, edytor.
 import { screen, actions, go, reset, rerender, esc, icon, posBadge, rating, flag, seg, chips, bar, toast, sheet, closeOverlay, modal, av, resChip, matchRating, natStars, empty, confirmBox, busy } from '../ui.js';
+import { TRAIN_MAX, TRAIN_MIN, trainPct, monthlyGain, TRAIN_ATTR_LIST } from '../../engine/training.js';
 import { G, me, natName, TRAIN_KEYS, TRAIN_NAMES, TRAIN_BUDGET, setTraining, REQUESTS, requestState, makeRequest, resign, acceptOffer, declineOffer, trustLabel } from '../../engine/game.js';
 import { NAT, NATIONS, CONFS, CONF_ORDER } from '../../data/nations.js';
 import { ACHIEVEMENTS } from '../../data/achievements.js';
@@ -17,26 +18,38 @@ import { setLastList } from './squad.js';
 
 // ---------------- trening ----------------
 const TRAIN_DESC = {
-  cond: 'Zawodnicy wolniej się męczą w meczach i rzadziej łapią kontuzje.',
-  poss: 'Lepsza kontrola gry i dokładniejsze rozegranie w środku pola.',
-  sp: 'Skuteczniejsze rzuty rożne, wolne i karne.',
-  off: 'Więcej groźnych akcji i lepsze zgranie w ataku.',
-  def: 'Szczelniejsza obrona i lepsze ustawienie bez piłki.',
-  ment: 'Odporność na presję: mecze wyjazdowe, końcówki i rzuty karne.',
+  cond: 'Siła, szybkość i wytrzymałość. Wolniejsze męczenie się w meczu i mniej kontuzji.',
+  poss: 'Podania, przyjęcie, technika i decyzje. Dokładniejsze rozegranie.',
+  sp: 'Rożne, wolne, karne, wrzuty z autu i gra głową.',
+  off: 'Wykończenie, strzały z dystansu, drybling, dośrodkowania i gra bez piłki.',
+  def: 'Odbiór, krycie, ustawianie się, przewidywanie i pressing.',
+  ment: 'Opanowanie, koncentracja, determinacja i przywództwo.',
+  gk: 'Wszystkie umiejętności bramkarskie. Działa tylko na bramkarzy.',
 };
+
+function trainEffect(pts) {
+  const pct = trainPct(pts);
+  const g = monthlyGain(pts);
+  const m = pct > 0 ? `<span class="good-t">+${pct}% w meczu</span>` : pct < 0 ? `<span class="bad-t">${pct}% w meczu</span>` : '<span class="muted">bez bonusu w meczu</span>';
+  const d = g > 0 ? `<span class="good-t">+${g.toFixed(2).replace('.', ',')} pkt co miesiąc</span>` : g < 0 ? `<span class="bad-t">${g.toFixed(2).replace('.', ',')} pkt co miesiąc</span>` : '<span class="muted">atrybuty bez zmian</span>';
+  return `${m} · ${d}`;
+}
 
 screen('training', {
   render() {
     const t = G.team.train;
     const used = TRAIN_KEYS.reduce((s, k) => s + t.alloc[k], 0);
     const asst = G.staff ? G.staff.assistant : null;
-    const body = `<div class="card speech">${av(asst ? hashStr(asst.ln + 'a') : 1, { shirt: '#3d7bff' })}<div class="txt">Kadrowicze większość czasu spędzają w klubach, ale każde zgrupowanie to kilka cennych jednostek treningowych. Rozdziel punkty, im więcej punktów, tym szybciej rośnie poziom wytrenowania w danym obszarze. Między zgrupowaniami efekty powoli słabną.</div></div>
+    const body = `<div class="card speech">${av(asst ? hashStr(asst.ln + 'a') : 1, { shirt: '#3d7bff' })}<div class="txt">Masz ${TRAIN_BUDGET} punktów do rozdzielenia, maksymalnie ${TRAIN_MAX} na kategorię. Każdy punkt powyżej ${TRAIN_MIN} wzmacnia atrybuty z tej kategorii w meczu o 2% i co miesiąc dodaje zawodnikom kadry punkty, najwięcej w atrybutach kluczowych dla ich pozycji. Poniżej ${TRAIN_MIN} punktów kategoria jest zaniedbana: atrybuty działają w meczu słabiej i co miesiąc trochę spadają.</div></div>
       <div class="card"><div class="card-h"><h3>Plan treningowy</h3><span class="tag ${used >= TRAIN_BUDGET ? 'acc' : 'gold'}">${used}/${TRAIN_BUDGET} pkt</span></div>
-      ${TRAIN_KEYS.map((k) => `<div class="train-row"><div class="top"><div class="grow"><b>${TRAIN_NAMES[k]}</b><div class="small muted">${TRAIN_DESC[k]}</div></div>
+      ${TRAIN_KEYS.map((k) => `<div class="train-row ${t.alloc[k] < TRAIN_MIN ? 'low' : ''}"><div class="top"><div class="grow"><b>${TRAIN_NAMES[k]}</b><div class="small muted">${TRAIN_DESC[k]}</div></div>
         <button class="stepper" data-a="tr.step" data-k="${k}" data-v="-1" aria-label="Mniej">${icon('minus')}</button><span class="val">${t.alloc[k]}</span><button class="stepper" data-a="tr.step" data-k="${k}" data-v="1" aria-label="Więcej">${icon('plus')}</button></div>
-        <div class="row-flex mt small"><span class="muted" style="width:96px">wytrenowanie</span><div class="grow">${bar(t.lvl[k], 'blue')}</div><b style="width:28px;text-align:right">${Math.round(t.lvl[k])}</b></div></div>`).join('')}
-      </div>`;
-    return { title: 'Trening', sub: 'Zgrupowania kadry', cls: 'nofoot', body };
+        <div class="small mt">${trainEffect(t.alloc[k])}</div>
+        <div class="train-attrs">${TRAIN_ATTR_LIST(k).map((n) => `<span>${n}</span>`).join('')}</div></div>`).join('')}
+      </div>
+      <p class="small muted center">Trening działa na zawodników powołanych do kadry i U-21. Pełne wyjaśnienie znajdziesz w Poradniku.</p>
+      <button class="btn ghost block mb" data-a="guide.open" data-k="training">${icon('help')} Poradnik: trening</button>`;
+    return { title: 'Trening', sub: 'Plan treningowy kadry', cls: 'nofoot', body };
   },
 });
 

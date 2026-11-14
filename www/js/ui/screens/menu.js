@@ -34,6 +34,7 @@ screen('menu', {
           <button class="btn ghost" data-a="menu.load">${icon('save')}Wczytaj grę</button>
           <button class="btn ghost" data-a="menu.editor">${icon('pencil')}Edytor zawodników</button>
           <button class="btn ghost" data-a="menu.ach">${icon('star')}Osiągnięcia</button>
+          <button class="btn ghost" data-a="guide.open">${icon('help')}Poradnik</button>
           <button class="btn ghost" data-a="menu.about">${icon('info')}O grze</button>
         </div>
         <div class="ver">wersja ${VERSION}</div>

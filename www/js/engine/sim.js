@@ -4,6 +4,7 @@
 // (przechwyty), Gra głową+Siła ↔ Gra głową+Siła / Wyjścia bramkarza, Szybkość ↔ Szybkość, Kondycja → zmęczenie.
 // Umiejętności w meczu zależą od formy, oceny na żywo i zmęczenia. Stałe fragmenty powstają wyłącznie z sytuacji
 // na boisku (piłka za linią, faul, spalony), a komentator opisuje to, co się wydarzyło.
+import { attrTrainMul, trainMul, AI_TRAIN } from './training.js';
 import { ATTRS, PHYS_ATTRS, familiarity, formMul, moraleMul, POS_GROUP, slotRating } from './player.js';
 import { FORMATIONS, autoLineup } from './tactics.js';
 import { Match } from './match.js';
@@ -151,15 +152,10 @@ export class LiveMatch extends Match {
     const fam = a.gk ? 1 : familiarity(p, a.pos);
     const behind = this.sides[1 - a.side].goals > S.goals ? 1 + ((p.a.det ?? 50) - 50) / 1500 : 1;
     const base = formMul(p) * moraleMul(p) * rMul * behind * this.teamMul[a.side] * (a.limp ? 0.85 : 1);
-    const tr = S.train || {};
-    const lv = (k) => (tr[k] || 0) / 100;
+    const tr = S.train || AI_TRAIN;
     for (const k of ATTRS) {
-      let m = base * (PHYS_ATTRS.has(k) ? fatP : fatT);
+      let m = base * (PHYS_ATTRS.has(k) ? fatP : fatT) * attrTrainMul(tr, k);
       if (!PHYS_ATTRS.has(k)) m *= fam;
-      if (k === 'sh' || k === 'dr') m *= 1 + 0.04 * lv('off');
-      else if (k === 'tk' || k === 'mk') m *= 1 + 0.04 * lv('def');
-      else if (k === 'ps' || k === 'te') m *= 1 + 0.04 * lv('poss');
-      else if (k === 'cm') m *= 1 + 0.05 * lv('ment');
       a.eff[k] = (55 + ((p.a[k] ?? 40) - 55) * ATTR_SPREAD) * m;
     }
     a.effT = this.t;
@@ -795,7 +791,8 @@ export class LiveMatch extends Match {
     const k = h * (CLOCK / 10);
     for (const S of this.sides) {
       const press = [0.88, 1, 1.22][S.tac.press ?? 1];
-      const cond = 1 - 0.25 * ((S.train && S.train.cond) || 0) / 100;
+      // trening kondycji: 10 pkt męczy się o ok. 22% wolniej niż 5 pkt, 0 pkt o ok. 27% szybciej
+      const cond = 0.94 - (trainMul(S.train ? S.train.cond : 5) - 1) * 2;
       for (const a of this.active(S.idx)) {
         const sp = hyp(a.vx, a.vy);
         const top = 5.4 + 3.6 * (a.p.a.sp ?? 60) / 100;
@@ -805,7 +802,7 @@ export class LiveMatch extends Match {
         const drain = (a.gk ? 0.03 : 0.1) * inten * (1.3 - 0.6 * en / 100) * press * cond * age * k;
         S.st[a.pid] = Math.max(5, (S.st[a.pid] ?? 90) - drain);
         if (S.st[a.pid] < 45 && !a.flags.tired) { a.flags.tired = true; this.emit('tired', { a }); }
-        if (!a.injured && this.phase === 'PLAY' && Math.random() < 0.0000013 * k * 10 * (1 + 2 * Math.max(0, 70 - S.st[a.pid]) / 70)) this.injure(a, false);
+        if (!a.injured && this.phase === 'PLAY' && Math.random() < 0.0000013 * k * 10 * (cond / 0.94) * (1 + 2 * Math.max(0, 70 - S.st[a.pid]) / 70)) this.injure(a, false);
       }
     }
   }
@@ -2340,7 +2337,7 @@ export class LiveMatch extends Match {
         const q = 0.6 * this.E(T, 'pen') + 0.4 * this.E(T, 'cm');
         const egk = G ? 0.5 * this.E(G, 'gk') + 0.3 * this.E(G, 'ovo') + 0.2 * this.E(G, 'agi') : 20;
         const pMiss = clamp(0.08 - (this.E(T, 'pen') - 60) / 800 + (1 - this.E(T, 'cm') / 100) * 0.05, 0.02, 0.16);
-        const pGoal = clamp(0.76 + (q - egk) / 250 + ((this.sides[s].train && this.sides[s].train.ment) || 0) / 2000, 0.55, 0.92);
+        const pGoal = clamp(0.76 + (q - egk) / 250 + (trainMul(this.sides[s].train ? this.sides[s].train.ment : 5) - 1) / 4, 0.55, 0.92);
         const x = Math.random();
         const how = x < pMiss ? 'miss' : x < pMiss + pGoal * (1 - pMiss) ? 'goal' : 'save';
         const side = Math.random() < 0.5 ? -1 : 1;

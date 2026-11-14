@@ -129,7 +129,7 @@ screen('home', {
     const unread = G.msgs.filter((x) => !x.read).length;
     const offers = G.offers.filter((o) => o.until >= G.day).length;
     const pos = m ? rankPositions(G)[m] : null;
-    const right = `<button class="iconbtn" data-a="go" data-k="messages" aria-label="Wiadomości" style="position:relative">${icon('mail')}${unread ? `<span class="badge" style="top:2px;right:2px">${unread}</span>` : ''}</button><button class="iconbtn" data-a="go" data-k="settings" aria-label="Ustawienia">${icon('gear')}</button>`;
+    const right = `<button class="iconbtn" data-a="guide.open" aria-label="Poradnik">${icon('help')}</button><button class="iconbtn" data-a="go" data-k="messages" aria-label="Wiadomości" style="position:relative">${icon('mail')}${unread ? `<span class="badge" style="top:2px;right:2px">${unread}</span>` : ''}</button><button class="iconbtn" data-a="go" data-k="settings" aria-label="Ustawienia">${icon('gear')}</button>`;
     let body = '';
     if (m) {
       body += `<div class="dash-head">${flag(m)}<div class="grow"><div class="date">${fmtDateLong(G.day)}</div><div class="small muted">${esc(natName(m))} · ${pos}. w rankingu · ${esc(G.user.name)}</div></div></div>`;

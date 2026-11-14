@@ -5,6 +5,7 @@ import { fullName } from '../data/names.js';
 import { ACH } from '../data/achievements.js';
 import { QUESTIONS, OUTLETS, GREETINGS, GREET_ANSWERS } from '../data/press.js';
 import { generateWorld, applyOverrides, DEFAULT_SEED, genName, makeYouth, assignClub, attrRng } from './db.js';
+import { TRAIN_KEYS, TRAIN_NAMES, TRAIN_BUDGET, TRAIN_MAX, AI_TRAIN, applyMonthlyTraining } from './training.js';
 import { ovr, developMonthly, POS_GROUP, clubStatusFor, CLUB_STATUS, extendAttrs } from './player.js';
 import { FORMATIONS, defaultTactics, autoLineup, autoBench, defaultSetPieces, pickSquad, aiTactics, available, matchScore } from './tactics.js';
 import { Match } from './match.js';
@@ -26,11 +27,16 @@ export function setGame(g) { G = g; migrate(g); resetFxIndex(); winCache.clear()
 function migrate(g) {
   if (!g || !g.players) return;
   for (const p of Object.values(g.players)) if (p && p.a && (p.a.dr == null || p.a.ant == null || p.h == null)) extendAttrs(p, attrRng(p.id));
+  // plan treningowy: 7 kategorii po maks. 10 pkt, budżet 35
+  const tr = g.team && g.team.train;
+  if (tr && tr.alloc && tr.alloc.gk == null) {
+    tr.alloc.gk = 5;
+    let used = TRAIN_KEYS.reduce((a, k) => a + (tr.alloc[k] || 0), 0);
+    for (const k of TRAIN_KEYS) while (used > TRAIN_BUDGET && tr.alloc[k] > 4) { tr.alloc[k]--; used--; }
+  }
 }
 
-export const TRAIN_KEYS = ['cond', 'poss', 'sp', 'off', 'def', 'ment'];
-export const TRAIN_NAMES = { cond: 'Kondycja', poss: 'Posiadanie piłki', sp: 'Stałe fragmenty gry', off: 'Ofensywa', def: 'Defensywa', ment: 'Przygotowanie mentalne' };
-export const TRAIN_BUDGET = 30;
+export { TRAIN_KEYS, TRAIN_NAMES, TRAIN_BUDGET };
 const SACK = [9, 15, 22];
 const NEG = [0.7, 1, 1.35];
 
@@ -136,7 +142,7 @@ function defaultTeam(nid) {
   const n = NAT[nid];
   const squad = pickSquad(pool, 23);
   const u21 = pool.filter((p) => p.age <= 21).sort((a, b) => ovr(b) - ovr(a)).slice(0, 23).map((p) => p.id);
-  const lvl = Object.fromEntries(TRAIN_KEYS.map((k) => [k, 30]));
+  const lvl = {};
   const alloc = Object.fromEntries(TRAIN_KEYS.map((k) => [k, 5]));
   return {
     squad, prevSquad: squad.slice(), u21, tac: defaultTactics(n.str), lineup: null, bench: null, instr: {}, sp: null,
@@ -251,7 +257,6 @@ function startDay(d) {
 // =====================================================================
 // SYMULACJA MECZÓW
 // =====================================================================
-const AI_TRAIN = { cond: 40, poss: 40, sp: 40, off: 40, def: 40, ment: 40 };
 
 export function aiSpec(nid, fx, home) {
   const nat = G.nats[nid];
@@ -382,7 +387,7 @@ export function buildUserSpec(fx, home) {
   const c = G.comps[fx.comp];
   return {
     nid: m, name: NAT[m].name, players, lineup: t.lineup.slice(), bench: t.bench.slice(0, 12), tac: { ...t.tac },
-    instr: JSON.parse(JSON.stringify(t.instr || {})), sp: { ...t.sp, box: [...(t.sp.box || [])] }, train: { ...t.train.lvl },
+    instr: JSON.parse(JSON.stringify(t.instr || {})), sp: { ...t.sp, box: [...(t.sp.box || [])] }, train: { ...t.train.alloc },
     home: home && !fx.neutral, host: !!(c && c.host === m), ai: false, isUser: true,
   };
 }
@@ -1171,7 +1176,7 @@ function unemployedTick(d) {
 // FEDERACJA: prośby
 // =====================================================================
 export const REQUESTS = [
-  { id: 'camp', name: 'Obóz przygotowawczy', desc: 'Dodatkowe dni treningowe: +12 do wszystkich poziomów wytrenowania.', min: 45, cd: 120 },
+  { id: 'camp', name: 'Obóz przygotowawczy', desc: 'Dodatkowe dni treningowe: zawodnicy kadry od razu dostają efekt dwóch miesięcy treningu według Twojego planu.', min: 45, cd: 120 },
   { id: 'medical', name: 'Rozbudowa sztabu medycznego', desc: 'Kontuzje będą leczone o 25% szybciej.', min: 60, once: true },
   { id: 'scouts', name: 'Sieć skautów', desc: 'Raporty o potencjale młodych zawodników.', min: 50, once: true },
   { id: 'friendly', name: 'Prestiżowy sparing', desc: 'Federacja spróbuje zorganizować mecz z czołową drużyną świata w najbliższym wolnym terminie.', min: 55, cd: 180 },
@@ -1195,7 +1200,10 @@ export function makeRequest(id) {
   if (!chance(p)) { trustChange({ fed: -1 }); return { ok: false, msg: 'Zarząd odrzucił prośbę. Zaufanie federacji jest zbyt niskie.' }; }
   trustChange({ fed: -2 });
   const t = G.team;
-  if (id === 'camp') { for (const k of TRAIN_KEYS) t.train.lvl[k] = clamp(t.train.lvl[k] + 12, 0, 100); return { ok: true, msg: 'Federacja zorganizowała obóz. Poziom wytrenowania wzrósł.' }; }
+  if (id === 'camp') {
+    for (const pid of new Set([...t.squad, ...(t.u21 || [])])) { const p = G.players[pid]; if (p) applyMonthlyTraining(p, t.train.alloc, ovr(p), 2); }
+    return { ok: true, msg: 'Federacja zorganizowała obóz. Zawodnicy kadry zyskali podwójną porcję treningu.' };
+  }
   if (id === 'medical') { t.medical = true; return { ok: true, msg: 'Sztab medyczny został rozbudowany.' }; }
   if (id === 'scouts') { t.scouts = true; return { ok: true, msg: 'Skauci będą raportować potencjał młodych zawodników.' }; }
   if (id === 'friendly') {
@@ -1252,15 +1260,6 @@ function dailyTick(d) {
     if (p.inj > 0) p.inj--;
     if (p.cond < 96) p.cond = Math.min(100, p.cond + 2.5);
   }
-  if (G.team) {
-    const w = windowAt(d);
-    const inCamp = w && d >= w.days[0] - 3;
-    const t = G.team.train;
-    for (const k of TRAIN_KEYS) {
-      if (inCamp) t.lvl[k] = clamp(t.lvl[k] + t.alloc[k] * 0.45, 0, 100);
-      else t.lvl[k] = Math.max(10, t.lvl[k] - 0.12);
-    }
-  }
   G.offers = G.offers.filter((o) => o.until >= d);
 }
 
@@ -1288,6 +1287,10 @@ function monthlyTick() {
     const p = G.players[id];
     developMonthly(p, p.mp || 0);
     p.mp = 0;
+  }
+  // trening kadry: zawodnicy powołani do kadry i U-21 pracują według planu selekcjonera
+  if (G.team && G.team.train) {
+    for (const pid of new Set([...G.team.squad, ...(G.team.u21 || [])])) { const p = G.players[pid]; if (p) applyMonthlyTraining(p, G.team.train.alloc, ovr(p)); }
   }
   for (const k of ['fed', 'fans', 'pl', 'media']) G.trust[k] = Math.round((G.trust[k] + (55 - G.trust[k]) * 0.04) * 10) / 10;
   G.rankPrev = rankPositions(G);
@@ -1421,7 +1424,7 @@ export function topScorers(c, n = 10) {
 export function setTraining(k, delta) {
   const a = G.team.train.alloc;
   const total = TRAIN_KEYS.reduce((s, x) => s + a[x], 0);
-  const nv = clamp(a[k] + delta, 0, 10);
+  const nv = clamp(a[k] + delta, 0, TRAIN_MAX);
   if (delta > 0 && total >= TRAIN_BUDGET) return false;
   a[k] = nv;
   return true;
