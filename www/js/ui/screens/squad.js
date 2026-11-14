@@ -1,11 +1,11 @@
 // Kadra, powołania, U-21, profil zawodnika, rozmowy.
 import { screen, actions, go, rerender, esc, icon, posBadge, rating, formIcon, chips, seg, toast, sheet, closeOverlay, modal, bar, attrVal, av, flag, stars, empty, current } from '../ui.js';
-import { G, me, poolOf, natName, confirmCallup, talkTo, windowAt, trustChange, removeEvent, academyOf, ACADEMY_INTAKE } from '../../engine/game.js';
-import { ovr, ovrI, ATTR_NAMES, ATTR_GROUPS, ATTR_HINTS, POS_W, POS_NAMES, POS_GROUP, POS_ORDER, value, CLUB_STATUS, FORM_NAMES, FORM_MUL } from '../../engine/player.js';
+import { G, me, poolOf, natName, confirmCallup, talkTo, windowAt, trustChange, removeEvent, academyOf, ACADEMY_INTAKE, ensureLineup } from '../../engine/game.js';
+import { slotRating, familiarity, ovr, ovrI, ATTR_NAMES, ATTR_GROUPS, ATTR_HINTS, POS_W, POS_NAMES, POS_GROUP, POS_ORDER, value, CLUB_STATUS, FORM_NAMES, FORM_MUL } from '../../engine/player.js';
 import { fullName } from '../../data/names.js';
 import { NAT } from '../../data/nations.js';
 import { TALKS } from '../../data/press.js';
-import { pickSquad } from '../../engine/tactics.js';
+import { pickSquad, FORMATIONS, FORMATION_NAMES } from '../../engine/tactics.js';
 import { fmtMoney, fmtDate, clamp, plural } from '../../core/util.js';
 import { squadValid, nextEvent } from '../flow.js';
 
@@ -58,6 +58,29 @@ function controls() {
     + chips('sq.sort', [['pos', 'Pozycja'], ['ovr', 'Ocena'], ['age', 'Wiek'], ['form', 'Forma']], st.sort);
 }
 
+/** Kadra w trybie zwykłym: pierwsza jedenastka po pozycjach, od bramkarza do napastnika, i rezerwowi. */
+function squadXI(called) {
+  const t = G.team;
+  ensureLineup();
+  const f = FORMATIONS[t.tac.f];
+  const inXI = new Set(t.lineup.filter((x) => x != null));
+  const slotRow = ([pos], i) => {
+    const pid = t.lineup[i];
+    const p = pid != null ? G.players[pid] : null;
+    if (!p) return `<div class="row tap xi-row" data-a="tac.slot" data-k="${i}">${posBadge(pos)}<div class="main"><div class="t1 muted">Wybierz zawodnika</div><div class="t2">${POS_NAMES[pos]}</div></div>${icon('right')}</div>`;
+    const fit = familiarity(p, pos);
+    const fitTxt = fit >= 0.95 ? '' : fit >= 0.85 ? ' · <span style="color:#f2d84a">pozycja zbliżona</span>' : ' · <span style="color:#ff6b5e">obca pozycja</span>';
+    const status = (p.inj ? ' · <span class="bad-t">kontuzja</span>' : '') + (p.susp ? ' · <span class="bad-t">zawieszony</span>' : '');
+    return `<div class="row tap xi-row" data-a="tac.slot" data-k="${i}">${posBadge(pos)}<div class="main"><div class="t1">${esc(fullName(p))}</div><div class="t2">${p.pos}${p.pos !== pos ? ` na ${pos}` : ''} · świeżość ${Math.round(p.cond)}%${fitTxt}${status}</div></div><div class="end">${formIcon(p.form)}${rating(slotRating(p, pos))}</div></div>`;
+  };
+  const rest = sortPlayers(called.filter((p) => !inXI.has(p.id)));
+  lastList = [...t.lineup.filter((x) => x != null), ...rest.map((p) => p.id)];
+  return `<div class="chips">${FORMATION_NAMES.map((x) => `<button class="chip ${x === t.tac.f ? 'on' : ''}" data-a="tac.form" data-k="${x}">${x}</button>`).join('')}</div>
+    <div class="card tight"><div class="card-h" style="padding:10px 12px 0"><h3>Pierwsza jedenastka</h3><button class="link" data-a="tac.auto">${icon('bolt')} Automatycznie</button></div><div class="list">${f.map(slotRow).join('')}</div></div>
+    <p class="small muted">Dotknij pozycji, aby wybrać zawodnika. Pełne ustawienie na boisku, polecenia i stałe fragmenty znajdziesz w Taktyce.</p>
+    <div class="card tight"><div class="card-h" style="padding:10px 12px 0"><h3>Rezerwowi</h3><span class="tag">${rest.length}</span></div><div class="list" id="sq-list">${rest.map((p) => playerRow(p, { toggle: 'sq.toggle', on: true })).join('') || empty('Wszyscy powołani są w pierwszej jedenastce.')}</div></div>`;
+}
+
 screen('squad', {
   render(params) {
     const mode = params.mode || 'normal';
@@ -77,6 +100,14 @@ screen('squad', {
     const foot = mode === 'callup'
       ? `<button class="btn ghost" data-a="sq.auto">${icon('bolt')} Auto</button><button class="btn" data-a="sq.confirm">Ogłoś powołania</button>`
       : '';
+    if (mode !== 'callup') {
+      return {
+        title: 'Kadra', sub: `${natName(me())} · ${G.team.tac.f}`, cls: 'nofoot',
+        body: `${summary}${squadXI(called)}
+          <button class="btn ghost block mb" data-a="go" data-k="scouting">${icon('search')} Skauting: szukaj nowych zawodników</button>
+          <p class="small muted center">Tu są tylko Twoi powołani zawodnicy. Nowych szukasz w Skautingu. Zmiany w kadrze obowiązują od razu.</p>`,
+      };
+    }
     return {
       title: mode === 'callup' ? 'Powołania' : 'Kadra', sub: `${natName(me())} · limit ${limit}`,
       cls: mode === 'callup' ? '' : 'nofoot',

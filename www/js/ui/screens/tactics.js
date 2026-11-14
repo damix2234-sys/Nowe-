@@ -1,5 +1,5 @@
 // Taktyka: ustawienie, polecenia drużyny i indywidualne, stałe fragmenty; ekran przedmeczowy.
-import { screen, actions, go, rerender, esc, icon, posBadge, rating, sheet, closeOverlay, modal, seg, flag, team, resChip, toast, empty } from '../ui.js';
+import { screen, actions, go, rerender, esc, icon, posBadge, rating, formIcon, sheet, closeOverlay, modal, seg, flag, team, resChip, toast, empty } from '../ui.js';
 import { G, me, natName, userSquadPlayers, ensureLineup, prepareMatch, poolOf } from '../../engine/game.js';
 import { FORMATIONS, FORMATION_NAMES, STYLE_NAMES, PRESS_NAMES, TW_NAMES, TRAP_NAMES, LINE_NAMES, INSTR, defaultInstr, defaultSetPieces, autoLineup, matchScore, available } from '../../engine/tactics.js';
 import { slotRating, familiarity, ovr, POS_NAMES, POS_ORDER } from '../../engine/player.js';
@@ -51,7 +51,7 @@ function benchList() {
   const inLu = new Set(t.lineup || []);
   const benchSet = new Set(t.bench || []);
   const out = userSquadPlayers().filter((p) => !inLu.has(p.id) && !benchSet.has(p.id));
-  const row = (p) => `<div class="row tap" data-a="pl.open" data-k="${p.id}">${posBadge(p.pos)}<div class="main"><div class="t1">${esc(fullName(p))}</div></div><div class="end">${p.inj ? '<span class="status st-inj">✚</span>' : ''}${p.susp ? '<span class="status st-sus">zaw.</span>' : ''}${rating(ovr(p))}</div></div>`;
+  const row = (p) => `<div class="row tap" data-a="pl.open" data-k="${p.id}">${posBadge(p.pos)}<div class="main"><div class="t1">${esc(fullName(p))}</div></div><div class="end">${p.inj ? '<span class="status st-inj">✚</span>' : ''}${p.susp ? '<span class="status st-sus">zaw.</span>' : ''}${formIcon(p.form)}${rating(ovr(p))}</div></div>`;
   return `<div class="card"><div class="card-h"><h3>Ławka rezerwowych</h3><span class="small muted">${bench.length}</span></div><div class="list">${bench.map(row).join('') || empty('Brak rezerwowych.')}</div>
     ${out.length ? `<div class="hr"></div><div class="label mb">Poza kadrą meczową</div><div class="list">${out.map(row).join('')}</div>` : ''}</div>`;
 }
@@ -230,7 +230,7 @@ actions({
     const cand = userSquadPlayers().slice().sort((a, b) => (available(b) - available(a)) || matchScore(b, pos) - matchScore(a, pos));
     const where = (pid) => { const j = (t.lineup || []).indexOf(pid); return j >= 0 ? `w składzie: ${FORMATIONS[t.tac.f][j][0]}` : (t.bench || []).includes(pid) ? 'ławka' : 'poza kadrą meczową'; };
     sheet(`<p class="small muted">${POS_NAMES[pos]}, wybierz zawodnika:</p><div class="list">${cand.map((p) => `<div class="row tap ${t.lineup[i] === p.id ? 'me' : ''} ${available(p) ? '' : 'dim'}" data-a="tac.assign" data-i="${i}" data-k="${p.id}">
-      ${posBadge(p.pos)}<div class="main"><div class="t1">${esc(fullName(p))}</div><div class="t2">${where(p.id)}${p.inj ? ' · kontuzja' : ''}${p.susp ? ' · zawieszony' : ''} · kondycja ${Math.round(p.cond)}%</div></div>${rating(slotRating(p, pos))}</div>`).join('')}</div>`, { title: `Pozycja: ${pos}` });
+      ${posBadge(p.pos)}<div class="main"><div class="t1">${esc(fullName(p))}</div><div class="t2">${where(p.id)}${p.inj ? ' · kontuzja' : ''}${p.susp ? ' · zawieszony' : ''} · świeżość ${Math.round(p.cond)}%</div></div>${formIcon(p.form)}${rating(slotRating(p, pos))}</div>`).join('')}</div>`, { title: `Pozycja: ${pos}` });
   },
   'tac.assign': (d) => {
     const p = G.players[+d.k];

@@ -37,7 +37,8 @@ const SECTIONS = [
       <li><b>Dalej</b> przesuwa czas. Gra sama się zatrzyma, gdy coś wymaga Twojej decyzji: powołania, mecz, konferencja, wiadomość.</li>
       <li><b>Powołania.</b> Przed każdym zgrupowaniem wybierasz 23 zawodników, a na turniej 26. Patrz na OVR, formę, świeżość i kontuzje. Nowych zawodników szukasz w <b>Skautingu</b>, a w <b>Kadrze</b> widzisz tylko powołanych.</li>
       <li><b>Akademia.</b> Co roku dostajesz 10 nowych dzieci. Po 18. urodzinach trafiają do U-21.</li>
-      <li><b>Taktyka.</b> Wybierz formację i ustaw wyjściową jedenastkę. Liczba na żetonie to siła zawodnika na tej pozycji.</li>
+      <li><b>Kadra</b> to szybkie ustawianie składu: lista pierwszej jedenastki od bramkarza do napastnika. Dotykasz pozycji i wybierasz zawodnika, widząc jego formę, świeżość i siłę na tej pozycji.</li>
+      <li><b>Taktyka</b> to zaawansowane zarządzanie: ustawienie na boisku, styl gry, pressing, linia obrony, polecenia indywidualne i stałe fragmenty. Liczba na żetonie to siła zawodnika na tej pozycji.</li>
       <li><b>Trening.</b> Rozdziel punkty treningu. To daje bonus w meczu i rozwija zawodników co miesiąc.</li>
       <li><b>Mecz.</b> Oglądasz go na żywo albo symulujesz. W trakcie robisz zmiany i zmieniasz taktykę.</li>
       <li><b>Konferencje i rozmowy</b> zmieniają nastroje mediów, kibiców i zawodników.</li>
