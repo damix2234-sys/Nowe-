@@ -1289,7 +1289,7 @@ export class LiveMatch extends Match {
     let v = kind === 'head' ? 9 + 5 * hd / 100 + 3 * this.E(a, 'st') / 100 : kind === 'fk' ? 21 + 7 * sh / 100 : kind === 'volley' ? 15 + 12 * sh / 100 : kind === 'pen' ? 22 + 6 * sh / 100 : 17 + 11 * sh / 100 + 4 * this.E(a, 'st') / 100;
     v *= rnd(0.92, 1.05);
     const pres = kind === 'pen' || kind === 'fk' ? 0 : this.pressure(a);
-    const baseE = kind === 'head' ? 0.125 : kind === 'volley' ? 0.12 : kind === 'pen' ? 0.035 : kind === 'fk' ? 0.08 : 0.088;
+    const baseE = kind === 'head' ? 0.1 : kind === 'volley' ? 0.096 : kind === 'pen' ? 0.035 : kind === 'fk' ? 0.07 : 0.067;
     const skill = kind === 'head' ? 0.75 * hd + 0.25 * this.E(a, 'jmp') : 0.55 * sh + 0.3 * te + 0.15 * this.E(a, 'cm');
     let sg = baseE * (1.6 - skill / 100) * (1 + pres * 0.6) * (1 + dist / 45) * this.errMul(a);
     if (big || kind === 'pen') sg *= 1.3 - (cm / 100) * 0.6;
