@@ -156,7 +156,7 @@ export class LiveMatch extends Match {
     const tr = S.train || AI_TRAIN;
     // zwarta, głęboka obrona broni się lepiej; ofensywny styl i wysoki pressing zostawiają luki
     const tac = S.tac || {};
-    const defM = 1 - 0.05 * ((tac.style ?? 2) - 2) + [0.08, 0, -0.04][tac.press ?? 1];
+    const defM = 1 - 0.05 * ((tac.style ?? 2) - 2) + [0.08, 0, -0.04][tac.press ?? 1] + [0.08, 0, -0.05][tac.line ?? 1];
     for (const k of ATTRS) {
       let m = base * (PHYS_ATTRS.has(k) ? fatP : fatT) * attrTrainMul(tr, k);
       if (DEF_ATTRS.has(k)) m *= defM;
@@ -457,7 +457,7 @@ export class LiveMatch extends Match {
     const T = this.teams[s];
     const S = this.sides[s];
     const tac = S.tac || {};
-    const st = (tac.style ?? 2) - 2, pr = (tac.press ?? 1) - 1, trap = tac.trap ?? 0;
+    const st = (tac.style ?? 2) - 2, pr = (tac.press ?? 1) - 1, trap = tac.trap ?? 0, ln = (tac.line ?? 1) - 1;
     const b = this.ball;
     const ref = b.owner ? b.owner : b;
     const bx = this.rx(s, ref.x), by = this.ry(s, ref.y);
@@ -466,13 +466,13 @@ export class LiveMatch extends Match {
     const offL = PL - this.teams[1 - s].line;
     if (att) {
       // napastnicy na linii spalonego rywala (rozciągają obronę), pomocnicy w przestrzeni między liniami
-      dl = clamp(by - 36 + st * 3, 12, 56);
+      dl = clamp(by - 36 + st * 3 + ln * 4, 12, 56);
       al = clamp(Math.max(offL - 1.5, by + 8, dl + 34), 46, 99);
       wid = 1; shift = 0.18;
     } else {
       // defensywny styl: głębiej, węziej i ciaśniej między liniami; ofensywny: wyżej i szerzej (więcej miejsca dla rywala)
       // niski pressing: cała drużyna cofnięta, ale zwarta (pomoc blisko obrony, mało miejsca między liniami)
-      dl = clamp(by - 27 + clamp(pr * 4 + st * 2.5, -6, 10) + trap * 2, by < 20 ? 5 : by < 30 ? 11 : by < 40 ? 14 : 16.5, 46);
+      dl = clamp(by - 27 + clamp(pr * 4 + st * 2.5 + ln * 4, -8, 12) + trap * 2, by < 20 ? 5 : by < 30 ? 11 : by < 40 ? 14 : 16.5, 46);
       al = clamp(dl + Math.max(25, 31 + pr * 5 + st * 2), 26, 74);
       wid = 0.68 + st * 0.04; shift = 0.42;
     }
@@ -896,7 +896,7 @@ export class LiveMatch extends Match {
     // kontratak: świeżo odzyskana piłka, gra do przodu, zanim rywal się ustawi (bardziej przy defensywnym stylu)
     const oppTac = this.sides[1 - s].tac || {};
     // kontra jest groźniejsza przeciw rywalowi, który gra ofensywnie lub wysokim pressingiem (zostawia miejsce za plecami)
-    const counter = this.t - (this.wonT[s] ?? -9) < 4.5 ? 1 + Math.max(0, -style) * 0.35 + ((tac.press ?? 1) === 0 ? 0.45 : 0) + Math.max(0, (oppTac.style ?? 2) - 2) * 0.6 + ((oppTac.press ?? 1) === 2 ? 0.5 : 0) : 0;
+    const counter = this.t - (this.wonT[s] ?? -9) < 4.5 ? 1 + Math.max(0, -style) * 0.35 + ((tac.press ?? 1) === 0 ? 0.45 : 0) + Math.max(0, (oppTac.style ?? 2) - 2) * 0.6 + ((oppTac.press ?? 1) === 2 ? 0.5 : 0) + ((oppTac.line ?? 1) === 2 ? 0.8 : 0) : 0;
     const wasting = tac.tw === 2 || (tac.tw === 1 && S.goals > this.sides[1 - s].goals && this.clk > 3600);
     const behind = this.sides[1 - s].goals - S.goals;
     const desperate = behind > 0 && this.clk > 4800 ? 0.35 : 0;

@@ -2,7 +2,7 @@
 // prawdziwe zdarzenia z boiska, oceny na żywo, zmęczenie, zmiany i taktyka w trakcie meczu, podsumowanie.
 import { screen, actions, go, reset, esc, icon, posBadge, matchRating, sheet, closeOverlay, modal, flag, seg, toast, S as UIS, empty } from '../ui.js';
 import { G, natName, prepareMatch, completeUserMatch } from '../../engine/game.js';
-import { FORMATION_NAMES, STYLE_NAMES, PRESS_NAMES, TW_NAMES, TRAP_NAMES } from '../../engine/tactics.js';
+import { FORMATION_NAMES, STYLE_NAMES, PRESS_NAMES, TW_NAMES, TRAP_NAMES, LINE_NAMES } from '../../engine/tactics.js';
 import { POS_ORDER, slotRating } from '../../engine/player.js';
 import { fullName } from '../../data/names.js';
 import { fixtureStage } from '../../engine/comps.js';
@@ -433,7 +433,7 @@ function tacticsHTML() {
   const t = M.sides[us()].tac;
   const opt = (label, key, names) => `<div class="field"><span>${label}</span><div class="opt">${names.map((n, i) => `<button class="${t[key] === i ? 'on' : ''}" data-a="mt.tac" data-k="${key}" data-v="${i}">${n}</button>`).join('')}</div></div>`;
   return `<div class="field"><span>Formacja</span><div class="chips">${FORMATION_NAMES.map((f) => `<button class="chip ${f === t.f ? 'on' : ''}" data-a="mt.tacF" data-k="${f}">${f}</button>`).join('')}</div></div>
-    ${opt('Styl gry', 'style', STYLE_NAMES)}${opt('Pressing', 'press', PRESS_NAMES)}${opt('Gra na czas', 'tw', TW_NAMES)}${opt('Pułapki ofsajdowe', 'trap', TRAP_NAMES)}
+    ${opt('Styl gry', 'style', STYLE_NAMES)}${opt('Pressing', 'press', PRESS_NAMES)}${opt('Linia obrony', 'line', LINE_NAMES)}${opt('Gra na czas', 'tw', TW_NAMES)}${opt('Pułapki ofsajdowe', 'trap', TRAP_NAMES)}
     <button class="btn block" data-a="ui.close">Gotowe</button>`;
 }
 

@@ -165,6 +165,7 @@ const SECTIONS = [
       <li><b>Formacja.</b> Dobierz ją do zawodników, których masz. Lepiej mieć silnych zawodników na swoich pozycjach niż modną formację.</li>
       <li><b>Styl gry.</b> Ofensywny: więcej zawodników w ataku, więcej strzałów i dośrodkowań, ale obrońcy grają słabiej i rywal ma groźniejsze kontry. Defensywny: drużyna cofa się i gra bezpośrednio długimi piłkami, mniej traci, mniej strzela, częściej remisuje. Dobry dla słabszej drużyny.</li>
       <li><b>Pressing.</b> Wysoki: drużyna doskakuje do rywala na jego połowie i odcina mu podania, ale męczy się dużo szybciej i zostawia miejsce za plecami. Niski: zwarty blok przed polem karnym, mniej zmęczenia, groźniejsze kontry, ale rywal dłużej trzyma piłkę.</li>
+      <li><b>Linia obrony.</b> Głęboka: obrońcy stoją przy własnym polu karnym, rywal ma mniej miejsca za ich plecami i trudniej mu o strzał z bliska, ale dłużej trzyma piłkę i częściej strzela z daleka. Wysoka: cała drużyna gra bliżej bramki rywala i szybciej odzyskuje piłkę, ale jedno dobre podanie za plecy obrońców daje rywalowi sam na sam. Wysoka linia z szybkimi obrońcami, głęboka z wolnymi.</li>
       <li><b>Gra na czas.</b> Drużyna wolniej rozgrywa, rzadziej drybluje i strzela. Pomaga dowieźć prowadzenie, ale oddaje inicjatywę rywalowi.</li>
       <li><b>Pułapki ofsajdowe.</b> Linia obrony wychodzi wyżej, więc rywal częściej jest na spalonym. Gdy pułapka się nie uda, rywal wychodzi sam na sam.</li>
       <li><b>Tłok w polu karnym.</b> Im więcej Twoich obrońców w szesnastce, tym trudniej rywalowi o czysty strzał.</li>

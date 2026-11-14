@@ -44,6 +44,7 @@ export const STYLE_NAMES = ['bardzo defensywny', 'defensywny', 'normalny', 'ofen
 export const PRESS_NAMES = ['niski', 'normalny', 'wysoki'];
 export const TW_NAMES = ['nigdy', 'gdy prowadzimy', 'zawsze'];
 export const TRAP_NAMES = ['nigdy', 'czasem', 'często'];
+export const LINE_NAMES = ['głęboka', 'normalna', 'wysoka'];
 
 export const INSTR = {
   sh: { name: 'Strzały', opts: ['nigdy', 'czasem', 'często'], hint: 'Jak chętnie zawodnik oddaje strzały.' },
@@ -55,7 +56,7 @@ export const INSTR = {
 export const SP_ROLE_NAMES = ['nie bierze udziału', 'pole karne', 'wykonuje'];
 
 export function defaultTactics(str = 70) {
-  return { f: str >= 78 ? '4-3-3' : str >= 66 ? '4-2-3-1' : str >= 55 ? '4-4-2' : '4-5-1', style: 2, press: 1, tw: 0, trap: 0 };
+  return { f: str >= 78 ? '4-3-3' : str >= 66 ? '4-2-3-1' : str >= 55 ? '4-4-2' : '4-5-1', style: 2, press: 1, tw: 0, trap: 0, line: 1 };
 }
 
 export function defaultInstr(p, pos) {

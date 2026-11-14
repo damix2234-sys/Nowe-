@@ -1,7 +1,7 @@
 // Taktyka: ustawienie, polecenia drużyny i indywidualne, stałe fragmenty; ekran przedmeczowy.
 import { screen, actions, go, rerender, esc, icon, posBadge, rating, sheet, closeOverlay, modal, seg, flag, team, resChip, toast, empty } from '../ui.js';
 import { G, me, natName, userSquadPlayers, ensureLineup, prepareMatch, poolOf } from '../../engine/game.js';
-import { FORMATIONS, FORMATION_NAMES, STYLE_NAMES, PRESS_NAMES, TW_NAMES, TRAP_NAMES, INSTR, defaultInstr, defaultSetPieces, autoLineup, matchScore, available } from '../../engine/tactics.js';
+import { FORMATIONS, FORMATION_NAMES, STYLE_NAMES, PRESS_NAMES, TW_NAMES, TRAP_NAMES, LINE_NAMES, INSTR, defaultInstr, defaultSetPieces, autoLineup, matchScore, available } from '../../engine/tactics.js';
 import { slotRating, familiarity, ovr, POS_NAMES, POS_ORDER } from '../../engine/player.js';
 import { fullName } from '../../data/names.js';
 import { fixtureStage } from '../../engine/comps.js';
@@ -73,6 +73,7 @@ function teamTab() {
   const t = G.team.tac;
   return optRow('Styl gry', 'style', STYLE_NAMES, t.style, 'Ofensywny styl daje więcej okazji, ale zostawia więcej miejsca rywalowi. Defensywny działa odwrotnie.')
     + optRow('Pressing', 'press', PRESS_NAMES, t.press, 'Wysoki pressing pomaga odzyskiwać piłkę, ale szybciej męczy zawodników.')
+    + optRow('Linia obrony', 'line', LINE_NAMES, t.line ?? 1, 'Głęboka: obrońcy stoją blisko własnego pola karnego, rywalowi trudniej o strzał z bliska i trudniej wbiec za plecy obrony, ale łatwiej mu utrzymać piłkę. Wysoka: drużyna jest bliżej bramki rywala i szybciej odzyskuje piłkę, ale za plecami obrońców zostaje dużo miejsca na kontry.')
     + optRow('Gra na czas', 'tw', TW_NAMES, t.tw, 'Spowalnia grę i skraca czas na odrobienie strat przez rywala.')
     + optRow('Pułapki ofsajdowe', 'trap', TRAP_NAMES, t.trap, 'Więcej spalonych rywala, ale gdy pułapka zawiedzie, rywal wychodzi sam na sam.');
 }
@@ -186,7 +187,7 @@ screen('prematch', {
       ${formationChips(t.tac.f)}
       ${pitchHTML(t.lineup, t.tac.f, t.sp)}
       <div class="btnrow mb"><button class="btn ghost small" data-a="tac.auto">${icon('bolt')} Auto skład</button><button class="btn ghost small" data-a="go" data-k="tactics">${icon('clipboard')} Polecenia</button></div>
-      <div class="note small">Styl: <b>${STYLE_NAMES[t.tac.style]}</b> · pressing: <b>${PRESS_NAMES[t.tac.press]}</b> · gra na czas: <b>${TW_NAMES[t.tac.tw]}</b> · pułapki: <b>${TRAP_NAMES[t.tac.trap]}</b></div>`;
+      <div class="note small">Styl: <b>${STYLE_NAMES[t.tac.style]}</b> · pressing: <b>${PRESS_NAMES[t.tac.press]}</b> · linia obrony: <b>${LINE_NAMES[t.tac.line ?? 1]}</b> · gra na czas: <b>${TW_NAMES[t.tac.tw]}</b> · pułapki: <b>${TRAP_NAMES[t.tac.trap]}</b></div>`;
     return {
       title: 'Przed meczem', sub: `${natName(f.h)} vs ${natName(f.a)}`, body,
       foot: `<button class="btn ghost" data-a="pm.quick" data-k="${f.id}">${icon('ff')} Symuluj</button><button class="btn" data-a="pm.live" data-k="${f.id}">${icon('play')} Graj</button>`,
@@ -242,7 +243,7 @@ actions({
   'tac.instr': (d) => {
     const pid = +d.k;
     const p = G.players[pid];
-    sheet(`<div id="ins-body">${instrForm(pid, d.pos)}</div><button class="btn block mt" data-a="ui.close">Gotowe</button>`, { title: `${fullName(p)} (${d.pos})`, onClose: () => rerender() });
+    sheet(`<div id="ins-body">${instrForm(pid, d.pos)}</div><button class="btn block mt" data-a="ui.close">Gotowe</button>`, { title: `${fullName(p)}, ${d.pos}`, onClose: () => rerender() });
   },
   'tac.instrSet': (d) => {
     const ins = getInstr(+d.k, d.pos);

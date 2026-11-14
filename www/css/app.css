@@ -351,8 +351,9 @@ textarea.input { min-height: 140px; font-family: ui-monospace, monospace; font-s
 }
 .tok .nm { margin-top: 3px; font-size: 10.5px; font-weight: 800; background: rgba(0, 0, 0, 0.6); padding: 1px 6px; border-radius: 6px; max-width: 76px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; }
 .tok .ps { font-size: 9px; font-weight: 800; color: rgba(255, 255, 255, 0.75); margin-top: 1px; }
-.tok.fit-ok .dot { border-color: #e9da66; }
-.tok.fit-bad .dot { border-color: #f37f71; }
+.tok .dot { border-color: #6fe08a; border-width: 3px; box-shadow: 0 0 0 2px rgba(111, 224, 138, 0.22), 0 4px 10px rgba(0, 0, 0, 0.35); }
+.tok.fit-ok .dot { border-color: #f2d84a; box-shadow: 0 0 0 2px rgba(242, 216, 74, 0.25), 0 4px 10px rgba(0, 0, 0, 0.35); }
+.tok.fit-bad .dot { border-color: #ff6b5e; box-shadow: 0 0 0 2px rgba(255, 107, 94, 0.3), 0 4px 10px rgba(0, 0, 0, 0.35); }
 .tok.empty .dot { border-style: dashed; border-color: rgba(255, 255, 255, 0.5); color: rgba(255, 255, 255, 0.6); }
 .tok.sel .dot { box-shadow: 0 0 0 4px rgba(176, 108, 255, 0.35); }
 .tok .cap { position: absolute; top: -4px; right: 12px; background: var(--gold); color: #000; font-size: 9px; font-weight: 900; width: 15px; height: 15px; border-radius: 50%; display: grid; place-items: center; }
