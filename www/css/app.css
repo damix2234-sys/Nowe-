@@ -533,8 +533,8 @@ main.view.match-view { padding-top: 8px; }
 .orb-ic .o-fill .ob { fill: url(#ogBody); stroke: url(#ogEdge); stroke-width: 2; stroke-linejoin: round; }
 .orb-ic .oh { fill: url(#ogShine); stroke: none; }
 .orb-img { overflow: visible; }
-.orb-img img { position: absolute; inset: -11%; width: 122%; height: 122%; object-fit: contain; pointer-events: none; user-select: none;
-  filter: drop-shadow(0 0 10px rgba(170, 90, 255, 0.55)); animation: orbGlow 3.2s ease-in-out infinite; }
+.orb-img img { position: absolute; left: -4%; top: -3%; width: 108%; height: 108%; object-fit: contain; pointer-events: none; user-select: none;
+  filter: drop-shadow(0 0 12px rgba(185, 90, 255, 0.75)); animation: orbGlow 3.2s ease-in-out infinite; }
 /* plakietka z nazwą */
 .orb-label {
   position: absolute; left: -4%; right: -4%; top: 60%; height: 26%; z-index: 2;

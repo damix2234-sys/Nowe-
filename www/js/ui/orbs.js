@@ -100,11 +100,14 @@ const G = {
     + `<path ${B} d="M38 26 h10 v-7 l12 13 l-12 13 v-7 h-10 Z"/><rect ${H} x="15" y="11" width="6" height="18" rx="3"/>`,
 };
 
+// przyciski zaprojektowane jako grafiki (z napisem)
+const IMG = { squad: 'kadra', tactics: 'taktyka', training: 'trening', opponents: 'przeciwnicy', comps: 'rozgrywki', friendlies: 'towarzyskie', u21: 'u21', federation: 'federacja', ranking: 'ranking' };
+
 /** Okrągły przycisk menu. ic – nazwa ikony, label – napis na plakietce. „Kadra” to grafika z projektu. */
 export function orb(ic, label, attrs, badge = 0) {
   const b = badge ? `<span class="badge">${badge}</span>` : '';
-  if (ic === 'squad') {
-    return `<button class="orb orb-img" ${attrs} aria-label="${label}"><img src="img/kadra.png" alt="" draggable="false">${b}</button>`;
+  if (IMG[ic]) {
+    return `<button class="orb orb-img" ${attrs} aria-label="${label}"><img src="img/${IMG[ic]}.png" alt="" draggable="false">${b}</button>`;
   }
   const g = G[ic] ? G[ic]() : '';
   const hl = g.match(/<[^>]*class="oh"[^>]*\/>/g) || [];
