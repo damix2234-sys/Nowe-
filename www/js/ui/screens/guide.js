@@ -35,7 +35,8 @@ const SECTIONS = [
     <p>Jesteś selekcjonerem reprezentacji. Nie kupujesz zawodników, tylko wybierasz najlepszych z tych, którzy grają w klubach, i prowadzisz ich w meczach.</p>
     <ul>
       <li><b>Dalej</b> przesuwa czas. Gra sama się zatrzyma, gdy coś wymaga Twojej decyzji: powołania, mecz, konferencja, wiadomość.</li>
-      <li><b>Powołania.</b> Przed każdym zgrupowaniem wybierasz 23 zawodników, a na turniej 26. Patrz na OVR, formę, świeżość i kontuzje.</li>
+      <li><b>Powołania.</b> Przed każdym zgrupowaniem wybierasz 23 zawodników, a na turniej 26. Patrz na OVR, formę, świeżość i kontuzje. Nowych zawodników szukasz w <b>Skautingu</b>, a w <b>Kadrze</b> widzisz tylko powołanych.</li>
+      <li><b>Akademia.</b> Co roku dostajesz 10 nowych dzieci. Po 18. urodzinach trafiają do U-21.</li>
       <li><b>Taktyka.</b> Wybierz formację i ustaw wyjściową jedenastkę. Liczba na żetonie to siła zawodnika na tej pozycji.</li>
       <li><b>Trening.</b> Rozdziel punkty treningu. To daje bonus w meczu i rozwija zawodników co miesiąc.</li>
       <li><b>Mecz.</b> Oglądasz go na żywo albo symulujesz. W trakcie robisz zmiany i zmieniasz taktykę.</li>
@@ -99,7 +100,7 @@ const SECTIONS = [
     <h4>3. Gra w kadrze lub U-21</h4>
     <p>Zawodnik do 23 lat, który zagrał w tym miesiącu, dostaje dodatkowo do +0,24.</p>
     <h4>4. Trening kadry</h4>
-    <p>Zawodnicy powołani do kadry i U-21 co miesiąc dostają albo tracą punkty w atrybutach według Twojego planu treningowego. Szczegóły w części Trening.</p>
+    <p>Zawodnicy powołani do kadry i U-21 oraz wychowankowie akademii co miesiąc dostają albo tracą punkty w atrybutach według Twojego planu treningowego. Szczegóły w części Trening.</p>
     <h4>5. Kontuzje i doświadczenie</h4>
     <p>Kontuzja dłuższa niż 20 dni zabiera 0,1. Z wiekiem rosną powoli doświadczenie i głowa: Przywództwo, Opanowanie, Decyzje, Przewidywanie, Ustawianie się i Koncentracja.</p>
     <div class="tip">Zawodnik przed trzydziestką to najlepszy moment. Po trzydziestce warto szukać jego następcy.</div>` },
@@ -109,7 +110,7 @@ const SECTIONS = [
     <h4>Co daje trening</h4>
     <ul>
       <li><b>Bonus w meczu.</b> Każdy punkt powyżej ${TRAIN_MIN} wzmacnia w meczu atrybuty z tej kategorii o 2%. Przy ${TRAIN_MAX} punktach to +${trainPct(TRAIN_MAX)}%.</li>
-      <li><b>Rozwój co miesiąc.</b> Zawodnicy kadry i U-21 dostają punkty w atrybutach tej kategorii. Najwięcej w atrybutach kluczowych dla swojej pozycji, a w pozostałych trzy razy mniej. Młodzi rosną szybciej, starsi wolniej.</li>
+      <li><b>Rozwój co miesiąc.</b> Zawodnicy kadry, U-21 i akademii dostają punkty w atrybutach tej kategorii. Najwięcej w atrybutach kluczowych dla swojej pozycji, a w pozostałych trzy razy mniej. Młodzi rosną szybciej, starsi wolniej.</li>
       <li><b>Kondycja</b> dodatkowo sprawia, że zawodnicy wolniej się męczą w meczu i rzadziej łapią kontuzje.</li>
     </ul>
     <div class="warn"><b>Zaniedbanie.</b> Jeśli kategoria ma mniej niż ${TRAIN_MIN} punkty, jej atrybuty działają w meczu słabiej, a przy 0 punktach aż o ${-trainPct(0)}%. Do tego co miesiąc zawodnicy tracą w nich punkty. Przykład: 0 punktów w Treningu bramkarzy to słabszy bramkarz w każdym meczu.</div>
@@ -189,6 +190,24 @@ const SECTIONS = [
       <li><b>Rozmowy.</b> Pochwała pomaga zawodnikom w formie, krytyka może pobudzić tych w słabszej formie. Obietnica gry w pierwszym składzie daje dużo morale, ale jej złamanie mocno boli.</li>
       <li><b>Kartki.</b> Czerwona kartka to pauza w następnym meczu. Dwie żółte w meczach o punkty to również pauza.</li>
       <li><b>U-21.</b> Młodzi do 21 lat rozwijają się szybciej, gdy grają w kadrze U-21.</li>
+    </ul>` },
+
+  { id: 'scout', ic: '🔭', t: 'Skauting i Akademia', b: () => `
+    <h4>Kadra i Skauting</h4>
+    <ul>
+      <li><b>Kadra</b> pokazuje tylko Twoich powołanych zawodników.</li>
+      <li><b>Skauting</b> to cała baza zawodników z Twojego kraju, około 200 osób. Filtrujesz po pozycji i wieku, sortujesz po ocenie, formie, wieku albo potencjale i wyszukujesz po nazwisku.</li>
+      <li>Przycisk ➕ przy zawodniku powołuje go do kadry, a ✓ oznacza, że już w niej jest.</li>
+      <li>W bazie są gwiazdy, solidni rezerwowi i ukryte talenty. Najlepiej szukać młodych z 🔥 przy potencjale.</li>
+    </ul>
+    <h4>Akademia</h4>
+    <ul>
+      <li>W akademii federacji szkolą się dzieci i młodzież od 4 do 17 lat.</li>
+      <li>Co roku, 1 stycznia, dołącza <b>10 nowych wychowanków</b> w wieku od 4 do 9 lat.</li>
+      <li>Wychowanek rośnie z wiekiem: jego ocena zbliża się do części potencjału odpowiedniej dla wieku. Rośnie też jego wzrost i waga.</li>
+      <li>Akademia trenuje według Twojego planu treningowego, tak samo jak kadra i U-21. Dobry plan to lepsi wychowankowie.</li>
+      <li>Po skończeniu <b>18 lat</b> wychowanek przechodzi automatycznie do kadry U-21 i do bazy zawodników, z której możesz go powołać do pierwszej reprezentacji.</li>
+      <li>Potencjał wychowanków widać po zatrudnieniu skautów.</li>
     </ul>` },
 
   { id: 'fed', ic: '🏛️', t: 'Federacja, kibice i media', b: () => `

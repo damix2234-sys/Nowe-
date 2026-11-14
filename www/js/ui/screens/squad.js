@@ -1,6 +1,6 @@
 // Kadra, powołania, U-21, profil zawodnika, rozmowy.
 import { screen, actions, go, rerender, esc, icon, posBadge, rating, formIcon, chips, seg, toast, sheet, closeOverlay, modal, bar, attrVal, av, flag, stars, empty, current } from '../ui.js';
-import { G, me, poolOf, natName, confirmCallup, talkTo, windowAt, trustChange, removeEvent } from '../../engine/game.js';
+import { G, me, poolOf, natName, confirmCallup, talkTo, windowAt, trustChange, removeEvent, academyOf, ACADEMY_INTAKE } from '../../engine/game.js';
 import { ovr, ovrI, ATTR_NAMES, ATTR_GROUPS, ATTR_HINTS, POS_W, POS_NAMES, POS_GROUP, POS_ORDER, value, CLUB_STATUS, FORM_NAMES, FORM_MUL } from '../../engine/player.js';
 import { fullName } from '../../data/names.js';
 import { NAT } from '../../data/nations.js';
@@ -80,19 +80,19 @@ screen('squad', {
     return {
       title: mode === 'callup' ? 'Powołania' : 'Kadra', sub: `${natName(me())} · limit ${limit}`,
       cls: mode === 'callup' ? '' : 'nofoot',
-      body: `${seg('sq.tab', [['called', `Powołani: ${called.length}`], ['all', `Wszyscy: ${pool.length}`]], tab, { mode })}
+      body: `${mode === 'callup' ? seg('sq.tab', [['called', `Powołani: ${called.length}`], ['all', `Wszyscy: ${pool.length}`]], tab, { mode }) : ''}
         ${summary}
         <input class="input mb" id="sq-search" type="search" data-input="sq.search" placeholder="Szukaj zawodnika…" value="${esc(st.q)}" autocomplete="off">
         ${controls()}
         <div class="card tight"><div class="list" id="sq-list">${rows}</div></div>
-        ${mode !== 'callup' ? `<p class="small muted center">Zmiany w kadrze obowiązują od razu. Przed każdym zgrupowaniem dostaniesz przypomnienie o powołaniach.</p>` : ''}`,
+        ${mode !== 'callup' ? `<button class="btn ghost block mb" data-a="go" data-k="scouting">${icon('search')} Skauting: szukaj nowych zawodników</button><p class="small muted center">Tu są tylko Twoi powołani zawodnicy. Nowych szukasz w Skautingu. Zmiany w kadrze obowiązują od razu.</p>` : ''}`,
       foot,
     };
   },
 });
 
 function squadRows(mode, tab, sel, pool, called) {
-  const base = tab === 'called' ? called : pool;
+  const base = mode !== 'callup' || tab === 'called' ? called : pool;
   const list = sortPlayers(filterGrp(base)).filter(matchQ);
   lastList = list.map((p) => p.id);
   const toggle = mode === 'callup' ? 'sq.toggleDraft' : 'sq.toggle';
@@ -176,8 +176,8 @@ screen('player', {
         ${fact('Wiek', `${p.age} lat`)}
         ${fact('Wzrost i waga', p.h ? `${p.h} cm, ${p.w} kg` : '')}
         ${fact('Występy / gole', `${p.caps} / ${p.goals}`)}
-        ${fact('Klub', esc(club ? club.n : 'bez klubu'))}
-        ${fact('Status w klubie', CLUB_STATUS[p.cst])}
+        ${fact('Klub', p.acad ? 'Akademia federacji' : esc(club ? club.n : 'bez klubu'))}
+        ${fact('Status w klubie', p.acad ? `wychowanek, do U-21 za ${18 - p.age} ${plural(18 - p.age, 'rok', 'lata', 'lat')}` : CLUB_STATUS[p.cst])}
         ${fact('Wartość', fmtMoney(value(p)))}
         ${fact('Potencjał', potentialText(p))}
         ${fact('Forma', `${formIcon(p.form)} ${FORM_NAMES[p.form + 2]}${formEffect(p)}`)}
@@ -192,10 +192,10 @@ screen('player', {
         ${fact('Mecze', s.apps)}${fact('Gole / asysty', `${s.g} / ${s.a}`)}${fact('Średnia ocena', (s.rs / s.apps).toFixed(2))}${fact('Zawodnik meczu', s.mom)}${fact('Kartki ż/cz', `${s.yc} / ${s.rc}`)}${fact('Minuty', s.min)}
       </div></div>` : ''}
       ${p.u21 && p.u21.apps ? `<div class="card"><div class="card-h"><h3>Kadra U-21</h3></div><div class="small">${p.u21.apps} meczów, ${p.u21.g} goli</div></div>` : ''}`;
-    const foot = mine ? `<button class="btn ghost" data-a="pl.talk" data-k="${p.id}">${icon('mic')} Rozmowa</button>
+    const foot = mine && !p.acad ? `<button class="btn ghost" data-a="pl.talk" data-k="${p.id}">${icon('mic')} Rozmowa</button>
       <button class="btn ${inSquad ? 'danger' : ''}" data-a="pl.squad" data-k="${p.id}">${inSquad ? 'Usuń z kadry' : 'Powołaj'}</button>
       ${p.age <= 21 ? `<button class="btn ghost" data-a="pl.u21" data-k="${p.id}">${inU21 ? '− U-21' : '+ U-21'}</button>` : ''}` : '';
-    return { title: fullName(p), sub: `${p.pos} · ${p.age} l.`, right: nav, body, foot, cls: mine ? '' : 'nofoot' };
+    return { title: fullName(p), sub: `${p.pos} · ${p.age} l.`, right: nav, body, foot, cls: mine && !p.acad ? '' : 'nofoot' };
   },
 });
 
@@ -297,3 +297,89 @@ actions({
 
 export { lastList };
 export function setLastList(l) { lastList = l; }
+
+// ---------------- skauting ----------------
+const sc = { grp: 'all', age: 'all', sort: 'ovr', q: '', n: 50, hide: false };
+const AGE_F = { all: () => true, u21: (p) => p.age <= 21, mid: (p) => p.age >= 22 && p.age <= 29, old: (p) => p.age >= 30 };
+
+function scoutList() {
+  const called = new Set(G.team.squad);
+  let list = poolOf(me()).filter(AGE_F[sc.age]);
+  if (sc.grp !== 'all') list = list.filter((p) => POS_GROUP[p.pos] === sc.grp);
+  if (sc.hide) list = list.filter((p) => !called.has(p.id));
+  if (sc.q) list = list.filter((p) => norm(fullName(p)).includes(norm(sc.q.trim())));
+  const k = sc.sort;
+  list.sort((a, b) => k === 'pot' ? b.pot - a.pot || ovr(b) - ovr(a) : k === 'age' ? a.age - b.age || ovr(b) - ovr(a) : k === 'form' ? b.form - a.form || ovr(b) - ovr(a) : ovr(b) - ovr(a));
+  return list;
+}
+
+function scoutRows() {
+  const called = new Set(G.team.squad);
+  const all = scoutList();
+  const list = all.slice(0, sc.n);
+  lastList = all.map((p) => p.id);
+  const rows = list.map((p) => {
+    const club = G.clubs[p.club];
+    const pot = G.team.scouts && p.age < 27 ? ` · potencjał ${Math.round(p.pot)}${p.pot - ovr(p) >= 10 ? ' 🔥' : ''}` : '';
+    return playerRow(p, { toggle: 'sc.toggle', on: called.has(p.id), cls: called.has(p.id) ? 'me' : '', sub: `${p.age} l. · ${esc(club ? club.n : 'bez klubu')}${pot}` });
+  }).join('') || empty('Brak zawodników spełniających kryteria.');
+  const more = all.length > sc.n ? `<button class="btn ghost block mt" data-a="sc.more">Pokaż więcej: jeszcze ${all.length - sc.n}</button>` : '';
+  return { rows, more, total: all.length };
+}
+
+screen('scouting', {
+  render() {
+    const r = scoutRows();
+    const sorts = [['ovr', 'Ocena'], ...(G.team.scouts ? [['pot', 'Potencjał']] : []), ['age', 'Wiek'], ['form', 'Forma']];
+    const body = `<p class="small muted mb">Wszyscy zawodnicy z kraju, których możesz powołać: <b>${poolOf(me()).length}</b>. Dotknij ➕, aby powołać, albo zawodnika, aby zobaczyć profil.${G.team.scouts ? '' : ' Potencjał zobaczysz po zatrudnieniu skautów w menu Federacja.'}</p>
+      <input class="input mb" id="sc-search" type="search" data-input="sc.search" placeholder="Szukaj po nazwisku…" value="${esc(sc.q)}" autocomplete="off">
+      ${chips('sc.grp', [['all', 'Wszyscy'], ['G', 'Bramkarze'], ['D', 'Obrońcy'], ['M', 'Pomocnicy'], ['A', 'Napastnicy']], sc.grp)}
+      ${chips('sc.age', [['all', 'Każdy wiek'], ['u21', 'Do 21 lat'], ['mid', '22 do 29'], ['old', '30 i więcej']], sc.age)}
+      ${chips('sc.sort', sorts, sc.sort)}
+      ${chips('sc.hide', [['0', 'Pokaż powołanych'], ['1', 'Ukryj powołanych']], sc.hide ? '1' : '0')}
+      <div class="small muted mb">Znaleziono: <b id="sc-total">${r.total}</b> · w kadrze: ${G.team.squad.length}</div>
+      <div class="card tight"><div class="list" id="sc-list">${r.rows}</div></div><div id="sc-more">${r.more}</div>`;
+    return { title: 'Skauting', sub: `${natName(me())} · baza zawodników`, cls: 'nofoot', body };
+  },
+});
+
+actions({
+  'sc.grp': (d) => { sc.grp = d.k; sc.n = 50; rerender(); },
+  'sc.age': (d) => { sc.age = d.k; sc.n = 50; rerender(); },
+  'sc.sort': (d) => { sc.sort = d.k; rerender(); },
+  'sc.hide': (d) => { sc.hide = d.k === '1'; sc.n = 50; rerender(); },
+  'sc.more': () => { sc.n += 50; rerender(); },
+  'sc.toggle': (d) => { toggleSquad(+d.k); rerender(); },
+  'sc.search': (d, el) => {
+    sc.q = el.value; sc.n = 50;
+    const r = scoutRows();
+    const l = document.getElementById('sc-list'); if (l) l.innerHTML = r.rows;
+    const m = document.getElementById('sc-more'); if (m) m.innerHTML = r.more;
+    const t = document.getElementById('sc-total'); if (t) t.textContent = r.total;
+  },
+});
+
+// ---------------- akademia ----------------
+const ac = { sort: 'age' };
+screen('academy', {
+  render() {
+    const kids = academyOf(me());
+    const k = ac.sort;
+    const list = kids.slice().sort((a, b) => k === 'ovr' ? ovr(b) - ovr(a) : k === 'pot' ? b.pot - a.pot : b.age - a.age || ovr(b) - ovr(a));
+    lastList = list.map((p) => p.id);
+    const sorts = [['age', 'Wiek'], ['ovr', 'Ocena'], ...(G.team.scouts ? [['pot', 'Potencjał']] : [])];
+    const byAge = {};
+    for (const p of kids) byAge[p.age] = (byAge[p.age] || 0) + 1;
+    const rows = list.map((p) => {
+      const pot = G.team.scouts ? ` · potencjał ${Math.round(p.pot)}${p.pot >= ovr(p) + 25 && p.pot >= 75 ? ' 🔥' : ''}` : '';
+      return playerRow(p, { sub: `${p.age} l. · ${p.h} cm${pot}` });
+    }).join('') || empty('Akademia jest pusta.');
+    const body = `<div class="card"><p class="small">W akademii federacji szkolą się dzieci i młodzież od 4 do 17 lat. Co roku, 1 stycznia, dołącza <b>${ACADEMY_INTAKE}</b> nowych wychowanków. Po skończeniu 18 lat przechodzą automatycznie do kadry U-21. Wychowankowie trenują według Twojego planu treningowego, więc plan wpływa na to, jakimi zawodnikami zostaną.</p>
+      <div class="facts mt"><div class="fact"><div class="k">Wychowankowie</div><div class="v">${kids.length}</div></div><div class="fact"><div class="k">Najstarsi, 17 lat</div><div class="v">${byAge[17] || 0}</div></div></div></div>
+      ${G.team.scouts ? '' : '<p class="small muted">Potencjał wychowanków zobaczysz po zatrudnieniu skautów w menu Federacja.</p>'}
+      ${chips('ac.sort', sorts, ac.sort)}
+      <div class="card tight"><div class="list">${rows}</div></div>`;
+    return { title: 'Akademia', sub: natName(me()), cls: 'nofoot', body };
+  },
+});
+actions({ 'ac.sort': (d) => { ac.sort = d.k; rerender(); } });

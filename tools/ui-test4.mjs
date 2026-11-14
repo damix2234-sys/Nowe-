@@ -29,20 +29,19 @@ await page.waitForTimeout(300);
 while (await page.locator('.ov.show .m-actions .btn').count()) { const b = page.locator('.ov.show .m-actions .btn'); await b.nth((await b.count()) - 1).click(); await page.waitForTimeout(250); }
 
 // wyszukiwarka
-await go('squad');
+await go('scouting');
 await page.waitForTimeout(250);
-await click('[data-a="sq.tab"][data-k="all"]');
-const all = await page.locator('#sq-list .row').count();
-const firstName = (await page.locator('#sq-list .row .t1').first().textContent()).trim();
-await page.fill('#sq-search', firstName.split(' ').pop());
+const all = +(await page.locator('#sc-total').textContent());
+const firstName = (await page.locator('#sc-list .row .t1').first().textContent()).trim();
+await page.fill('#sc-search', firstName.split(' ').pop());
 await page.waitForTimeout(200);
-const filtered = await page.locator('#sq-list .row').count();
+const filtered = await page.locator('#sc-list .row').count();
 ok(`wyszukiwarka: ${all} → ${filtered} (${firstName})`, filtered >= 1 && filtered < all);
 await page.screenshot({ path: `${OUT}/t4-search.png` });
-await page.fill('#sq-search', 'zzzzzz');
+await page.fill('#sc-search', 'zzzzzz');
 await page.waitForTimeout(150);
-ok('wyszukiwarka – brak wyników', await page.locator('#sq-list .empty').count() === 1);
-await page.fill('#sq-search', '');
+ok('wyszukiwarka – brak wyników', await page.locator('#sc-list .empty').count() === 1);
+await page.fill('#sc-search', '');
 await click('[data-a="ui.back"]');
 
 // do meczu

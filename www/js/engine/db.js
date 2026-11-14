@@ -311,3 +311,60 @@ export function applyOverrides(world, ov) {
     }
   }
 }
+
+// ---------------------------------------------------------------------
+// Szeroka baza zawodników prowadzonej reprezentacji i akademia federacji
+// ---------------------------------------------------------------------
+const DEPTH_POS = Object.entries(SENIOR_LAYOUT).flatMap(([pos, n]) => Array(n).fill(pos));
+
+/** Zawodnik z szerszej bazy kraju: zwykle słabszy od czołówki, czasem ukryty talent. */
+export function makeDepthPlayer(world, natId, r = Math.random) {
+  const nat = NAT[natId];
+  const pos = pick(DEPTH_POS, r);
+  const young = r() < 0.3;
+  const age = young ? rint(17, 21, r) : seniorAge(r);
+  let target = nat.str - 7 - Math.abs(gauss(r)) * 9 + gauss(r) * 2;
+  if (young) target -= (21 - age) * 2;
+  if (age >= 33) target -= 2;
+  target = clamp(target, 22, 88);
+  const p = makePlayer(world, natId, pos, target, age, r);
+  if (age <= 23) {
+    let pot = target + rint(1, 9, r) + (r() < 0.06 ? rint(6, 14, r) : 0);
+    p.pot = clamp(Math.round(pot), Math.round(target), 95);
+  } else p.pot = Math.round(target + (age <= 26 ? rint(0, 3, r) : 0));
+  p.caps = 0; p.goals = 0;
+  assignClub(world, p, r);
+  delete p._o;
+  return p;
+}
+
+/** Krzywa rozwoju wychowanka: jaką część potencjału osiąga w danym wieku. */
+export const academyCurve = (age) => clamp(0.3 + (age - 4) * 0.0343, 0.25, 0.8);
+
+/** Wzrost i waga dziecka w danym wieku, na podstawie docelowych wymiarów dorosłego. */
+export function kidBody(p) {
+  if (p.hAdult == null) { p.hAdult = p.h; p.wAdult = p.w; }
+  const g = clamp((p.age - 4) / 14, 0, 1);
+  p.h = Math.round(p.hAdult * (0.57 + 0.43 * Math.pow(g, 0.85)));
+  p.w = Math.round((p.h * p.h) / 10000 * (15.5 + 5.5 * g));
+}
+
+/** Nowy wychowanek akademii federacji. */
+export function makeAcademyKid(world, natId, age, r = Math.random) {
+  const nat = NAT[natId];
+  const raw = pick(YOUTH_LAYOUT, r);
+  const pos = raw === 'W' ? (r() < 0.5 ? 'LW' : 'RW') : raw;
+  let pot = nat.str + gauss(r) * 7;
+  if (r() < 0.06) pot += rint(6, 14, r);
+  pot = clamp(Math.round(pot), 35, 97);
+  const target = clamp(pot * academyCurve(age) + gauss(r) * 2, 8, 80);
+  const p = makePlayer(world, natId, pos, target, age, r);
+  p.pot = pot;
+  p.acad = true;
+  p.club = null;
+  p.cst = 1;
+  p.caps = 0; p.goals = 0;
+  delete p._o;
+  kidBody(p);
+  return p;
+}

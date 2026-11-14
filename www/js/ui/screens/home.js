@@ -98,9 +98,9 @@ function unemployedCard() {
 
 // ---------------- boczny pasek menu (jak w menedżerach piłkarskich) ----------------
 const RAIL_ITEMS = [
-  ['squad', 'kadra', 'Kadra'], ['tactics', 'taktyka', 'Taktyka'], ['training', 'trening', 'Trening'],
+  ['squad', 'kadra', 'Kadra'], ['scouting', 'skauting', 'Skauting'], ['tactics', 'taktyka', 'Taktyka'], ['training', 'trening', 'Trening'],
   ['opponents', 'przeciwnicy', 'Rywale'], ['comps', 'rozgrywki', 'Rozgrywki'], ['friendlies', 'towarzyskie', 'Sparingi'],
-  ['u21', 'u21', 'U-21'], ['federation', 'federacja', 'Federacja'], ['ranking', 'ranking', 'Ranking'],
+  ['u21', 'u21', 'U-21'], ['academy', 'akademia', 'Akademia'], ['federation', 'federacja', 'Federacja'], ['ranking', 'ranking', 'Ranking'],
   ['stats', 'statystyki', 'Statystyki'], ['offers', 'oferty', 'Oferty'], ['achievements', 'osiagniecia', 'Osiągnięcia'],
   ['messages', 'wiadomosci', 'Poczta'], ['save', 'zapisz', 'Zapisz'], ['settings', 'ustawienia', 'Ustawienia'],
 ];
@@ -116,7 +116,7 @@ setRail((name) => {
   const offers = G.offers.filter((o) => o.until >= G.day).length;
   const badge = { messages: unread, offers };
   const item = (k, img, label) => `<button class="rail-it ${cur === k ? 'on' : ''}" data-a="rail.go" data-k="${k}" aria-label="${label}">
-      <span class="rail-ic" style="background-image:url(img/${img}.png)"></span><span class="rail-lb">${label}</span>${badge[k] ? `<span class="badge">${badge[k]}</span>` : ''}</button>`;
+      <img class="rail-ic" src="img/rail/${img}.png" alt=""><span class="rail-lb">${label}</span>${badge[k] ? `<span class="badge">${badge[k]}</span>` : ''}</button>`;
   return `<button class="rail-it rail-home ${cur === 'home' ? 'on' : ''}" data-a="rail.go" data-k="home" aria-label="Pulpit"><span class="rail-logo"><img src="img/logo.png" alt=""></span><span class="rail-lb">Pulpit</span></button>`
     + RAIL_ITEMS.filter(([k]) => m || RAIL_JOBLESS.has(k)).map((x) => item(...x)).join('')
     + `<button class="rail-it rail-exit" data-a="home.menu" aria-label="Menu główne"><span class="rail-exit-ic">${icon('exit')}</span><span class="rail-lb">Menu</span></button>`;

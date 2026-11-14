@@ -42,3 +42,11 @@ console.log('cele', G.objectives.map(o => `${o.cname}: ${o.text} → ${o.status}
 const pos = rankPositions(G); console.log('ranking top5', Object.entries(pos).sort((a,b)=>a[1]-b[1]).slice(0,5).map(([k,v])=>v+'.'+k).join(' '), '| moja drużyna:', me() ? pos[me()] : '-');
 console.log('wiadomości', G.msgs.length, 'kolejka', G.queue.length, 'historia', G.history.length);
 const size = JSON.stringify(G).length; console.log('rozmiar zapisu', (size/1024).toFixed(0), 'KB');
+// akademia i baza zawodników prowadzonej reprezentacji
+if (me()) {
+  const { academyOf, poolOf } = await import('../www/js/engine/game.js');
+  const { ovr } = await import('../www/js/engine/player.js');
+  const ac = academyOf(me());
+  const ages = {}; for (const p of ac) ages[p.age] = (ages[p.age] || 0) + 1;
+  console.log('akademia', ac.length, 'wiek', JSON.stringify(ages), '| baza', poolOf(me()).length, '| U-21', G.team.u21.length, '| wychowankowie w bazie', poolOf(me()).filter((p) => p.hAdult != null).map((p) => `${p.age}l/${Math.round(ovr(p))}`).join(' '));
+}

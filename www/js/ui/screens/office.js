@@ -47,7 +47,7 @@ screen('training', {
         <div class="small mt">${trainEffect(t.alloc[k])}</div>
         <div class="train-attrs">${TRAIN_ATTR_LIST(k).map((n) => `<span>${n}</span>`).join('')}</div></div>`).join('')}
       </div>
-      <p class="small muted center">Trening działa na zawodników powołanych do kadry i U-21. Pełne wyjaśnienie znajdziesz w Poradniku.</p>
+      <p class="small muted center">Trening działa na zawodników kadry, U-21 i akademii. Pełne wyjaśnienie znajdziesz w Poradniku.</p>
       <button class="btn ghost block mb" data-a="guide.open" data-k="training">${icon('help')} Poradnik: trening</button>`;
     return { title: 'Trening', sub: 'Plan treningowy kadry', cls: 'nofoot', body };
   },

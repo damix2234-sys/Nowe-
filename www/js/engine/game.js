@@ -1,12 +1,12 @@
 // Stan gry, upływ czasu i wszystkie decyzje menedżerskie.
-import { mkDay, ymd, rint, chance, pick, shuffle, clamp, hashStr, mkRng, fmtDate, fmtDateLong, plural } from '../core/util.js';
+import { mkDay, ymd, rint, chance, pick, shuffle, clamp, hashStr, mkRng, fmtDate, fmtDateLong, plural, gauss } from '../core/util.js';
 import { NATIONS, NAT } from '../data/nations.js';
 import { fullName } from '../data/names.js';
 import { ACH } from '../data/achievements.js';
 import { QUESTIONS, OUTLETS, GREETINGS, GREET_ANSWERS } from '../data/press.js';
-import { generateWorld, applyOverrides, DEFAULT_SEED, genName, makeYouth, assignClub, attrRng } from './db.js';
+import { generateWorld, applyOverrides, DEFAULT_SEED, genName, makeYouth, assignClub, attrRng, makeDepthPlayer, makeAcademyKid, academyCurve, kidBody } from './db.js';
 import { TRAIN_KEYS, TRAIN_NAMES, TRAIN_BUDGET, TRAIN_MAX, AI_TRAIN, applyMonthlyTraining } from './training.js';
-import { ovr, developMonthly, POS_GROUP, clubStatusFor, CLUB_STATUS, extendAttrs } from './player.js';
+import { ovr, developMonthly, POS_GROUP, clubStatusFor, CLUB_STATUS, extendAttrs, applyDelta } from './player.js';
 import { FORMATIONS, defaultTactics, autoLineup, autoBench, defaultSetPieces, pickSquad, aiTactics, available, matchScore } from './tactics.js';
 import { Match } from './match.js';
 import { LiveMatch } from './sim.js';
@@ -33,6 +33,64 @@ function migrate(g) {
     tr.alloc.gk = 5;
     let used = TRAIN_KEYS.reduce((a, k) => a + (tr.alloc[k] || 0), 0);
     for (const k of TRAIN_KEYS) while (used > TRAIN_BUDGET && tr.alloc[k] > 4) { tr.alloc[k]--; used--; }
+  }
+  // szeroka baza i akademia prowadzonej reprezentacji
+  if (g.user && g.user.nat && g.nats && g.nats[g.user.nat]) { ensureDeepPool(g.user.nat); ensureAcademy(g.user.nat); }
+}
+
+export const DEEP_SIZE = 200;
+export const ACADEMY_INTAKE = 10;
+
+/** Rozszerza bazę zawodników kraju do ok. 200 (dla reprezentacji prowadzonej przez gracza). */
+export function ensureDeepPool(nid) {
+  const nat = G.nats[nid];
+  if (!nat || nat.deep) return;
+  while (nat.pool.length < DEEP_SIZE) nat.pool.push(makeDepthPlayer(G, nid).id);
+  nat.deep = true;
+}
+
+/** Tworzy akademię federacji: dzieci i młodzież od 4 do 17 lat. */
+export function ensureAcademy(nid) {
+  const nat = G.nats[nid];
+  if (!nat || nat.acad) return;
+  nat.acad = [];
+  for (let age = 4; age <= 17; age++) {
+    const n = age <= 6 ? 1 : age <= 12 ? 2 : 3;
+    for (let i = 0; i < n; i++) nat.acad.push(makeAcademyKid(G, nid, age).id);
+  }
+}
+
+export const academyOf = (nid) => ((G.nats[nid] && G.nats[nid].acad) || []).map((id) => G.players[id]).filter(Boolean);
+
+/** Miesięczny rozwój wychowanka: zbliża się do krzywej wiekowej swojego potencjału. */
+function academyDevelop(p) {
+  const target = p.pot * academyCurve(p.age + 0.5);
+  const d = clamp((target - ovr(p)) * 0.12, -0.3, 1.2) + gauss() * 0.15;
+  if (d) applyDelta(p, d);
+}
+
+/** Nowy rocznik: wychowankowie z 18 lat przechodzą do kadry U-21, do akademii przychodzi 10 dzieci. */
+function academyYear(nid) {
+  const nat = G.nats[nid];
+  if (!nat || !nat.acad) return;
+  const grads = [];
+  nat.acad = nat.acad.filter((id) => {
+    const p = G.players[id];
+    if (!p) return false;
+    if (p.age < 18) { kidBody(p); return true; }
+    delete p.acad;
+    p.h = p.hAdult ?? p.h; p.w = p.wAdult ?? p.w;
+    assignClub(G, p);
+    p.u21 = p.u21 || { apps: 0, g: 0 };
+    nat.pool.push(p.id);
+    grads.push(p);
+    return false;
+  });
+  for (let i = 0; i < ACADEMY_INTAKE; i++) nat.acad.push(makeAcademyKid(G, nid, rint(4, 9)).id);
+  if (nid === me() && G.team) {
+    for (const p of grads) if (G.team.u21.length < 23 && !G.team.u21.includes(p.id)) G.team.u21.push(p.id);
+    const best = academyOf(nid).filter((p) => p.age <= 9).sort((a, b) => b.pot - a.pot)[0];
+    msg('assistant', 'Nowy rocznik w akademii', (grads.length ? `Akademię ukończyli i przeszli do kadry U-21: ${grads.map((p) => `${fullName(p)}, ${p.pos}`).join('; ')}.\n\n` : '') + `Do akademii dołączyło ${ACADEMY_INTAKE} nowych wychowanków.` + (best && G.team.scouts ? ` Największy talent wśród nich to ${fullName(best)}.` : ''));
   }
 }
 
@@ -113,6 +171,8 @@ export function takeJob(nid, initial = false) {
   G.user.contractEnd = contractEndFrom(G.day);
   G.user.spells.push({ nat: nid, from: G.day, to: null, m: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0 });
   G.trust = { fed: 62, fans: 55 + rint(0, 10), pl: 60, media: 55 + rint(0, 8) };
+  ensureDeepPool(nid);
+  ensureAcademy(nid);
   G.team = defaultTeam(nid);
   const pres = seededName(nid, 'prezes'), asst = seededName(nid, 'asystent'), doc = seededName(nid, 'lekarz');
   G.staff = { president: pres, assistant: asst, doctor: doc };
@@ -1268,6 +1328,7 @@ function weeklyTick() {
   const squad = m && G.team ? new Set(G.team.squad) : new Set();
   for (const id in G.players) {
     const p = G.players[id];
+    if (p.acad) continue;
     if (!p.inj) p.cond = clamp(p.cond + rint(-6, 6), 72, 100);
     if (Math.random() < 0.25) {
       const up = Math.random() < 0.5 + 0.08 * (1.5 - p.cst);
@@ -1285,12 +1346,14 @@ function weeklyTick() {
 function monthlyTick() {
   for (const id in G.players) {
     const p = G.players[id];
-    developMonthly(p, p.mp || 0);
+    if (p.acad) academyDevelop(p);
+    else developMonthly(p, p.mp || 0);
     p.mp = 0;
   }
   // trening kadry: zawodnicy powołani do kadry i U-21 pracują według planu selekcjonera
   if (G.team && G.team.train) {
-    for (const pid of new Set([...G.team.squad, ...(G.team.u21 || [])])) { const p = G.players[pid]; if (p) applyMonthlyTraining(p, G.team.train.alloc, ovr(p)); }
+    const acad = (G.nats[me()] && G.nats[me()].acad) || [];
+    for (const pid of new Set([...G.team.squad, ...(G.team.u21 || []), ...acad])) { const p = G.players[pid]; if (p) applyMonthlyTraining(p, G.team.train.alloc, ovr(p)); }
   }
   for (const k of ['fed', 'fans', 'pl', 'media']) G.trust[k] = Math.round((G.trust[k] + (55 - G.trust[k]) * 0.04) * 10) / 10;
   G.rankPrev = rankPositions(G);
@@ -1306,6 +1369,7 @@ function monthlyTick() {
 
 function newYear() {
   for (const id in G.players) G.players[id].age++;
+  for (const n of NATIONS) if (G.nats[n.id].acad) academyYear(n.id);
 }
 
 function midYear(y) {
@@ -1342,14 +1406,15 @@ function midYear(y) {
       if (n.id === m) msg('press', `${fullName(p)} kończy karierę w kadrze`, `${fullName(p)} ogłosił zakończenie kariery reprezentacyjnej. Bilans: ${p.caps} ${plural(p.caps, 'mecz', 'mecze', 'meczów')} i ${p.goals} ${plural(p.goals, 'gol', 'gole', 'goli')} w narodowych barwach. Dziękujemy!`);
       delete G.players[p.id];
     }
-    const add = Math.max(4, 36 - nat.pool.length);
-    for (let i = 0; i < Math.min(add, 9); i++) {
-      const p = makeYouth(G, n.id, Math.random, rint(16, 18));
+    const size = nat.deep ? DEEP_SIZE : 36, cap = nat.deep ? DEEP_SIZE + 30 : 50;
+    const add = Math.max(4, size - nat.pool.length);
+    for (let i = 0; i < Math.min(add, nat.deep ? 40 : 9); i++) {
+      const p = i < 9 ? makeYouth(G, n.id, Math.random, rint(16, 18)) : makeDepthPlayer(G, n.id);
       nat.pool.push(p.id);
     }
-    if (nat.pool.length > 50) {
+    if (nat.pool.length > cap) {
       const sorted = nat.pool.map((id) => G.players[id]).filter((p) => p.age >= 26).sort((a, b) => ovr(a) - ovr(b));
-      const drop = new Set(sorted.slice(0, nat.pool.length - 50).map((p) => p.id));
+      const drop = new Set(sorted.slice(0, nat.pool.length - cap).map((p) => p.id));
       nat.pool = nat.pool.filter((id) => !drop.has(id) || squadSet.has(id));
       for (const id of drop) if (!squadSet.has(id)) delete G.players[id];
     }
@@ -1360,6 +1425,7 @@ function midYear(y) {
   const moved = [];
   for (const id in G.players) {
     const p = G.players[id];
+    if (p.acad) continue;
     const club = G.clubs[p.club];
     const o = ovr(p);
     if (!club) { assignClub(G, p); continue; }
