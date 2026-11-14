@@ -226,6 +226,7 @@ export class Pitch2D {
     return {
       frames: this.frames, time: Math.round(this.time * 10) / 10, queue: this.queue.length,
       cur: c ? (c.act ? c.act.t : c.type) : null, ball: { x: Math.round(this.ball.x), y: Math.round(this.ball.y) }, cam: this.cam.mode,
+      fps: Math.round(this.fps || 0), dpr: this.dpr, qual: this.qual || 0,
     };
   }
 
@@ -238,13 +239,25 @@ export class Pitch2D {
   // ---------------- pętla ----------------
   frame(ts) {
     if (!this.running) return;
-    const dt = this.last ? Math.min(0.05, (ts - this.last) / 1000) : 0.016;
+    // do 0,2 s na klatkę – na wolnym urządzeniu mecz nie zwalnia, tylko animacja ma mniej klatek
+    const dt = this.last ? Math.min(0.2, (ts - this.last) / 1000) : 0.016;
     this.last = ts;
     this.advance(dt);
     this.camera(dt);
     this.draw();
     this.frames++;
+    this.quality(dt);
     if (this.running) this.raf = requestAnimationFrame((t) => this.frame(t));
+  }
+
+  /** Dynamiczna rozdzielczość: przy słabej płynności obniża gęstość pikseli płótna. */
+  quality(dt) {
+    this.fpsT = (this.fpsT || 0) + dt;
+    this.fpsN = (this.fpsN || 0) + 1;
+    if (this.fpsT < 2) return;
+    this.fps = this.fpsN / this.fpsT;
+    this.fpsT = 0; this.fpsN = 0;
+    if (this.fps < 30 && (this.qual || 0) < 2) { this.qual = (this.qual || 0) + 1; this.resize(); }
   }
 
   /** Krok symulacji o dtReal sekund czasu rzeczywistego (także w testach bez canvasa). */
@@ -278,7 +291,7 @@ export class Pitch2D {
     if (!cv) return;
     const r = cv.getBoundingClientRect();
     const w = Math.max(120, r.width), h = Math.max(120, r.height);
-    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2) * [1, 0.75, 0.55][this.qual || 0]);
     cv.width = Math.round(w * dpr);
     cv.height = Math.round(h * dpr);
     this.W = w; this.H = h; this.dpr = dpr;
@@ -294,6 +307,7 @@ export class Pitch2D {
     if (!this.W) return;
     const mode = this.cam.mode === 'auto' ? (this.fits ? 'full' : 'follow') : this.cam.mode;
     const kT = mode === 'full' ? this.kFull : mode === 'near' ? this.kWide * 1.45 : this.kWide;
+    this.kTarget = kT;
     const f = snap ? 1 : Math.min(1, dt * 3.5);
     this.cam.k += (kT - this.cam.k) * f;
     const b = this.ball;

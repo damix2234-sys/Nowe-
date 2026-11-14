@@ -18,10 +18,21 @@ export function render(P) {
   const Y = (y) => H / 2 - (y - cy) * k;
   const V = { c, k, X, Y, W, H, R: clamp(1.45 * k, 5.5, 14) };
 
-  drawTurf(V);
-  drawLines(V);
-  drawGoal(V, P, PL, 1);
-  drawGoal(V, P, 0, -1);
+  // statyczne tło (murawa, linie, bramki) rysowane raz do osobnego płótna i kopiowane
+  c.fillStyle = '#1d6a37';
+  c.fillRect(0, 0, W, H);
+  const bg = bgLayer(P, P.kTarget || k);
+  if (bg) {
+    const sc = k / P._bgK;
+    c.drawImage(bg.cv, X(-BGM), Y(PL + BGM), bg.w * sc, bg.h * sc);
+  } else {
+    drawTurf(V);
+    drawLines(V);
+    drawGoal(V, P, PL, 1, true);
+    drawGoal(V, P, 0, -1, true);
+  }
+  drawGoal(V, P, PL, 1, false);
+  drawGoal(V, P, 0, -1, false);
   drawOffside(V, P);
 
   // cienie
@@ -44,6 +55,30 @@ export function render(P) {
   drawBall(V, P);
   drawLabels(V, P, people);
   drawFx(V, P);
+}
+
+const BGM = 8;
+
+function bgLayer(P, k) {
+  if (typeof document === 'undefined') return null;
+  const dpr = P.dpr;
+  const key = `${k.toFixed(3)}|${dpr}`;
+  if (P._bg && P._bgKey === key) return P._bg;
+  const w = (PW + 2 * BGM) * k, h = (PL + 2 * BGM) * k;
+  const cv = (P._bg && P._bg.cv) || document.createElement('canvas');
+  cv.width = Math.ceil(w * dpr);
+  cv.height = Math.ceil(h * dpr);
+  const c = cv.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const V = { c, k, X: (x) => (x + BGM) * k, Y: (y) => (PL + BGM - y) * k, W: w, H: h };
+  drawTurf(V);
+  drawLines(V);
+  drawGoal(V, P, PL, 1, true);
+  drawGoal(V, P, 0, -1, true);
+  P._bg = { cv, w, h };
+  P._bgKey = key;
+  P._bgK = k;
+  return P._bg;
 }
 
 function drawTurf(V) {
@@ -102,10 +137,14 @@ function drawLines(V) {
   }
 }
 
-function drawGoal(V, P, y0, d) {
+/** stat – rysowanie do tła (siatka w spoczynku); inaczej tylko wybrzuszona siatka po golu. */
+function drawGoal(V, P, y0, d, stat) {
   const { c, k, X, Y } = V;
   let bulge = 0, bx = 34;
-  for (const f of P.fx) if (f.type === 'net' && Math.abs(f.y - y0) < 1) { bulge = Math.sin(Math.min(1, f.t / f.dur) * Math.PI) * 0.9; bx = f.x; }
+  if (!stat) {
+    for (const f of P.fx) if (f.type === 'net' && Math.abs(f.y - y0) < 1) { bulge = Math.sin(Math.min(1, f.t / f.dur) * Math.PI) * 0.9; bx = f.x; }
+    if (bulge <= 0.01) return;
+  }
   const depth = 2;
   const x0 = 34 - GHW, x1 = 34 + GHW;
   const back = y0 + d * depth;
