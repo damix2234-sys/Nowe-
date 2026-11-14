@@ -593,3 +593,21 @@ main.view.match-view { padding-top: 8px; }
 }
 .ctrl button:active .ic { transform: scale(0.93); filter: brightness(1.2); }
 .iconbtn { border-radius: 50%; }
+
+/* mniejsze przyciski pulpitu + błysk na plakietkach grafik */
+.tiles.orbs { max-width: 330px; margin-left: auto; margin-right: auto; gap: 14px 12px; }
+.orb-img::after {
+  content: ""; position: absolute; left: -1%; right: -1%; top: 70.5%; height: 23%; z-index: 2; pointer-events: none;
+  clip-path: polygon(6% 0, 94% 0, 100% 50%, 94% 100%, 6% 100%, 0 50%);
+  background: linear-gradient(100deg, transparent 0%, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%, transparent 100%);
+  background-size: 300% 100%; background-repeat: no-repeat;
+  mix-blend-mode: screen;
+  animation: plateShine 4.5s ease-in-out infinite;
+}
+.orb-img:nth-child(2n)::after { animation-delay: -1.5s; }
+.orb-img:nth-child(3n)::after { animation-delay: -3s; }
+@keyframes plateShine {
+  0%, 55% { background-position: 130% 0; }
+  100% { background-position: -30% 0; }
+}
+@media (prefers-reduced-motion: reduce) { .orb-img::after { animation: none; } }
