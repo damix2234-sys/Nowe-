@@ -142,15 +142,15 @@ function formEffect(p) {
 function attrGroups(p) {
   const key = POS_W[p.pos];
   const gk = p.pos === 'GK';
-  return ATTR_GROUPS.map(([name, keys]) => {
-    // umiejętności bramkarskie pokazujemy bramkarzom; zawodnikom z pola tylko jako mały dopisek
-    if (name === 'Bramkarskie' && !gk) return '';
+  // bramkarz: bramkarskie, mentalne, fizyczne; zawodnik z pola: techniczne, mentalne, fizyczne
+  return ATTR_GROUPS.filter(([name]) => (gk ? name !== 'Techniczne' : name !== 'Bramkarskie')).map(([name, keys]) => {
     const rows = keys.map((k) => {
       const v = p.a[k] ?? 0;
-      return `<div class="attr ${key[k] ? 'key' : ''}" title="${ATTR_HINTS[k]}"><span>${key[k] ? '★ ' : ''}${ATTR_NAMES[k]}</span>${attrVal(v)}${bar(v, v >= 66 ? 'good' : v >= 45 ? 'mid' : 'low')}</div>`;
+      const c = v >= 80 ? 'a5' : v >= 66 ? 'a4' : v >= 50 ? 'a3' : v >= 35 ? 'a2' : 'a1';
+      return `<div class="attr2 ${key[k] ? 'key' : ''}" title="${ATTR_HINTS[k]}"><span class="an">${ATTR_NAMES[k]}</span><b class="${c}">${Math.round(v)}</b></div>`;
     }).join('');
-    return `<div class="attr-group"><div class="label">${name}</div>${rows}</div>`;
-  }).join('');
+    return `<div class="attr-group"><div class="label">${name}</div><div class="attr-grid">${rows}</div></div>`;
+  }).join('') + '<div class="small muted mt">Podświetlone – najważniejsze atrybuty dla pozycji.</div>';
 }
 
 screen('player', {
@@ -174,6 +174,7 @@ screen('player', {
       </div>
       <div class="facts mb">
         ${fact('Wiek', `${p.age} lat`)}
+        ${fact('Wzrost / waga', p.h ? `${p.h} cm / ${p.w} kg` : '—')}
         ${fact('Występy / gole', `${p.caps} / ${p.goals}`)}
         ${fact('Klub', esc(club ? club.n : 'bez klubu'))}
         ${fact('Status w klubie', CLUB_STATUS[p.cst])}

@@ -10,10 +10,10 @@ const R = Math.random;
 // siła formacji z umiejętności (Odbiór, Krycie, Gra głową, Siła, Szybkość, Podania, Technika, Drybling,
 // Opanowanie, Kondycja, Strzały, Dośrodkowania)
 const av = (a, k) => a[k] ?? 50;
-const unitDef = (a) => 0.3 * av(a, 'tk') + 0.2 * av(a, 'mk') + 0.15 * av(a, 'hd') + 0.15 * av(a, 'st') + 0.15 * av(a, 'sp') + 0.05 * av(a, 'cm');
-const unitMid = (a) => 0.3 * av(a, 'ps') + 0.2 * av(a, 'te') + 0.15 * av(a, 'dr') + 0.1 * av(a, 'cm') + 0.1 * av(a, 'tk') + 0.1 * av(a, 'sp') + 0.05 * av(a, 'en');
-const unitAtt = (a) => 0.3 * av(a, 'sh') + 0.15 * av(a, 'te') + 0.15 * av(a, 'dr') + 0.15 * av(a, 'sp') + 0.1 * av(a, 'cm') + 0.1 * av(a, 'cr') + 0.05 * av(a, 'hd');
-const gkQ = (a) => 0.8 * av(a, 'gk') + 0.2 * av(a, 'gw');
+const unitDef = (a) => 0.22 * av(a, 'tk') + 0.16 * av(a, 'mk') + 0.14 * av(a, 'psn') + 0.1 * av(a, 'ant') + 0.1 * av(a, 'hd') + 0.08 * av(a, 'jmp') + 0.08 * av(a, 'st') + 0.06 * av(a, 'sp') + 0.06 * av(a, 'con');
+const unitMid = (a) => 0.22 * av(a, 'ps') + 0.14 * av(a, 'vis') + 0.12 * av(a, 'dec') + 0.12 * av(a, 'te') + 0.1 * av(a, 'ft') + 0.08 * av(a, 'dr') + 0.08 * av(a, 'tmw') + 0.08 * av(a, 'wr') + 0.06 * av(a, 'en');
+const unitAtt = (a) => 0.22 * av(a, 'sh') + 0.12 * av(a, 'otb') + 0.1 * av(a, 'te') + 0.1 * av(a, 'dr') + 0.1 * av(a, 'acc') + 0.08 * av(a, 'sp') + 0.08 * av(a, 'cm') + 0.08 * av(a, 'cr') + 0.06 * av(a, 'ls') + 0.06 * av(a, 'hd');
+const gkQ = (a) => 0.4 * av(a, 'gk') + 0.18 * av(a, 'han') + 0.14 * av(a, 'ovo') + 0.14 * av(a, 'aer') + 0.14 * av(a, 'psn');
 
 const POS_INVOLVE = { GK: 0, CB: 0.8, LB: 2.2, RB: 2.2, DM: 2, CM: 4, AM: 6.5, LW: 7, RW: 7, CF: 8 };
 const SHOOT_W = { GK: 0, CB: 0.5, LB: 0.7, RB: 0.7, DM: 1.3, CM: 2.8, AM: 5.5, LW: 5.5, RW: 5.5, CF: 10 };
@@ -874,7 +874,7 @@ export class Match {
       const gk = on.filter((s) => s.pos === 'GK');
       return [...(pen ? [pen] : []), ...rest, ...gk];
     };
-    const kickQ = (p) => 0.5 * p.a.sh + 0.25 * p.a.te + 0.25 * av(p.a, 'cm');
+    const kickQ = (p) => 0.6 * av(p.a, 'pen') + 0.4 * av(p.a, 'cm');
     const k = [order(this.sides[0]), order(this.sides[1])];
     const sc = [0, 0], taken = [0, 0];
     const kicks = [];

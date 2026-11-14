@@ -651,3 +651,12 @@ main.view.match-view { padding-top: 8px; }
 .app.with-rail header.top { margin-left: 6px; margin-right: 8px; }
 .app.with-rail main.view { padding-left: 10px; padding-right: 10px; }
 .app.with-rail footer.foot { left: calc(max(0px, calc(50% - 280px)) + 76px); right: max(0px, calc(50% - 280px)); margin: 0; max-width: none; padding-left: 10px; padding-right: 10px; }
+
+/* atrybuty zawodnika (siatka jak w menedżerach) */
+.attr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; }
+.attr2 { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 5px 8px; border-radius: 7px; font-size: 13px; background: rgba(255, 255, 255, 0.03); }
+.attr2 .an { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text2); }
+.attr2 b { font-variant-numeric: tabular-nums; font-weight: 850; }
+.attr2.key { background: linear-gradient(90deg, rgba(150, 80, 255, 0.28), rgba(150, 80, 255, 0.08)); box-shadow: inset 3px 0 0 #c99bff; }
+.attr2.key .an { color: #fff; font-weight: 750; }
+.attr2 .a5 { color: #7dff9a; } .attr2 .a4 { color: #c8f56a; } .attr2 .a3 { color: #f3e37a; } .attr2 .a2 { color: #f4ad62; } .attr2 .a1 { color: #f37f71; }

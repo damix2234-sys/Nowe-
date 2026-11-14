@@ -149,7 +149,8 @@ export class LiveMatch extends Match {
     const r = a.rating;
     const rMul = r >= 7.0 ? 1 + Math.min(0.06, (r - 7.0) * 0.04) : r < 6.3 ? 1 - Math.min(0.08, (6.3 - r) * 0.06) : 1;
     const fam = a.gk ? 1 : familiarity(p, a.pos);
-    const base = formMul(p) * moraleMul(p) * rMul * this.teamMul[a.side] * (a.limp ? 0.85 : 1);
+    const behind = this.sides[1 - a.side].goals > S.goals ? 1 + ((p.a.det ?? 50) - 50) / 1500 : 1;
+    const base = formMul(p) * moraleMul(p) * rMul * behind * this.teamMul[a.side] * (a.limp ? 0.85 : 1);
     const tr = S.train || {};
     const lv = (k) => (tr[k] || 0) / 100;
     for (const k of ATTRS) {
@@ -167,13 +168,15 @@ export class LiveMatch extends Match {
   /** Mnożnik błędów: słaba ocena i zmęczenie zwiększają rozrzut. */
   errMul(a) {
     const st = this.sides[a.side].st[a.pid] ?? 90;
-    return (1 + Math.max(0, 6.3 - a.rating) * 0.25) * (1 + Math.max(0, 60 - st) / 120);
+    // słaba Koncentracja – więcej błędów, zwłaszcza w końcówce meczu
+    const late = this.clk > 4500 ? 1 + Math.max(0, 70 - this.E(a, 'con')) / 250 : 1 + Math.max(0, 60 - this.E(a, 'con')) / 400;
+    return (1 + Math.max(0, 6.3 - a.rating) * 0.25) * (1 + Math.max(0, 60 - st) / 120) * late;
   }
 
   topSpeed(a) {
     const sp = this.E(a, 'sp');
     let v = 5.4 + 3.6 * sp / 100;
-    if (this.ball.owner === a) v *= 0.82 + 0.1 * this.E(a, 'dr') / 100;
+    if (this.ball.owner === a) v *= 0.8 + 0.07 * this.E(a, 'dr') / 100 + 0.05 * this.E(a, 'agi') / 100;
     if (a.beatT > 0) v *= 0.45;
     if (a.limp) v *= 0.6;
     if (a.state === 'stumble') v *= 0.4;
@@ -182,8 +185,16 @@ export class LiveMatch extends Match {
 
   rate(a, d) { if (a) a.rating = clamp(a.rating + d, 3, 10); }
 
+  /** Siła w powietrzu: Gra głową, Skoczność, Siła, Odwaga i wzrost. */
+  airPower(a) {
+    return 0.42 * this.E(a, 'hd') + 0.26 * this.E(a, 'jmp') + 0.16 * this.E(a, 'st') + 0.08 * this.E(a, 'brv') + 0.08 * this.E(a, 'bal') + ((a.p.h ?? 180) - 180) * 0.55;
+  }
+
+  /** Komunikacja bramkarza porządkuje krycie obrońców (do ok. 4%). */
+  teamCom(s) { const g = this.gkOf(s); return g ? Math.max(0, (this.E(g, 'com') - 40) / 1500) : 0; }
+
   /** Przyspieszenie (m/s²) – realistyczne: ok. 6–6,7 u najszybszych. */
-  accel(a) { return 4.5 + 2.5 * this.E(a, 'sp') / 100; }
+  accel(a) { return 4.3 + 2.7 * this.E(a, 'acc') / 100; }
 
   /** Czas dobiegnięcia na odległość d z uwzględnieniem rozpędzania się. */
   reachTime(a, d) {
@@ -475,7 +486,7 @@ export class LiveMatch extends Match {
               if (q.gk || q.state !== 'play') continue;
               if (segDist(q.x, q.y, b.owner.x, b.owner.y, 34, this.goalY(1 - s)).d < 1.6) { free = false; break; }
             }
-            if (free) Y = clamp(d * (0.3 + 0.18 * this.E(a, 'gw') / 100), Y, 8);
+            if (free) Y = clamp(d * (0.28 + 0.12 * this.E(a, 'gw') / 100 + 0.08 * this.E(a, 'ovo') / 100), Y, 8);
           }
           X = clamp(34 + (bx - 34) * clamp(Y / Math.max(1, by), 0.08, 0.6), 34 - 3.3, 34 + 3.3);
         }
@@ -486,8 +497,9 @@ export class LiveMatch extends Match {
         // boczni obrońcy podłączają się przy ofensywnym stylu
         if (att && (a.pos === 'LB' || a.pos === 'RB') && st >= 1 && by > 55) Y += 8 + st * 3;
         if (att && Y > off - 0.8 && Y > by) Y = Math.max(by, off - 0.8);
-        X += Math.sin(this.t * 0.55 + a.ph1) * 1.3;
-        Y += Math.cos(this.t * 0.45 + a.ph2) * 1.1;
+        const loose = 1.5 - (a.p.a.tmw ?? 60) / 100;
+        X += Math.sin(this.t * 0.55 + a.ph1) * 1.3 * loose;
+        Y += Math.cos(this.t * 0.45 + a.ph2) * 1.1 * loose;
       }
       tg.push({ a, X, Y, mk: null });
     }
@@ -510,7 +522,7 @@ export class LiveMatch extends Match {
         }
         if (!best) continue;
         best.mk = th;
-        const tight = 1.0 + (1 - this.E(best.a, 'mk') / 100) * 1.8;
+        const tight = 1.0 + (1 - (0.6 * this.E(best.a, 'mk') + 0.4 * this.E(best.a, 'psn')) / 100 - this.teamCom(s)) * 1.8;
         const gx = 34 - th.X, gy = -th.Y, gl = hyp(gx, gy) || 1;
         best.X = th.X + (gx / gl) * tight; best.Y = th.Y + (gy / gl) * tight;
       }
@@ -523,7 +535,7 @@ export class LiveMatch extends Match {
           const d = hyp(qx - t.X, qy - t.Y);
           if (d < md) { md = d; m = { x: qx, y: qy }; }
         }
-        if (m) { const k = 0.3 + 0.15 * this.E(t.a, 'mk') / 100; t.X = lerp(t.X, m.x, k); t.Y = lerp(t.Y, m.y - 1.6, k); }
+        if (m) { const k = 0.28 + 0.1 * this.E(t.a, 'mk') / 100 + 0.07 * this.E(t.a, 'psn') / 100; t.X = lerp(t.X, m.x, k); t.Y = lerp(t.Y, m.y - 1.6, k); }
       }
     }
     for (const t of tg) {
@@ -554,7 +566,7 @@ export class LiveMatch extends Match {
       const lim = i === 0 ? (inOwnThird ? 40 : inOwnHalf ? Math.max(26, [16, 24, 32][pr]) : [16, 24, 32][pr]) : inOwnThird ? 18 : 14;
       if (dist > lim) continue;
       a.mode = 'press';
-      a.urg = i === 0 ? (inOwnThird ? 1 : inOwnHalf ? Math.max(0.85, [0.62, 0.82, 1][pr]) : [0.62, 0.82, 1][pr]) : inOwnThird ? 0.9 : 0.7;
+      a.urg = (0.8 + 0.35 * this.E(a, 'wr') / 100) * (i === 0 ? (inOwnThird ? 1 : inOwnHalf ? Math.max(0.85, [0.62, 0.82, 1][pr]) : [0.62, 0.82, 1][pr]) : inOwnThird ? 0.9 : 0.7);
       a.pressCover = i > 0;
     }
     // pressing wysoko: kolejni zawodnicy odcinają najbliższe opcje podania (ustawiają się między rywalem a piłką)
@@ -585,7 +597,7 @@ export class LiveMatch extends Match {
         if (a.state !== 'play' || a.goal) continue;
         if (a.gk && !this.inOwnBox(a) && !(lp && lp.to === a)) continue;
         const intended = lp && lp.to === a && this.t - lp.t < 3.5;
-        const react = intended ? 0.08 : 0.18 + (1 - this.E(a, 'mk') / 100) * 0.12;
+        const react = intended ? 0.08 : 0.16 + (1 - this.E(a, 'ant') / 100) * 0.16;
         const top = this.topSpeed(a);
         for (const q of path) {
           const zMax = a.gk && this.inOwnBox(a) ? 2.7 : 2.4;
@@ -654,7 +666,7 @@ export class LiveMatch extends Match {
       if (!fwd && !(fb && Math.random() < 0.3) && !(a.pos === 'CM' && Math.random() < 0.15)) continue;
       const ay = this.ry(s, a.y);
       if (ay < off - 9 || ay > off + 0.5 || ay < cy - 4) continue;
-      const p = 0.15 * (0.6 + 0.6 * this.E(a, 'sp') / 100) * (1 + st * 0.15) * (1 - pres * 0.6) * (a.pos === 'CF' ? 1.25 : 1) * (highLine ? 1.35 : 1);
+      const p = 0.15 * (0.45 + 0.5 * this.E(a, 'otb') / 100 + 0.25 * this.E(a, 'acc') / 100) * (1 + st * 0.15) * (1 - pres * 0.6) * (a.pos === 'CF' ? 1.25 : 1) * (highLine ? 1.35 : 1);
       if (Math.random() < p) {
         a.runT = rnd(1.6, 2.6);
         a.runTo = this.w(s, clamp(this.rx(s, a.x) + rnd(-7, 7), 6, PW - 6), clamp(off + rnd(7, 15), 58, 102));
@@ -788,7 +800,7 @@ export class LiveMatch extends Match {
         const sp = hyp(a.vx, a.vy);
         const top = 5.4 + 3.6 * (a.p.a.sp ?? 60) / 100;
         const inten = 0.35 + 0.65 * Math.min(1, sp / top);
-        const en = a.p.a.en ?? 60;
+        const en = 0.7 * (a.p.a.en ?? 60) + 0.3 * (a.p.a.nf ?? a.p.a.en ?? 60);
         const age = 1 + Math.max(0, (a.p.age || 25) - 29) * 0.02;
         const drain = (a.gk ? 0.03 : 0.1) * inten * (1.3 - 0.6 * en / 100) * press * cond * age * k;
         S.st[a.pid] = Math.max(5, (S.st[a.pid] ?? 90) - drain);
@@ -834,7 +846,7 @@ export class LiveMatch extends Match {
       const ins = this.instr(d).tk;
       const rate = TK_RATE[ins] * (d.mode === 'press' ? 1 : 0.6);
       if (Math.random() < 1 - Math.exp(-rate * h)) { this.duel(d, o, false); if (b.owner !== o) return; }
-      else if (dist < 1.2 && Math.random() < h * (0.1 + 0.08 * ins) * (1.3 - this.E(d, 'tk') / 100)) {
+      else if (dist < 1.2 && Math.random() < h * (0.1 + 0.08 * ins) * (1.3 - this.E(d, 'tk') / 100) * (0.6 + 0.8 * this.E(d, 'agg') / 100)) {
         const back = Math.abs(Math.atan2(d.y - o.y, d.x - o.x) - o.face);
         this.foul(d, o, (back > Math.PI ? 2 * Math.PI - back : back) > 2.4, ins);
         return;
@@ -856,7 +868,7 @@ export class LiveMatch extends Match {
 
   decisionDelay(a) {
     const pr = this.pressure(a);
-    return clamp(0.22 + Math.random() * 0.45 * (1.15 - this.E(a, 'te') / 100) + (1 - pr) * 0.15, 0.12, 0.9);
+    return clamp(0.22 + Math.random() * 0.45 * (1.15 - (0.6 * this.E(a, 'dec') + 0.4 * this.E(a, 'ft')) / 100) + (1 - pr) * 0.15, 0.12, 0.9);
   }
 
   /** Wybór akcji zawodnika z piłką – oceny opcji z uwzględnieniem ryzyka i umiejętności. */
@@ -882,7 +894,9 @@ export class LiveMatch extends Match {
     // strzał
     if (Y > 66) {
       const xg = this.xg(s, a.x, a.y, a);
-      if (xg > 0.012) opts.push({ k: 'shot', u: xg * SHW[ins.sh] * (1 + desperate) * (wasting ? 0.8 : 1) * 1.35 });
+      const far = Y < PL - 18;
+      const lsF = far ? 0.55 + 0.6 * this.E(a, 'ls') / 100 + 0.15 * this.E(a, 'fla') / 100 : 1;
+      if (xg > 0.012) opts.push({ k: 'shot', u: xg * SHW[ins.sh] * lsF * (1 + desperate) * (wasting ? 0.8 : 1) * 1.35 });
     }
     // podania
     const mates = this.active(s);
@@ -898,6 +912,7 @@ export class LiveMatch extends Match {
       for (const kind of types) {
         const o = this.evalPass(a, m, kind, pres, risk, lc);
         if (!o) continue;
+        if (kind === 'through') o.u *= o.u > 0 ? 0.7 + 0.6 * this.E(a, 'vis') / 100 : 1;
         if (counter && this.ry(s, o.R.y) - Y > 8) o.u += 0.0035 * counter;
         if (style < 0 && Y < 52 && this.ry(s, o.R.y) - Y < 3) o.u -= 0.0016 * -style;
         // gra bezpośrednia: długa piłka do przodu z własnej połowy (plan drużyny grającej defensywnie)
@@ -939,7 +954,7 @@ export class LiveMatch extends Match {
       } else if (da === 0 || Math.abs(da) < 0.6) {
         const pb = this.beatChance(a, block);
         const past = { x: clamp(a.x + Math.cos(ang) * 9, 1.5, PW - 1.5), y: clamp(a.y + Math.sin(ang) * 9, 1.5, PL - 1.5) };
-        const o = { k: 'takeon', vs: block, to: past, u: (pb * this.xT(s, past.x, past.y) - (1 - pb) * lc * risk) * 0.72 * DRW[ins.dr] * (wasting ? 0.6 : 1) };
+        const o = { k: 'takeon', vs: block, to: past, u: (pb * this.xT(s, past.x, past.y) - (1 - pb) * lc * risk) * 0.72 * DRW[ins.dr] * (0.8 + 0.4 * this.E(a, 'fla') / 100) * (wasting ? 0.6 : 1) };
         if (!bestTake || o.u > bestTake.u) bestTake = o;
       }
     }
@@ -950,7 +965,7 @@ export class LiveMatch extends Match {
     // wybicie pod presją we własnym polu karnym
     if (Y < 18 && pres > 0.5) opts.push({ k: 'clear', u: 0.004 + pres * 0.008 });
     // wybór (lepsza decyzja przy lepszych podaniach, technice i opanowaniu)
-    const dec = 0.5 * this.E(a, 'ps') + 0.3 * this.E(a, 'te') + 0.2 * this.E(a, 'cm');
+    const dec = 0.55 * this.E(a, 'dec') + 0.25 * this.E(a, 'vis') + 0.2 * this.E(a, 'cm');
     const tau = 0.0035 * (1.55 - dec / 100) * this.errMul(a);
     let mx = -1e9;
     for (const o of opts) if (o.u > mx) mx = o.u;
@@ -1008,11 +1023,11 @@ export class LiveMatch extends Match {
       const reach = Math.max(0, sd.d - 0.8);
       const tBall = T * sd.u * (ground ? 0.8 : 1);
       const tOpp = (o.gk ? 0.25 : 0.2) + this.reachTime(o, reach);
-      let pi = sig((tBall - tOpp) / 0.16) * (0.5 + 0.45 * this.E(o, 'mk') / 100);
+      let pi = sig((tBall - tOpp) / 0.16) * (0.42 + 0.45 * (0.4 * this.E(o, 'ant') + 0.35 * this.E(o, 'mk') + 0.25 * this.E(o, 'psn')) / 100);
       if (sd.u > 0.88) pi *= 0.75;
       keep *= 1 - pi;
     }
-    const skill = kind === 'air' ? 0.5 * this.E(a, 'ps') + 0.3 * this.E(a, 'cr') + 0.2 * this.E(a, 'te') : 0.7 * this.E(a, 'ps') + 0.3 * this.E(a, 'te');
+    const skill = kind === 'air' ? 0.5 * this.E(a, 'ps') + 0.2 * this.E(a, 'cr') + 0.15 * this.E(a, 'te') + 0.15 * this.E(a, 'vis') : kind === 'through' ? 0.55 * this.E(a, 'ps') + 0.25 * this.E(a, 'vis') + 0.2 * this.E(a, 'te') : 0.7 * this.E(a, 'ps') + 0.3 * this.E(a, 'te');
     const acc = clamp(1 - (d / 70) * (1.3 - skill / 100) - pres * 0.12 * (1.2 - this.E(a, 'te') / 100), 0.25, 0.995);
     let ps = keep * acc;
     if (!ground) {
@@ -1028,7 +1043,7 @@ export class LiveMatch extends Match {
     if (kind === 'through' || kind === 'air') {
       const off = PL - this.teams[1 - s].line;
       if (this.ry(s, m.y) > Math.max(off, this.ry(s, a.y)) + 0.4 && this.ry(s, m.y) > PL / 2) {
-        const notice = 0.12 + 0.4 * this.E(a, 'ps') / 100;
+        const notice = 0.12 + 0.4 * (0.6 * this.E(a, 'vis') + 0.4 * this.E(a, 'dec')) / 100;
         if (Math.random() < notice) return null;
       }
     }
@@ -1037,8 +1052,8 @@ export class LiveMatch extends Match {
 
   /** Szansa minięcia obrońcy: Drybling (+technika, siła, szybkość) przeciw Odbiorowi (+siła, szybkość). */
   beatChance(a, d) {
-    const att = (0.7 * this.E(a, 'dr') + 0.12 * this.E(a, 'te') + 0.1 * this.E(a, 'st') + 0.08 * this.E(a, 'sp'));
-    const def = (0.75 * this.E(d, 'tk') + 0.15 * this.E(d, 'st') + 0.1 * this.E(d, 'sp'));
+    const att = 0.5 * this.E(a, 'dr') + 0.14 * this.E(a, 'agi') + 0.1 * this.E(a, 'bal') + 0.1 * this.E(a, 'acc') + 0.1 * this.E(a, 'te') + 0.06 * this.E(a, 'fla');
+    const def = 0.5 * this.E(d, 'tk') + 0.14 * this.E(d, 'ant') + 0.12 * this.E(d, 'psn') + 0.1 * this.E(d, 'agi') + 0.08 * this.E(d, 'st') + 0.06 * this.E(d, 'bal');
     return sig((att - def) / 26 - 0.25);
   }
 
@@ -1075,7 +1090,7 @@ export class LiveMatch extends Match {
       return;
     }
     d.tackleCd = 0.8;
-    let foulP = won ? (fromBehind ? 0.2 : 0.06 + 0.04 * aggr) : 0.2 + 0.08 * aggr + (fromBehind ? 0.1 : 0) + Math.max(0, (60 - this.E(d, 'tk')) / 200);
+    let foulP = (won ? (fromBehind ? 0.2 : 0.06 + 0.04 * aggr) : 0.2 + 0.08 * aggr + (fromBehind ? 0.1 : 0) + Math.max(0, (60 - this.E(d, 'tk')) / 200)) * (0.7 + 0.6 * this.E(d, 'agg') / 100);
     if (this.inBox(a.side, a.x, a.y)) foulP *= 0.42;
     if (Math.random() < foulP) { this.foul(d, a, fromBehind, aggr); return; }
     const dps = this.ps(d);
@@ -1141,7 +1156,7 @@ export class LiveMatch extends Match {
     const s = a.side, b = this.ball;
     const d = D2(a, R);
     const pres = this.pressure(a);
-    const skill = kind === 'air' ? 0.55 * this.E(a, 'ps') + 0.25 * this.E(a, 'cr') + 0.2 * this.E(a, 'te') : 0.7 * this.E(a, 'ps') + 0.3 * this.E(a, 'te');
+    const skill = a.gk ? (kind === 'air' ? this.E(a, 'kic') : 0.6 * this.E(a, 'thr') + 0.4 * this.E(a, 'ps')) : kind === 'air' ? 0.5 * this.E(a, 'ps') + 0.2 * this.E(a, 'cr') + 0.15 * this.E(a, 'te') + 0.15 * this.E(a, 'vis') : kind === 'through' ? 0.55 * this.E(a, 'ps') + 0.25 * this.E(a, 'vis') + 0.2 * this.E(a, 'te') : 0.7 * this.E(a, 'ps') + 0.3 * this.E(a, 'te');
     const err = (1.55 - skill / 100) * (1 + pres * 0.7) * this.errMul(a);
     this.lastPass = { side: s, by: a, to: m, t: this.t, R, kind, offside: this.offsideSet(s, a), from: { x: a.x, y: a.y }, done: false };
     const S = this.sides[s];
@@ -1169,13 +1184,15 @@ export class LiveMatch extends Match {
     const mates = this.active(s).filter((m) => m !== a && !m.gk && m.state === 'play' && this.ry(s, m.y) > PL - 24);
     let tgt = null, best = -1;
     for (const m of mates) {
-      const sc = this.E(m, 'hd') + this.E(m, 'st') * 0.3 - this.nearestOppDist(s, m) * -3 + Math.random() * 10;
+      const sc = this.airPower(m) + this.nearestOppDist(s, m) * 3 + Math.random() * 10;
       if (sc > best) { best = sc; tgt = m; }
     }
     const spot = tgt ? { x: tgt.x + tgt.vx * 0.9, y: tgt.y + tgt.vy * 0.9 } : this.w(s, rnd(28, 40), PL - rnd(5, 11));
     const R = { x: clamp(spot.x, 30 - 8, 38 + 8), y: spot.y };
     const d = D2(a, R);
-    const err = (1.45 - this.E(a, 'cr') / 100) * this.errMul(a) * (1 + this.pressure(a) * 0.5);
+    const crq = this.dead === null && this.cornerTaker === a ? this.E(a, 'cor') : this.E(a, 'cr');
+    this.cornerTaker = null;
+    const err = (1.45 - crq / 100) * this.errMul(a) * (1 + this.pressure(a) * 0.5);
     const land = { x: R.x + gaussR() * 2.5 * err, y: R.y + gaussR() * 2.5 * err };
     const T = clamp(0.75 + d / 32, 0.9, 1.8);
     const z1 = rnd(1.5, 2.2);
@@ -1189,7 +1206,7 @@ export class LiveMatch extends Match {
       const sd = segDist(d.x, d.y, a.x, a.y, land.x, land.y);
       if (sd.u > 0 && sd.u < 0.12 && sd.d < 1.6 && D2(d, a) < 3.2) { blocker = d; break; }
     }
-    if (blocker && Math.random() < 0.3 * (0.6 + 0.4 * this.E(blocker, 'mk') / 100)) {
+    if (blocker && Math.random() < 0.3 * (0.55 + 0.25 * this.E(blocker, 'psn') / 100 + 0.2 * this.E(blocker, 'brv') / 100)) {
       this.lastPass = null;
       const gyb = this.goalY(s);
       const dirY = gyb > 50 ? 1 : -1;
@@ -1236,8 +1253,10 @@ export class LiveMatch extends Match {
     const sx = b.x, sy = b.y, sz = kind === 'head' ? Math.max(b.z, 1.7) : Math.max(0, b.z);
     const dist = hyp(34 - sx, gy - sy);
     const xg = kind === 'pen' ? 0.76 : kind === 'fk' ? clamp(0.12 - (dist - 17) * 0.008, 0.02, 0.12) : this.xg(s, sx, sy, a) * (kind === 'head' ? 0.75 : 1);
-    const overWall = kind === 'fk' && Math.random() < 0.68 + 0.25 * this.E(a, 'te') / 100;
-    const te = this.E(a, 'te'), sh = this.E(a, 'sh'), cm = this.E(a, 'cm'), hd = this.E(a, 'hd');
+    const overWall = kind === 'fk' && Math.random() < 0.6 + 0.35 * this.E(a, 'fk') / 100;
+    // Wykończenie w polu karnym, Strzały z dystansu zza „szesnastki”, Rzuty wolne / karne przy stałych fragmentach
+    const fin = kind === 'fk' ? this.E(a, 'fk') : kind === 'pen' ? this.E(a, 'pen') : dist > 18 ? this.E(a, 'ls') : this.E(a, 'sh');
+    const te = this.E(a, 'te'), sh = fin, cm = this.E(a, 'cm'), hd = this.E(a, 'hd');
     const big = xg > 0.28 && kind !== 'pen';
     const gx = G ? G.x : 34;
     const open = gx >= 34 ? -1 : 1;
@@ -1245,11 +1264,11 @@ export class LiveMatch extends Match {
     const margin = 0.25 + (1 - te / 100) * 0.6;
     const ax = 34 + side * Math.max(0.3, GHW - margin) * rnd(0.65, 1);
     const az = kind === 'head' ? rnd(0.2, 1.5) : kind === 'pen' ? rnd(0.15, 1.6) : rnd(0.15, 1.95);
-    let v = kind === 'head' ? 9 + 8 * hd / 100 : kind === 'fk' ? 21 + 7 * sh / 100 : kind === 'volley' ? 15 + 12 * sh / 100 : kind === 'pen' ? 22 + 6 * sh / 100 : 17 + 15 * sh / 100;
+    let v = kind === 'head' ? 9 + 5 * hd / 100 + 3 * this.E(a, 'st') / 100 : kind === 'fk' ? 21 + 7 * sh / 100 : kind === 'volley' ? 15 + 12 * sh / 100 : kind === 'pen' ? 22 + 6 * sh / 100 : 17 + 11 * sh / 100 + 4 * this.E(a, 'st') / 100;
     v *= rnd(0.92, 1.05);
     const pres = kind === 'pen' || kind === 'fk' ? 0 : this.pressure(a);
-    const baseE = kind === 'head' ? 0.13 : kind === 'volley' ? 0.125 : kind === 'pen' ? 0.035 : kind === 'fk' ? 0.08 : 0.105;
-    const skill = kind === 'head' ? hd : 0.7 * te + 0.3 * sh;
+    const baseE = kind === 'head' ? 0.125 : kind === 'volley' ? 0.12 : kind === 'pen' ? 0.035 : kind === 'fk' ? 0.08 : 0.088;
+    const skill = kind === 'head' ? 0.75 * hd + 0.25 * this.E(a, 'jmp') : 0.55 * sh + 0.3 * te + 0.15 * this.E(a, 'cm');
     let sg = baseE * (1.6 - skill / 100) * (1 + pres * 0.6) * (1 + dist / 45) * this.errMul(a);
     if (big || kind === 'pen') sg *= 1.3 - (cm / 100) * 0.6;
     const ux0 = ax - sx, uy0 = gy - sy, L0 = hyp(ux0, uy0) || 1;
@@ -1282,7 +1301,7 @@ export class LiveMatch extends Match {
         if (sd.u < 0.04 || sd.u > 0.9 || sd.d > wB) continue;
         const zAt = sz + vz * T * sd.u - 0.5 * GRAV * (T * sd.u) ** 2;
         if (zAt > 1.9) continue;
-        const pB = (kind === 'fk' ? 0.85 : 0.7) * (0.6 + 0.4 * this.E(d, 'mk') / 100) * (1 - sd.d / (wB + 0.15));
+        const pB = (kind === 'fk' ? 0.85 : 0.7) * (0.55 + 0.25 * this.E(d, 'psn') / 100 + 0.2 * this.E(d, 'brv') / 100) * (1 - sd.d / (wB + 0.15));
         if (Math.random() < pB && (!first || sd.u < first.u)) first = { d, u: sd.u };
       }
       if (first) this.shot.block = first;
@@ -1293,19 +1312,19 @@ export class LiveMatch extends Match {
       const tg = Math.max(0.05, T * (1 - gkP / Math.max(1, Math.abs(gy - sy))));
       const px = sx + vx * tg, pz = sz + vz * tg - 0.5 * GRAV * tg * tg;
       const lat = Math.abs(px - G.x) + Math.max(0, pz - 1.85) * 0.8 + Math.max(0, 0.25 - pz) * 0.5;
-      const egk = this.E(G, 'gk'), egw = this.E(G, 'gw');
+      const egk = 0.6 * this.E(G, 'gk') + 0.25 * this.E(G, 'psn') + 0.15 * this.E(G, 'con'), egw = this.E(G, 'ovo'), eag = this.E(G, 'agi');
       let screen = 0;
       for (const d of this.allAgents()) if (d !== a && d !== G && d.state === 'play' && segDist(d.x, d.y, sx, sy, cx, gy).d < 0.8) screen = 0.06;
-      const reaction = 0.32 - 0.12 * egk / 100 + screen + (kind === 'fk' ? 0.04 : 0);
-      const reach = 0.85 + 0.55 * egk / 100;
-      const speed = 2.6 + 3.4 * egk / 100;
+      const reaction = 0.37 - 0.11 * egk / 100 + screen + (kind === 'fk' ? 0.04 : 0);
+      const reach = 0.8 + 0.32 * egk / 100 + 0.18 * eag / 100 + ((G.p.h ?? 188) - 188) * 0.006;
+      const speed = 2.6 + 1.9 * egk / 100 + 1.5 * eag / 100;
       const need = reaction + Math.max(0, lat - reach) / speed;
       let pSave = sig((tg - need) / 0.06);
-      if (lat < reach + 0.5) pSave = Math.max(pSave, 0.15 + 0.3 * egk / 100);
+      if (lat < reach + 0.5) pSave = Math.max(pSave, 0.12 + 0.26 * egk / 100);
       if (kind === 'pen') pSave = clamp(0.2 + (egk - (0.4 * sh + 0.3 * te + 0.3 * cm)) / 240, 0.06, 0.4);
       if (dist < 9 && kind !== 'pen' && D2(G, a) < 6) pSave = clamp(pSave * 0.6 + 0.4 * sig((egw - cm) / 16), 0, 0.95);
       const saved = Math.random() < pSave;
-      const pCatch = saved ? sig((egk - 58) / 14 - (v - 18) / 5 - lat * 0.8) : 0;
+      const pCatch = saved ? sig((this.E(G, 'han') - 58) / 14 - (v - 18) / 5 - lat * 0.8) : 0;
       this.shot.save = { G, saved, catch: Math.random() < pCatch, tg, px, pz };
       G.goal = { x: clamp(saved ? px : lerp(G.x, px, clamp((reach + speed * Math.max(0, tg - reaction)) / Math.max(0.1, Math.abs(px - G.x)), 0, 0.95)), 34 - GHW, 34 + GHW), y: G.y };
       G.urg = 1; G.gSpd = 2.4; G.goalUntil = this.t + T + 0.7;
@@ -1593,7 +1612,7 @@ export class LiveMatch extends Match {
     if (sides.size > 1) {
       // dwóch zawodników przy piłce – siła, technika i szybkość
       const A = cands.find((c) => c.a.side === 0).a, B = cands.find((c) => c.a.side === 1).a;
-      const sc = (x) => this.E(x, 'st') * 0.3 + this.E(x, 'te') * 0.25 + this.E(x, 'sp') * 0.25 + this.E(x, 'tk') * 0.1 + this.E(x, 'dr') * 0.1 + gaussR() * 14;
+      const sc = (x) => this.E(x, 'st') * 0.22 + this.E(x, 'bal') * 0.18 + this.E(x, 'acc') * 0.18 + this.E(x, 'ant') * 0.14 + this.E(x, 'ft') * 0.14 + this.E(x, 'brv') * 0.14 + gaussR() * 14;
       who = sc(A) >= sc(B) ? A : B;
       const loser = who === A ? B : A;
       this.ps(who).duel = (this.ps(who).duel || 0) + 1;
@@ -1608,14 +1627,14 @@ export class LiveMatch extends Match {
     const intended = lp && lp.to === a && !lp.done;
     const hand = a.gk && this.inOwnBox(a);
     const vrel = hyp(b.vx - a.vx, b.vy - a.vy);
-    const te = this.E(a, 'te');
+    const te = 0.75 * this.E(a, 'ft') + 0.25 * this.E(a, 'te');
     const pres = this.pressure(a);
     let pc;
-    if (hand) pc = clamp(0.96 - Math.max(0, vrel - 18) * 0.02 + this.E(a, 'gk') / 2000, 0.6, 0.995);
+    if (hand) pc = clamp(0.94 - Math.max(0, vrel - 18) * 0.02 + this.E(a, 'han') / 1600, 0.6, 0.995);
     else {
       pc = 0.985 - Math.max(0, vrel - 11.5) * 0.018 * (1.45 - te / 100) - pres * 0.22 * (1.25 - te / 100) - (b.z > 0.7 ? 0.12 : 0);
       const opp = lp && lp.side !== a.side && this.t - lp.t < 4;
-      if (opp) pc *= 0.72 + 0.28 * this.E(a, 'mk') / 100;
+      if (opp) pc *= 0.72 + 0.28 * this.E(a, 'ant') / 100;
       pc -= Math.max(0, 6.3 - a.rating) * 0.03;
       pc = clamp(pc, 0.3, 0.995);
     }
@@ -1697,7 +1716,7 @@ export class LiveMatch extends Match {
     for (const a of cands) {
       const d = hyp(a.x - b.x, a.y - b.y);
       const hand = a.gk && this.inOwnBox(a);
-      const sc = hand ? this.E(a, 'gw') * 0.75 + 24 - d * 5 + gaussR() * 7 : this.E(a, 'hd') * 0.55 + this.E(a, 'st') * 0.25 + this.E(a, 'sp') * 0.05 + gaussR() * 11 - d * 6;
+      const sc = hand ? (0.45 * this.E(a, 'aer') + 0.35 * this.E(a, 'coa') + 0.2 * this.E(a, 'gw')) * 0.75 + 24 + ((a.p.h ?? 186) - 186) * 0.5 - d * 5 + gaussR() * 7 : this.airPower(a) * 0.85 + gaussR() * 11 - d * 6;
       scores.push({ a, sc });
       if (sc > bs) { bs = sc; best = a; }
     }
@@ -1734,7 +1753,7 @@ export class LiveMatch extends Match {
     }
     // bramkarz łapie albo wypiąstkowuje
     if (best.gk && this.inOwnBox(best)) {
-      const caught = Math.random() < sig((this.E(best, 'gw') - 42) / 13);
+      const caught = Math.random() < sig((0.6 * this.E(best, 'han') + 0.4 * this.E(best, 'aer') - 42) / 13 - (this.E(best, 'pun') - 50) / 40);
       if (caught) {
         this.gainBall(best, 'claim');
         best.holdT = rnd(1.2, 2.2);
@@ -1976,12 +1995,12 @@ export class LiveMatch extends Match {
     const byPid = (pid) => this.agentOf(s, pid);
     if (d.type === 'goalkick') return this.gkOf(s) || this.nearestTo(s, d.x, d.y);
     if (d.type === 'kickoff') return this.kicker && this.kicker.side === s && this.kicker.state === 'play' ? this.kicker : this.nearestTo(s, PW / 2, PL / 2, true);
-    if (d.type === 'corner') return byPid(S.sp.cor) || this.bestBy(s, (a) => this.E(a, 'cr'));
-    if (d.type === 'penalty') return byPid(S.sp.pen) || this.bestBy(s, (a) => 0.4 * this.E(a, 'sh') + 0.3 * this.E(a, 'te') + 0.3 * this.E(a, 'cm'));
+    if (d.type === 'corner') return byPid(S.sp.cor) || this.bestBy(s, (a) => this.E(a, 'cor'));
+    if (d.type === 'penalty') return byPid(S.sp.pen) || this.bestBy(s, (a) => 0.6 * this.E(a, 'pen') + 0.4 * this.E(a, 'cm'));
     if (d.type === 'freekick' && !d.offside) {
       const dist = hyp(this.rx(s, d.x) - 34, PL - this.ry(s, d.y));
-      if (dist < 32) return byPid(S.sp.fkn) || this.bestBy(s, (a) => 0.5 * this.E(a, 'sh') + 0.5 * this.E(a, 'te'));
-      if (this.ry(s, d.y) > 55) return byPid(S.sp.fkf) || this.bestBy(s, (a) => this.E(a, 'cr'));
+      if (dist < 32) return byPid(S.sp.fkn) || this.bestBy(s, (a) => this.E(a, 'fk'));
+      if (this.ry(s, d.y) > 55) return byPid(S.sp.fkf) || this.bestBy(s, (a) => 0.5 * this.E(a, 'fk') + 0.5 * this.E(a, 'cr'));
     }
     return this.nearestTo(s, d.x, d.y, true);
   }
@@ -2071,7 +2090,7 @@ export class LiveMatch extends Match {
   boxLayout(s, tk, spot, skip = []) {
     const o = 1 - s;
     const att = this.active(s).filter((a) => !a.gk && a !== tk && a.state === 'play');
-    const tall = (a) => this.E(a, 'hd') + this.E(a, 'st') * 0.3;
+    const tall = (a) => this.airPower(a);
     const inBox = att.slice().sort((p1, p2) => tall(p2) - tall(p1)).slice(0, 5);
     const SP = [[30, PL - 6], [38, PL - 6.5], [34, PL - 10], [27, PL - 12], [42, PL - 12]];
     const set = (a, pt, g = 1.6, u = 1) => { a.goal = { x: clamp(pt.x, 1, PW - 1), y: clamp(pt.y, 1, PL - 1) }; a.gSpd = g; a.urg = u; };
@@ -2107,7 +2126,7 @@ export class LiveMatch extends Match {
       return;
     }
     if (d.type === 'throw') {
-      const cand = mates.filter((m) => D2(m, tk) < 24).map((m) => ({ m, sc: this.nearestOppDist(s, m) + Math.random() * 3 + (this.ry(s, m.y) - this.ry(s, tk.y)) * 0.1 })).sort((p, q) => q.sc - p.sc)[0];
+      const cand = mates.filter((m) => D2(m, tk) < 16 + 0.22 * this.E(tk, 'lt')).map((m) => ({ m, sc: this.nearestOppDist(s, m) + Math.random() * 3 + (this.ry(s, m.y) - this.ry(s, tk.y)) * 0.1 })).sort((p, q) => q.sc - p.sc)[0];
       if (cand) {
         const R = { x: cand.m.x, y: cand.m.y };
         const T = 0.5 + D2(tk, R) / 16;
@@ -2124,9 +2143,9 @@ export class LiveMatch extends Match {
       if (pick) this.passTo(tk, pick.m, pick.R, pick.kind);
       return;
     }
-    if (d.type === 'corner') { this.cross(tk); return; }
+    if (d.type === 'corner') { this.cornerTaker = tk; this.cross(tk); return; }
     if (d.type === 'penalty') { this.shoot(tk, 'pen'); return; }
-    if (d.type === 'freekick' && d.direct && Math.random() < 0.5 + 0.3 * this.E(tk, 'sh') / 100) { this.shoot(tk, 'fk'); return; }
+    if (d.type === 'freekick' && d.direct && Math.random() < 0.45 + 0.4 * this.E(tk, 'fk') / 100) { this.shoot(tk, 'fk'); return; }
     if (d.type === 'freekick' && !d.offside && this.ry(s, tk.y) > 58) { this.cross(tk); return; }
     tk.decT = 0.05;
   }
@@ -2265,7 +2284,7 @@ export class LiveMatch extends Match {
   startShootout() {
     this.phase = 'PEN';
     this.pens = [0, 0];
-    const kq = (a) => 0.4 * (a.p.a.sh ?? 50) + 0.3 * (a.p.a.te ?? 50) + 0.3 * (a.p.a.cm ?? 50);
+    const kq = (a) => 0.6 * (a.p.a.pen ?? 50) + 0.4 * (a.p.a.cm ?? 50);
     this.pk = {
       order: [0, 1].map((s) => {
         const on = this.active(s);
@@ -2318,9 +2337,9 @@ export class LiveMatch extends Match {
     if (k.stage === 'run') {
       if (!k.T || D2(k.T, this.ball) < 0.9 || el > 1.2) {
         const T = k.T, G = k.G;
-        const q = 0.4 * this.E(T, 'sh') + 0.3 * this.E(T, 'te') + 0.3 * this.E(T, 'cm');
-        const egk = G ? this.E(G, 'gk') : 20;
-        const pMiss = clamp(0.08 - (this.E(T, 'te') - 60) / 800 + (1 - this.E(T, 'cm') / 100) * 0.05, 0.02, 0.16);
+        const q = 0.6 * this.E(T, 'pen') + 0.4 * this.E(T, 'cm');
+        const egk = G ? 0.5 * this.E(G, 'gk') + 0.3 * this.E(G, 'ovo') + 0.2 * this.E(G, 'agi') : 20;
+        const pMiss = clamp(0.08 - (this.E(T, 'pen') - 60) / 800 + (1 - this.E(T, 'cm') / 100) * 0.05, 0.02, 0.16);
         const pGoal = clamp(0.76 + (q - egk) / 250 + ((this.sides[s].train && this.sides[s].train.ment) || 0) / 2000, 0.55, 0.92);
         const x = Math.random();
         const how = x < pMiss ? 'miss' : x < pMiss + pGoal * (1 - pMiss) ? 'goal' : 'save';

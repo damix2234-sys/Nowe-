@@ -25,7 +25,7 @@ export function setGame(g) { G = g; migrate(g); resetFxIndex(); winCache.clear()
 /** Uzupełnia starsze zapisy o nowe umiejętności zawodników (ta sama metoda co przy tworzeniu świata). */
 function migrate(g) {
   if (!g || !g.players) return;
-  for (const p of Object.values(g.players)) if (p && p.a && p.a.dr == null) extendAttrs(p, attrRng(p.id));
+  for (const p of Object.values(g.players)) if (p && p.a && (p.a.dr == null || p.a.ant == null || p.h == null)) extendAttrs(p, attrRng(p.id));
 }
 
 export const TRAIN_KEYS = ['cond', 'poss', 'sp', 'off', 'def', 'ment'];
