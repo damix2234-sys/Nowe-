@@ -23,7 +23,7 @@ await click('[data-a="ng.start"]');
 await page.waitForSelector('.dash-head');
 
 // taktyka: zamiana zawodnika na pozycji
-await ev(() => document.querySelector('[data-a="go"][data-k="tactics"]').click());
+await ev(() => document.querySelector('.rail [data-k="tactics"], [data-a="go"][data-k="tactics"]').click());
 await page.waitForTimeout(200);
 const before = await ev(async () => (await import('./js/engine/game.js')).G.team.lineup.slice());
 await click('.tok', 9);
@@ -49,7 +49,7 @@ await page.screenshot({ path: `${OUT}/t2-tactics-team.png` });
 await click('[data-a="ui.back"]');
 
 // rozmowa z zawodnikiem
-await ev(() => document.querySelector('[data-a="go"][data-k="squad"]').click());
+await ev(() => document.querySelector('.rail [data-k="squad"], [data-a="go"][data-k="squad"]').click());
 await page.waitForTimeout(200);
 await click('.row.tap[data-a="pl.open"]', 5);
 await click('[data-a="pl.talk"]');
@@ -62,7 +62,7 @@ await click('[data-a="ui.back"]');
 await click('[data-a="ui.back"]');
 
 // mecz towarzyski
-await ev(() => document.querySelector('[data-a="go"][data-k="friendlies"]').click());
+await ev(() => document.querySelector('.rail [data-k="friendlies"], [data-a="go"][data-k="friendlies"]').click());
 await page.waitForTimeout(200);
 const slots = await page.locator('[data-a="fr.slot"]').count();
 if (slots) {
@@ -77,7 +77,7 @@ if (await page.locator('.ov.show').count()) await page.keyboard.press('Escape');
 await ev(async () => { const ui = await import('./js/ui/ui.js'); ui.closeAllOverlays(); ui.reset('home'); });
 
 // zapis i wczytanie
-await ev(() => document.querySelector('[data-a="go"][data-k="save"]').click());
+await ev(() => document.querySelector('.rail [data-k="save"], [data-a="go"][data-k="save"]').click());
 await page.waitForTimeout(500);
 await click('[data-a="sv.slot"][data-k="1"]');
 await page.waitForTimeout(400);

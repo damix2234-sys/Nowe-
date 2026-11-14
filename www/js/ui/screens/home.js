@@ -1,5 +1,5 @@
 // Pulpit menedżera.
-import { screen, actions, go, reset, rerender, flag, team, esc, icon, seg, bar, resChip, confirmBox, modal, av, toast } from '../ui.js';
+import { screen, actions, go, reset, rerender, setRail, S as UIS, flag, team, esc, icon, seg, bar, resChip, confirmBox, modal, av, toast } from '../ui.js';
 import { orb, ensureOrbDefs } from '../orbs.js';
 import { G, me, natName, nextUserFixture, userFixtures, senderName, trustLabel, nextWindow, acceptOffer, declineOffer } from '../../engine/game.js';
 import { NAT } from '../../data/nations.js';
@@ -95,6 +95,33 @@ function unemployedCard() {
   </div>`;
 }
 
+
+// ---------------- boczny pasek menu (jak w menedżerach piłkarskich) ----------------
+const RAIL_ITEMS = [
+  ['squad', 'kadra', 'Kadra'], ['tactics', 'taktyka', 'Taktyka'], ['training', 'trening', 'Trening'],
+  ['opponents', 'przeciwnicy', 'Rywale'], ['comps', 'rozgrywki', 'Rozgrywki'], ['friendlies', 'towarzyskie', 'Sparingi'],
+  ['u21', 'u21', 'U-21'], ['federation', 'federacja', 'Federacja'], ['ranking', 'ranking', 'Ranking'],
+  ['stats', 'statystyki', 'Statystyki'], ['offers', 'oferty', 'Oferty'], ['achievements', 'osiagniecia', 'Osiągnięcia'],
+  ['messages', 'wiadomosci', 'Poczta'], ['save', 'zapisz', 'Zapisz'], ['settings', 'ustawienia', 'Ustawienia'],
+];
+const RAIL_JOBLESS = new Set(['offers', 'comps', 'ranking', 'stats', 'achievements', 'messages', 'save', 'settings']);
+const NO_RAIL = new Set(['menu', 'newgame', 'load', 'about', 'editor', 'editorNat', 'match', 'press']);
+const RAIL_PARENT = { player: 'squad', comp: 'comps', opponent: 'opponents', prematch: 'tactics', postmatch: 'home' };
+
+setRail((name) => {
+  if (!G || NO_RAIL.has(name)) return '';
+  const cur = RAIL_PARENT[name] || name;
+  const m = me();
+  const unread = G.msgs.filter((x) => !x.read).length;
+  const offers = G.offers.filter((o) => o.until >= G.day).length;
+  const badge = { messages: unread, offers };
+  const item = (k, img, label) => `<button class="rail-it ${cur === k ? 'on' : ''}" data-a="rail.go" data-k="${k}" aria-label="${label}">
+      <span class="rail-ic" style="background-image:url(img/${img}.png)"></span><span class="rail-lb">${label}</span>${badge[k] ? `<span class="badge">${badge[k]}</span>` : ''}</button>`;
+  return `<button class="rail-it rail-home ${cur === 'home' ? 'on' : ''}" data-a="rail.go" data-k="home" aria-label="Pulpit"><span class="rail-logo"><img src="img/logo.png" alt=""></span><span class="rail-lb">Pulpit</span></button>`
+    + RAIL_ITEMS.filter(([k]) => m || RAIL_JOBLESS.has(k)).map((x) => item(...x)).join('')
+    + `<button class="rail-it rail-exit" data-a="home.menu" aria-label="Menu główne"><span class="rail-exit-ic">${icon('exit')}</span><span class="rail-lb">Menu</span></button>`;
+});
+
 screen('home', {
   render() {
     if (!G) return { title: 'Selekcjoner', body: '<div class="empty">Brak aktywnej gry.</div>', cls: 'nofoot' };
@@ -109,39 +136,12 @@ screen('home', {
       body += nextMatchCard();
       body += trustCard();
       body += tabsCard();
-      body += `<div class="tiles orbs">
-        ${tile('squad', 'users', 'Kadra')}
-        ${tile('tactics', 'clipboard', 'Taktyka')}
-        ${tile('training', 'dumbbell', 'Trening')}
-        ${tile('opponents', 'binoculars', 'Przeciwnicy')}
-        ${tile('comps', 'trophy', 'Rozgrywki', 'gold')}
-        ${tile('friendlies', 'handshake', 'Towarzyskie')}
-        ${tile('u21', 'sprout', 'Kadra U-21')}
-        ${tile('federation', 'building', 'Federacja', 'blue')}
-        ${tile('ranking', 'globe', 'Ranking', 'blue')}
-        ${tile('stats', 'chart', 'Statystyki', 'blue')}
-        ${tile('offers', 'briefcase', 'Oferty', 'gold', offers)}
-        ${tile('achievements', 'star', 'Osiągnięcia', 'gold')}
-        ${tile('messages', 'mail', 'Wiadomości', '', unread)}
-        ${tile('save', 'save', 'Zapisz')}
-        ${tile('settings', 'gear', 'Ustawienia')}
-        ${menuOrb()}
-      </div>`;
+
     } else {
       body += `<div class="dash-head"><span class="flag">💼</span><div class="grow"><div class="date">${fmtDateLong(G.day)}</div><div class="small muted">${esc(G.user.name)} · bez pracy</div></div></div>`;
       body += unemployedCard();
       body += tabsCard();
-      body += `<div class="tiles orbs">
-        ${tile('offers', 'briefcase', 'Oferty', 'gold', offers)}
-        ${tile('comps', 'trophy', 'Rozgrywki', 'gold')}
-        ${tile('ranking', 'globe', 'Ranking', 'blue')}
-        ${tile('stats', 'chart', 'Statystyki', 'blue')}
-        ${tile('achievements', 'star', 'Osiągnięcia', 'gold')}
-        ${tile('messages', 'mail', 'Wiadomości', '', unread)}
-        ${tile('save', 'save', 'Zapisz')}
-        ${tile('settings', 'gear', 'Ustawienia')}
-        ${menuOrb()}
-      </div>`;
+
     }
     return {
       title: 'Pulpit', sub: m ? `Selekcjoner: ${esc(natName(m))}` : 'Bez pracy', back: false, right, body,
@@ -173,6 +173,13 @@ screen('messages', {
 
 actions({
   go: (d) => go(d.k),
+  'rail.go': (d) => {
+    const k = d.k;
+    const top = UIS.stack[UIS.stack.length - 1];
+    if (top && top.name === k) return;
+    reset('home');
+    if (k !== 'home') go(k);
+  },
   'home.tab': (d) => { ui.tab = d.k; rerender(); },
   'home.menu': async () => {
     const ok = await confirmBox('Wrócić do menu głównego? Gra zostanie zapisana w slocie autozapisu.', 'Menu główne');

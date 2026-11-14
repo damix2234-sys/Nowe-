@@ -96,7 +96,7 @@ console.log('kroki:', log.join(' | '));
 await page.evaluate(() => window.scrollTo(0, 0));
 const screens = ['squad', 'tactics', 'training', 'opponents', 'comps', 'friendlies', 'u21', 'federation', 'ranking', 'stats', 'offers', 'achievements', 'messages', 'save', 'settings'];
 for (const s of screens) {
-  await page.evaluate((k) => { document.querySelector(`[data-a="go"][data-k="${k}"]`)?.click(); }, s);
+  await page.evaluate((k) => { document.querySelector(`.rail [data-k="${k}"], [data-a="go"][data-k="${k}"]`)?.click(); }, s);
   await page.waitForTimeout(350);
   await shot('s-' + s);
   if (s === 'squad') { await click('.row.tap[data-a="pl.open"]'); await page.waitForTimeout(250); await shot('s-player'); await click('[data-a="ui.back"]'); }

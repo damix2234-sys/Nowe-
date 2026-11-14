@@ -5,7 +5,10 @@ import { avatar } from './avatar.js';
 import { NAT, starsFor } from '../data/nations.js';
 import { POS_GROUP, FORM_ICONS, FORM_NAMES } from '../engine/player.js';
 
-export const S = { screens: {}, actions: {}, stack: [], overlays: [], current: null, backHandler: null };
+export const S = { screens: {}, actions: {}, stack: [], overlays: [], current: null, backHandler: null, rail: null };
+
+/** Boczny pasek menu (ustawiany przez pulpit): fn(nazwaEkranu) → HTML albo ''. */
+export function setRail(fn) { S.rail = fn; }
 
 export function screen(name, def) { S.screens[name] = def; }
 export function actions(obj) { Object.assign(S.actions, obj); }
@@ -64,8 +67,10 @@ export function render(restoreScroll = false) {
   if (typeof out === 'string') out = { body: out };
   const showBack = out.back ?? S.stack.length > 1;
   const backBtn = showBack ? `<button class="iconbtn" data-a="ui.back" aria-label="Wstecz">${icon('back')}</button>` : (out.left || '<span class="iconbtn-spacer"></span>');
-  root().className = 'app' + (out.appCls ? ' ' + out.appCls : '');
-  root().innerHTML = `${out.noHeader ? '' : `<header class="top">${backBtn}<div class="ttl"><h1>${out.title || ''}</h1>${out.sub ? `<div class="sub">${out.sub}</div>` : ''}</div><div class="right">${out.right || ''}</div></header>`}
+  let rail = '';
+  try { rail = S.rail && !out.noRail ? S.rail(top.name) : ''; } catch (e) { console.error(e); }
+  root().className = 'app' + (out.appCls ? ' ' + out.appCls : '') + (rail ? ' with-rail' : '');
+  root().innerHTML = `${rail ? `<nav class="rail" id="rail" aria-label="Menu">${rail}</nav>` : ''}${out.noHeader ? '' : `<header class="top">${backBtn}<div class="ttl"><h1>${out.title || ''}</h1>${out.sub ? `<div class="sub">${out.sub}</div>` : ''}</div><div class="right">${out.right || ''}</div></header>`}
 <main class="view ${out.cls || ''}" id="view">${out.body || ''}</main>
 ${out.foot ? `<footer class="foot">${out.foot}</footer>` : ''}`;
   window.scrollTo(0, restoreScroll ? top.scroll || 0 : top.keepScroll || 0);

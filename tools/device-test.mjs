@@ -105,7 +105,7 @@ async function main() {
   check('pulpit po starcie kariery', await has('.dash-head'));
 
   // przycisk systemowy WSTECZ: kadra -> pulpit
-  await page.evaluate(() => document.querySelector('[data-a="go"][data-k="squad"]')?.click());
+  await page.evaluate(() => document.querySelector('.rail [data-k="squad"], [data-a="go"][data-k="squad"]')?.click());
   await page.waitForTimeout(600);
   await shot('kadra');
   await sh('input keyevent 4');

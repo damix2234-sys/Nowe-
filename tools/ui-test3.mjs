@@ -53,7 +53,7 @@ if (got) {
   ok('nowa praca: ' + nat, !!nat);
   await page.screenshot({ path: `${OUT}/t3-newjob.png` });
   for (const s of ['squad', 'tactics', 'federation', 'stats']) {
-    await page.evaluate((k) => document.querySelector(`[data-a="go"][data-k="${k}"]`)?.click(), s);
+    await page.evaluate((k) => document.querySelector(`.rail [data-k="${k}"], [data-a="go"][data-k="${k}"]`)?.click(), s);
     await page.waitForTimeout(300);
     await click('[data-a="ui.back"]');
   }

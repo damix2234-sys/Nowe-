@@ -11,7 +11,7 @@ const page = await (await browser.newContext({ viewport: { width: 390, height: 8
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 const click = async (s, i = 0) => { await page.locator(s).nth(i).click(); await page.waitForTimeout(200); };
-const go = (k) => page.evaluate((x) => document.querySelector(`[data-a="go"][data-k="${x}"]`).click(), k);
+const go = (k) => page.evaluate((x) => document.querySelector(`.rail [data-k="${x}"], [data-a="go"][data-k="${x}"]`).click(), k);
 
 await page.goto(URL);
 await page.waitForSelector('.title-screen');
