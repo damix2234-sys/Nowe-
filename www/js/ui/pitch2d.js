@@ -108,14 +108,14 @@ export class Pitch2D {
     for (const s of [0, 1]) {
       for (const sl of this.M.sides[s].on) {
         if (!sl) continue;
-        const p = this.pl(s, sl.pid);
+        const p = this.find(s, sl.pid);
         if (p) { p.sx = sl.x; p.sy = sl.y; p.pos = sl.pos; p.gk = sl.pos === 'GK'; }
       }
     }
   }
 
   addPlayer(s, pid, slot, x, y) {
-    const ex = this.pl(s, pid);
+    const ex = this.find(s, pid);
     if (ex) return ex;
     const T = this.teams[s];
     if (T.nums[pid] == null) T.nums[pid] = this.freeNum(T);
@@ -137,9 +137,22 @@ export class Pitch2D {
   behind(s, pt, d) { return { x: pt.x + rnd(-0.5, 0.5), y: pt.y - this.dirOf(s) * d }; }
 
   active(s) { return this.teams[s].players.filter((p) => p.state !== 'off' && p.state !== 'gone'); }
+  find(s, pid) {
+    return pid == null ? null : this.teams[s].players.find((q) => q.pid === pid && q.state !== 'off' && q.state !== 'gone') || null;
+  }
+
+  /** Zawodnik z akcji silnika (licznik braków służy testom spójności). */
   pl(s, pid) {
     if (pid == null) return null;
-    return this.teams[s].players.find((p) => p.pid === pid && p.state !== 'off' && p.state !== 'gone') || null;
+    const p = this.find(s, pid);
+    if (!p) this.missing = (this.missing || 0) + 1;
+    return p;
+  }
+
+  /** Nazwisko z danych meczu (niezależnie od tego, czy zawodnik jest na boisku). */
+  nameOf(s, pid) {
+    const p = this.M.sides[s].spec.players[pid];
+    return p ? p.ln : '';
   }
   gkOf(s) { return this.active(s).find((p) => p.gk) || null; }
   nearest(s, x, y, f) {
@@ -1415,7 +1428,7 @@ export class Pitch2D {
     this.sfx('goal', s);
     this.fx.push({ type: 'net', y: gy, x: b.x, t: 0, dur: 0.9 });
     const d = og ? this.pl(o, a.d) : null;
-    this.fx.push({ type: 'goal', s, t: 0, dur: 2.8, name: og ? (d ? d.ln + ' (sam.)' : '') : scorer ? scorer.ln : '' });
+    this.fx.push({ type: 'goal', s, t: 0, dur: 2.8, name: og ? `${this.nameOf(o, a.d)} (sam.)` : this.nameOf(s, a.a) || (scorer ? scorer.ln : '') });
     this.phase = 'celebrate';
     this.trail.length = 0;
     if (d) { d.state = 'down'; d.stT = 1.6; }
@@ -1708,7 +1721,7 @@ export class Pitch2D {
     const wp = { x: wx, y: wy };
     const defs = this.active(o).filter((p) => !p.gk && p.state === 'play').sort((p1, p2) => D2(p1, wp) - D2(p2, wp));
     const n = Math.min(4, defs.length);
-    defs.slice(0, n).forEach((p, i) => { const off = (i - (n - 1) / 2) * 0.75; p.goal = { x: wx + px * off, y: wy + py * off }; p.gUrg = 1; p.gSpd = 1.8; p.wall = true; });
+    defs.slice(0, n).forEach((p, i) => { const off = (i - (n - 1) / 2) * 1.9; p.goal = { x: wx + px * off, y: wy + py * off }; p.gUrg = 1; p.gSpd = 1.8; p.wall = true; });
     defs.slice(n).forEach((p, i) => { p.goal = this.w(s, [28, 40, 34, 22, 46, 31][i % 6], PL - [7, 7, 12, 14, 14, 18][i % 6]); p.gUrg = 0.9; p.gSpd = 1.6; });
     this.active(s).filter((p) => !p.gk && p !== T && p.state === 'play').forEach((p, i) => {
       p.goal = i < 4 ? this.w(s, [26, 42, 30, 38][i], PL - [9, 9, 15, 15][i]) : this.w(s, [18, 50, 34, 8, 60][(i - 4) % 5], 58 + rnd(-3, 3));
@@ -1917,7 +1930,8 @@ export class Pitch2D {
     for (const s of [0, 1]) {
       const pl = this.active(s).filter((p) => !p.gk);
       pl.forEach((p, i) => {
-        p.pkHome = { x: PW / 2 + (s === 0 ? -1.6 : 1.6) + (i % 2 ? (s === 0 ? -1.2 : 1.2) : 0), y: PL / 2 + (Math.floor(i / 2) - 2.5) * 1.6 };
+        const sg = s === 0 ? -1 : 1;
+        p.pkHome = { x: PW / 2 + sg * (2 + (i % 2) * 2.7), y: PL / 2 + (Math.floor(i / 2) - 2) * 2.7 };
         p.goal = p.pkHome; p.gUrg = 0.8; p.gSpd = 1.6;
       });
       const g = this.gkOf(s);

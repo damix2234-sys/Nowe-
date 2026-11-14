@@ -12,7 +12,7 @@ const RATES = [1.3, 2.2, 3.8, 7];
 const MIN_DUR = [2.4, 2.2, 1.8, 1.1];
 const spec = (nid, home, h, a) => aiSpec(nid, { h, a, comp: null }, home);
 
-let fails = 0;
+let fails = 0, missingTotal = 0;
 const durs = {};
 const totals = [];
 const errs = [];
@@ -64,6 +64,7 @@ for (let k = 0; k < N; k++) {
     }
     if (bad) break;
   }
+  if (P.missing) missingTotal += P.missing;
   const same = said.length === expected.length && said.every((x, i) => x === expected[i]);
   if (!ended) bad = bad || 'mecz nie dobiegł końca';
   if (!same) bad = bad || `linie: powiedziano ${said.length}, oczekiwano ${expected.length}`;
@@ -74,7 +75,7 @@ for (let k = 0; k < N; k++) {
 console.error = origErr;
 const bySp = [0, 1, 2, 3].map((s) => totals.filter((x) => x.sp === s)).map((l) => (l.length ? (l.reduce((q, x) => q + x.realSec, 0) / l.length / 60).toFixed(1) + ' min' : '-'));
 console.log('mecze:', N, 'błędy:', fails, '| średni czas meczu (½×, 1×, 2×, 4×):', bySp.join(', '));
-console.log('wyjątki w skryptach:', errs.length ? errs.slice(0, 5).join('\n') : 'brak');
+console.log('wyjątki w skryptach:', errs.length ? errs.slice(0, 5).join('\n') : 'brak', '| nieznalezieni zawodnicy:', missingTotal);
 const rows = Object.entries(durs).sort((x, y) => y[1].max - x[1].max).slice(0, 14);
 console.log('najdłuższe akcje (czas świata, s):', rows.map(([k2, r]) => `${k2} śr ${(r.sum / r.n).toFixed(1)} max ${r.max.toFixed(1)}`).join(' | '));
-process.exit(fails || errs.length ? 1 : 0);
+process.exit(fails || errs.length || missingTotal ? 1 : 0);
