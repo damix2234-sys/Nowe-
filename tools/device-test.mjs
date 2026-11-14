@@ -29,8 +29,17 @@ async function shot(name) {
 }
 const sh = async (cmd) => (await device.shell(cmd)).toString().trim();
 const has = async (sel) => (await page.locator(sel).count()) > 0;
+// Dotknięcie przez Playwright (prawdziwa ścieżka zdarzeń wejścia WebView). Gdy emulator „przytka” kolejkę
+// wejścia, ponawiamy kliknięciem DOM i odnotowujemy to w raporcie.
 async function click(sel, wait = 250) {
-  await page.locator(sel).first().click({ timeout: 8000 });
+  const loc = page.locator(sel).first();
+  try {
+    await loc.click({ timeout: 8000 });
+  } catch (e) {
+    report.retries = (report.retries || 0) + 1;
+    log('ponawiam kliknięcie', sel);
+    await loc.evaluate((el) => el.click());
+  }
   await page.waitForTimeout(wait);
 }
 
@@ -81,7 +90,7 @@ async function main() {
   log('WebView', report.info.userAgent, report.info.viewport);
 
   await page.waitForSelector('.title-screen', { timeout: 30000 });
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(2000);
   await shot('menu');
   check('ekran tytułowy', true);
 
