@@ -4,7 +4,6 @@
 import { N } from '../data/commentary.js';
 import { fullName } from '../data/names.js';
 
-const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const fill = (t, v) => t.replace(/\{(\w+)\}/g, (_, k) => (v[k] ?? ''));
 const GAP = [0, 0, 0.6, 1.8, 4.2]; // minimalny odstęp (s symulacji) od poprzedniej linii wg priorytetu
 
@@ -26,13 +25,29 @@ export class Narrator {
 
   team(s) { return this.m.sides[s].name; }
 
+  /** Wybór wariantu bez powtarzania ostatnio użytych (komentarz nie brzmi jak zdarta płyta). */
+  variant(key) {
+    const list = N[key];
+    const used = (this.used || (this.used = {}))[key] || [];
+    const free = list.map((_, i) => i).filter((i) => !used.includes(i));
+    const i = (free.length ? free : list.map((_, j) => j))[Math.floor(Math.random() * (free.length || list.length))];
+    used.push(i);
+    if (used.length > Math.min(3, list.length - 1)) used.shift();
+    this.used[key] = used;
+    return list[i];
+  }
+
   say(key, v = {}, o = {}) {
     const m = this.m;
     const prio = o.prio ?? 3;
     if (m.t - this.lastT < GAP[prio]) return false;
     const list = N[key];
     if (!list) return false;
-    m.say(fill(pick(list), v), { ic: o.ic, side: o.side, imp: prio <= 1, kind: key });
+    // drobne opisy tej samej sytuacji nie częściej niż co kilkanaście sekund
+    const kt = (this.keyT || (this.keyT = {}));
+    if (prio >= 4 && m.t - (kt[key] ?? -99) < 14) return false;
+    kt[key] = m.t;
+    m.say(fill(this.variant(key), v), { ic: o.ic, side: o.side, imp: prio <= 1, kind: key });
     this.lastT = m.t;
     return true;
   }
@@ -104,9 +119,9 @@ export class Narrator {
       case 'goal': {
         const v = { A: this.nm(d.a, true), D: this.nm(d.a, true) };
         const key = d.og ? 'ownGoal' : d.pen ? 'goalPen' : d.kind === 'head' ? 'goalHeader' : d.kind === 'fk' ? 'goalFk' : d.kind === 'foot' && d.a && m.shotDistLast > 22 ? 'goalLong' : 'goal';
-        m.say(fill(pick(N[key]), v), { ic: '⚽', side: d.side, imp: true, kind: 'goal' });
-        if (d.assist) m.say(fill(pick(N.assist), { B: this.nm(d.assist, true) }), { ic: '', side: d.side, kind: 'assist' });
-        m.say(fill(pick(N.score), { S: `${d.score[0]}:${d.score[1]}` }), { kind: 'score', side: d.side });
+        m.say(fill(this.variant(key), v), { ic: '⚽', side: d.side, imp: true, kind: 'goal' });
+        if (d.assist) m.say(fill(this.variant('assist'), { B: this.nm(d.assist, true) }), { ic: '', side: d.side, kind: 'assist' });
+        m.say(fill(this.variant('score'), { S: `${d.score[0]}:${d.score[1]}` }), { kind: 'score', side: d.side });
         this.lastT = m.t;
         break;
       }
@@ -133,7 +148,7 @@ export class Narrator {
       case 'tired': if (d.a.side === m.userSide) this.say('tired', { A: this.nm(d.a) }, { prio: 3, side: d.a.side }); break;
       case 'pk': {
         const key = d.how === 'goal' ? 'pkGoal' : d.how === 'save' ? 'pkSave' : 'pkMiss';
-        m.say(fill(pick(N[key]), { T: this.team(d.side), A: this.nm(d.a), G: this.nm(d.G), S: `${d.score[0]}:${d.score[1]}` }), { ic: '🥅', side: d.side, imp: true, kind: 'pk' });
+        m.say(fill(this.variant(key), { T: this.team(d.side), A: this.nm(d.a), G: this.nm(d.G), S: `${d.score[0]}:${d.score[1]}` }), { ic: '🥅', side: d.side, imp: true, kind: 'pk' });
         this.lastT = m.t;
         break;
       }
