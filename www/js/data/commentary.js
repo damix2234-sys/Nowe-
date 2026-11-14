@@ -1,44 +1,71 @@
 // Szablony komentarza. {A} atakujący, {B} podający, {D} obrońca/faulujący, {G} bramkarz, {T} drużyna, {N} liczba,
 // {OUT}/{IN} zmiana. Nazwiska zawsze w mianowniku.
+// Każdy klucz odpowiada jednemu rodzajowi akcji widocznej na boisku 2D – komentarz opisuje dokładnie to,
+// co robią zawodnicy (np. dośrodkowanie, wycofanie piłki, parada bramkarza, strzał nad poprzeczką).
 
 export const C = {
   kickoff: ['Sędzia gwiżdże – zaczynamy!', 'Piłka w grze, mecz się rozpoczął!', 'Ruszyło! Od środka zaczyna {T}.'],
-  quiet: [
-    'Gra toczy się w środku pola.', 'Spokojna wymiana podań w środkowej strefie.', 'Obie drużyny badają się nawzajem.',
-    '{T} cierpliwie rozgrywa piłkę.', 'Sporo walki w środku boiska, nikt nie może opanować piłki.', 'Kibice nie przestają dopingować.',
-    'Tempo meczu wyraźnie spadło.', '{T} wymienia podania na własnej połowie.', 'Piłka wędruje od skrzydła do skrzydła.',
-  ],
+  etKick1: ['Rusza dogrywka!', 'Pierwsza część dogrywki w toku.'],
+  etKick2: ['Druga część dogrywki – ostatnie 15 minut!'],
+
+  // spokojne fragmenty
+  quietMid: ['Gra toczy się w środku pola.', 'Spokojna wymiana podań w środkowej strefie.', 'Obie drużyny badają się nawzajem.', 'Tempo meczu wyraźnie spadło.'],
+  quietOwn: ['{T} cierpliwie rozgrywa piłkę.', '{T} wymienia podania na własnej połowie.', '{T} nie spieszy się z rozegraniem.'],
+  quietSwitch: ['Piłka wędruje od skrzydła do skrzydła.', '{T} przenosi ciężar gry na drugą stronę boiska.'],
+  quietFight: ['Sporo walki w środku boiska, nikt nie może opanować piłki.', 'Piłka przechodzi z nogi do nogi, dużo walki.'],
+  quietCrowd: ['Kibice nie przestają dopingować.', 'Trybuny niosą swoich piłkarzy.'],
   pressure: ['{T} naciska, rywal broni się głęboko.', '{T} przejmuje inicjatywę.', '{T} atakuje coraz śmielej.', 'Napór, jaki prowadzi {T}, rośnie z minuty na minutę.'],
-  build: [
-    '{A} rusza z piłką.', '{A} prowadzi piłkę w kierunku pola karnego.', '{A} przyjmuje piłkę i podnosi głowę.',
-    '{B} posyła długie podanie, piłkę przyjmuje {A}.', '{A} mija jednego rywala i pędzi dalej!', 'Akcja skrzydłem – przy piłce {A}.',
-    'Piłka krąży w okolicach pola karnego, przy niej {A}.', '{B} rozgrywa, piłka trafia pod nogi, które ma {A}.',
-  ],
+
+  // rozegranie akcji
+  buildCarry: ['{A} rusza z piłką.', '{A} prowadzi piłkę w kierunku pola karnego.', '{A} napędza akcję, nikt go nie atakuje.'],
+  buildReceive: ['{A} przyjmuje piłkę i podnosi głowę.', '{A} opanowuje piłkę i szuka partnerów.'],
+  buildLong: ['{B} posyła długie podanie, piłkę przyjmuje {A}.', 'Długa piłka – zagrywa {B}, przyjmuje {A}.'],
+  buildPass: ['{B} rozgrywa, piłka trafia pod nogi, które ma {A}.', '{B} podaje do przodu, przy piłce {A}.', 'Prostopadłe podanie – zagrywa {B}, piłkę ma {A}.'],
+  buildBeat: ['{A} mija jednego rywala i pędzi dalej!', '{A} zostawia obrońcę w tyle!'],
+  buildWing: ['Akcja skrzydłem – przy piłce {A}.', '{A} pędzi wzdłuż linii bocznej.'],
+  buildAround: ['Piłka krąży w okolicach pola karnego, przy niej {A}.', 'Cierpliwe rozegranie przed polem karnym, piłkę ma {A}.'],
+  buildOne2: ['Klepka! {A} i {B} rozmontowują obronę.', '{A} gra na raz, {B} od razu oddaje mu piłkę.'],
   buildDribble: ['{A} tańczy z piłką przed obrońcami!', '{A} kiwa jednego, drugiego…', 'Efektowny drybling – {A}!'],
-  lost: [
-    '{D} odbiera piłkę.', '{D} przerywa akcję czystym wślizgiem.', 'Dobra interwencja – {D} wybija piłkę.',
-    'Niecelne podanie, piłkę przejmuje {D}.', '{D} był szybszy i przejął piłkę.', 'Akcja się rwie. Piłkę ma {D}.',
-  ],
-  lostDribble: ['{A} próbował dryblingu, ale {D} zabrał mu piłkę.', 'Za długo z piłką! {D} ją przejmuje.'],
   counter: ['Kontratak! {A} wychodzi z piłką.', 'Szybki atak po stracie rywala – przy piłce {A}!', 'Błyskawiczna kontra! Pędzi {A}!'],
+
+  // straty
+  lostTackle: ['{D} odbiera piłkę.', '{D} zabiera piłkę rywalowi.'],
+  lostSlide: ['{D} przerywa akcję czystym wślizgiem.', 'Wślizg! {D} wybija piłkę spod nóg rywala.'],
+  lostClear: ['Dobra interwencja – {D} wybija piłkę.', '{D} wybija piłkę daleko od bramki.'],
+  lostIntercept: ['Niecelne podanie, piłkę przejmuje {D}.', '{D} czyta grę i przecina podanie.'],
+  lostQuicker: ['{D} był szybszy i przejął piłkę.', 'Akcja się rwie. Piłkę ma {D}.'],
+  lostDribble: ['{A} próbował dryblingu, ale {D} zabrał mu piłkę.', 'Za długo z piłką! {D} ją przejmuje.'],
+
+  // strzały
   longShot: ['{A} decyduje się na strzał z dystansu!', '{A} uderza zza pola karnego!', '{A} próbuje szczęścia z daleka!'],
-  boxShot: [
-    '{B} dogrywa w pole karne, strzela {A}!', '{A} oddaje strzał z pola karnego!', 'Dośrodkowanie, uderza {A}!',
-    '{A} obraca się z piłką w polu karnym i strzela!', '{B} wycofuje piłkę, uderza {A}!',
-  ],
-  boxShotSolo: ['{A} oddaje strzał z pola karnego!', '{A} uderza z ostrego kąta!', '{A} składa się do strzału!'],
-  bigChance: ['{A} wychodzi sam na sam z bramkarzem!', 'Wielka szansa! {A} ma przed sobą tylko bramkarza!', 'Fantastyczne podanie! {A} sam przed bramką!'],
+  boxShotPass: ['{B} dogrywa w pole karne, strzela {A}!', '{B} zagrywa w pole karne, uderza {A}!'],
+  boxShotCross: ['Dośrodkowanie, uderza {A}!', '{B} dośrodkowuje, {A} uderza z woleja!'],
+  boxShotCut: ['{B} wycofuje piłkę, uderza {A}!', '{B} zagrywa wzdłuż bramki, strzela {A}!'],
+  boxShotTurn: ['{A} obraca się z piłką w polu karnym i strzela!'],
+  boxShotSolo: ['{A} oddaje strzał z pola karnego!', '{A} składa się do strzału!'],
+  boxShotAngle: ['{A} uderza z ostrego kąta!', '{A} strzela z linii końcowej!'],
+  bigChance: ['{A} wychodzi sam na sam z bramkarzem!', 'Wielka szansa! {A} ma przed sobą tylko bramkarza!'],
+  bigChancePass: ['Fantastyczne podanie! {A} sam przed bramką!', 'Prostopadła piłka – zagrywa {B}, {A} sam na sam z bramkarzem!'],
   header: ['Główkuje {A}!', '{A} wyskakuje najwyżej i uderza głową!', 'Strzał głową – {A}!'],
+
+  // efekty strzałów
   goal: ['GOOOL! {A} trafia do siatki!', 'GOL! Piłka ląduje w bramce! Strzelcem {A}!', 'GOOOOL! {A} nie daje szans bramkarzowi!', 'Jest gol! {A} pewnie wykańcza akcję!'],
   goalLong: ['GOOOL! Co za uderzenie! {A} trafia w samo okienko!', 'GOL! Rakieta z dystansu – {A}!'],
   goalHeader: ['GOOOL! {A} wbija piłkę głową do siatki!', 'GOL! Główka idealna – {A}!'],
   assist: ['Asystował {B}.', 'Asysta: {B}.', 'Kluczowe podanie: {B}.'],
-  save: ['{G} broni!', 'Świetna interwencja! {G} na posterunku.', '{G} łapie piłkę bez problemu.', 'Bramkarz {G} odbija piłkę!', '{G} wyciąga się jak struna i broni!'],
+  saveCatch: ['{G} łapie piłkę bez problemu.', '{G} pewnie chwyta piłkę.'],
+  saveParry: ['Bramkarz {G} odbija piłkę!', '{G} broni!', 'Świetna interwencja! {G} na posterunku.'],
+  saveDive: ['{G} wyciąga się jak struna i broni!', 'Robinsonada! {G} ratuje zespół!'],
   saveCorner: ['{G} przenosi piłkę nad poprzeczką. Będzie rzut rożny.', '{G} wybija piłkę na róg!'],
-  miss: ['Niecelnie!', 'Piłka mija słupek.', 'Wysoko nad poprzeczką.', 'Obok bramki!', 'Minimalnie niecelnie!'],
-  blocked: ['Strzał zablokowany przez obrońców.', 'Obrońca rzuca się pod piłkę i blokuje strzał!'],
+  missWide: ['Piłka mija słupek.', 'Obok bramki!', 'Minimalnie niecelnie!', 'Niecelnie!'],
+  missHigh: ['Wysoko nad poprzeczką.', 'Piłka szybuje nad bramką.'],
   missBig: ['Pudło! Co za zmarnowana okazja!', 'Niewiarygodne! {A} nie trafia z kilku metrów!', 'Fatalnie! Piłka mija bramkę!'],
-  post: ['Słupek!!!', 'Poprzeczka! Piłka odbija się od obramowania bramki!', 'W słupek! Zabrakło centymetrów!'],
+  blocked: ['Strzał zablokowany przez obrońców.', 'Obrońca rzuca się pod piłkę i blokuje strzał!'],
+  post: ['Słupek!!!', 'W słupek! Zabrakło centymetrów!'],
+  bar: ['Poprzeczka! Piłka odbija się od obramowania bramki!', 'Trafia w poprzeczkę!'],
+  ownGoal: ['Samobój! {D} nieszczęśliwie pakuje piłkę do własnej bramki!'],
+
+  // faule, kartki, stałe fragmenty
   foul: ['Faul! {D} przewraca rywala.', '{D} fauluje przeciwnika.', 'Sędzia odgwizduje przewinienie – faulował {D}.', 'Ostre wejście – faulował {D}.'],
   yellow: ['Żółta kartka! Ukarany {D}.', 'Sędzia sięga do kieszeni – żółtko: {D}.', '{D} ogląda żółtą kartkę.'],
   secondYellow: ['Druga żółta kartka! {D} musi opuścić boisko!', 'Drugie żółtko i czerwień! {D} schodzi z boiska!'],
@@ -49,12 +76,14 @@ export const C = {
   fkShot: ['{A} uderza nad murem!', '{A} strzela z rzutu wolnego!'],
   corner: ['Rzut rożny. Do piłki podchodzi {A}.', '{A} ustawia piłkę w narożniku boiska.'],
   cornerCross: ['Dośrodkowanie w pole karne…', '{A} posyła piłkę w pole karne…'],
-  cleared: ['Obrońcy wybijają piłkę.', 'Bramkarz pewnie wyłapuje dośrodkowanie.', 'Nic z tego, piłka wybita.'],
+  cleared: ['Obrońcy wybijają piłkę.', 'Nic z tego, piłka wybita.', '{D} wybija piłkę głową.'],
+  claimed: ['Bramkarz pewnie wyłapuje dośrodkowanie.', '{G} wychodzi z bramki i łapie piłkę.'],
   penalty: ['RZUT KARNY!!! {D} fauluje w polu karnym!', 'Sędzia wskazuje na wapno! Faulował {D}!'],
   penTaker: ['Do piłki podchodzi {A}…', 'Jedenastkę wykona {A}…'],
   penGoal: ['GOL! {A} pewnie wykorzystuje rzut karny!', 'GOOOL! Bramkarz w jedną stronę, piłka w drugą! Trafia {A}!'],
   penSave: ['{G} broni rzut karny!!!', 'Obronił! {G} wyczuł intencje strzelca!'],
-  penMiss: ['Pudło! {A} posyła piłkę obok słupka!', 'Nad poprzeczką! Rzut karny zmarnowany!'],
+  penMissWide: ['Pudło! {A} posyła piłkę obok słupka!', '{A} uderza obok bramki! Rzut karny zmarnowany!'],
+  penMissHigh: ['Nad poprzeczką! Rzut karny zmarnowany!', '{A} przestrzelił nad bramką!'],
   offside: ['Spalony. {A} wyszedł za wcześnie.', 'Chorągiewka w górze – {A} na pozycji spalonej.', 'Pułapka ofsajdowa zadziałała, spalony.'],
   dive: ['{A} pada w polu karnym…', '{A} przewraca się po kontakcie z rywalem…'],
   diveYellow: ['Sędzia nie dał się nabrać! Żółta kartka za symulację – ukarany {A}.'],
@@ -70,7 +99,6 @@ export const C = {
   etHalf: ['Koniec pierwszej części dogrywki.'],
   pensStart: ['O wszystkim zdecydują rzuty karne!'],
   timeWaste: ['{T} wyraźnie gra na czas.', '{T} nie spieszy się ze wznowieniem gry.'],
-  ownGoal: ['Samobój! {D} nieszczęśliwie pakuje piłkę do własnej bramki!'],
   stoppage: ['Doliczony czas gry: {N} min.'],
   tenMen: ['{T} gra w osłabieniu.'],
 };

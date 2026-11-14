@@ -451,3 +451,28 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; font-varian
 .tok .cnd i { display: block; height: 100%; background: var(--green); }
 .tok .cnd.md i { background: #e9da66; }
 .tok .cnd.lo i { background: #f37f71; }
+
+/* ---------- mecz na żywo: boisko 2D ---------- */
+main.view.match-view { padding-top: 8px; }
+.mt-board { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px 10px; margin-bottom: 8px; }
+.mt-board .tm { display: flex; align-items: center; gap: 6px; min-width: 0; font-weight: 800; font-size: 13.5px; }
+.mt-board .tm.r { justify-content: flex-end; }
+.mt-board .tm .flag { font-size: 22px; flex: none; }
+.mt-board .tm .tn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mt-board .kit { width: 11px; height: 11px; border-radius: 50%; background: var(--k); box-shadow: 0 0 0 2px var(--t), 0 0 0 3px rgba(0, 0, 0, 0.5); flex: none; }
+.mt-board .mid { text-align: center; min-width: 74px; }
+.mt-board .sc { font-size: 28px; font-weight: 900; letter-spacing: 1.5px; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.mt-board .min { font-size: 12px; color: var(--accent); font-weight: 900; white-space: nowrap; }
+.mt-board .min.live::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--red); margin-right: 5px; animation: pulse 1s infinite; vertical-align: 1px; }
+.mt-board .scorers { grid-column: 1 / -1; margin-top: 2px; font-size: 11px; }
+.pitch-wrap { position: relative; height: 440px; border-radius: 14px; overflow: hidden; background: #1d6a37; margin-bottom: 8px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07); }
+.pitch-wrap canvas { display: block; width: 100%; height: 100%; touch-action: manipulation; }
+.pitch-wrap .pitch-cam { position: absolute; right: 8px; top: 8px; width: 30px; height: 30px; border-radius: 9px; border: 0; background: rgba(8, 17, 14, 0.6); color: #fff; display: flex; align-items: center; justify-content: center; }
+.pitch-wrap .pitch-cam .ic { width: 16px; height: 16px; }
+.pitch-wrap .mom { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; margin: 0; border-radius: 0; opacity: 0.85; }
+#mt-banner { position: absolute; left: 10px; right: 10px; bottom: 14px; z-index: 2; }
+#mt-banner:empty { display: none; }
+.pitch-note { background: rgba(8, 17, 14, 0.92); border: 1px solid var(--line2); border-radius: 14px; padding: 12px 14px; backdrop-filter: blur(4px); }
+.match-view .bubble { min-height: 56px; padding: 10px 12px; font-size: 14.5px; margin-bottom: 0; }
+.match-view .ctrl { margin: 8px 0 12px; }
+.lu-p .num { display: inline-block; min-width: 18px; text-align: right; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }

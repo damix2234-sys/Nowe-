@@ -72,7 +72,7 @@ ok('dźwięk wyłączony w ustawieniach', await page.evaluate(() => JSON.parse(l
 await click('#mt-snd');
 ok('dźwięk ponownie włączony', await page.evaluate(() => JSON.parse(localStorage.getItem('selekcjoner.settings') || '{}').sound === true));
 for (let i = 0; i < 3; i++) { if ((await page.locator('#mt-speed span').textContent()) === '4×') break; await click('[data-a="mt.speed"]'); }
-for (let t = 0; t < 500; t++) {
+for (let t = 0; t < 900; t++) {
   if (await page.locator('[data-a="mt.summary"]').count()) break;
   if (await page.locator('.ov.show [data-a="mt.subDo"]').count()) { await page.locator('.ov.show [data-a="ui.close"]').first().click(); await click('[data-a="mt.play"]'); }
   const banner = page.locator('#mt-banner [data-a="mt.play"]');

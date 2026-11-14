@@ -108,6 +108,50 @@ export function crowd(type = 'goal', loud = 1) {
   src.stop(t + dur + 0.1);
 }
 
+/** Uderzenie piłki (power 0–1): krótki, głuchy dźwięk. */
+export function kick(power = 1) {
+  const c = ac();
+  if (!c) return;
+  const t = c.currentTime + 0.005;
+  const o = c.createOscillator();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(150 + 40 * power, t);
+  o.frequency.exponentialRampToValueAtTime(55, t + 0.09);
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.32 * (0.4 + 0.6 * power), t + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+  const src = c.createBufferSource();
+  src.buffer = noise();
+  const f = c.createBiquadFilter();
+  f.type = 'lowpass';
+  f.frequency.value = 900;
+  const ng = c.createGain();
+  ng.gain.setValueAtTime(0.18 * power, t);
+  ng.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+  o.connect(g); g.connect(master);
+  src.connect(f); f.connect(ng); ng.connect(master);
+  o.start(t); o.stop(t + 0.15);
+  src.start(t, Math.random()); src.stop(t + 0.07);
+}
+
+/** Piłka w słupek lub poprzeczkę – metaliczny dźwięk. */
+export function post() {
+  const c = ac();
+  if (!c) return;
+  const t = c.currentTime + 0.005;
+  for (const [fq, v] of [[880, 0.16], [1320, 0.1], [2210, 0.05]]) {
+    const o = c.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = fq;
+    const g = c.createGain();
+    g.gain.setValueAtTime(v, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+    o.connect(g); g.connect(master);
+    o.start(t); o.stop(t + 0.5);
+  }
+}
+
 /** Szum trybun w tle meczu. */
 export function ambience(on) {
   if (!on) {

@@ -127,15 +127,25 @@ async function main() {
   check('ekran meczu', await has('[data-a="mt.play"]'));
   const canvas = await has('canvas#mt-pitch');
   check('boisko 2D (canvas)', canvas);
-  for (let i = 0; i < 10; i++) {
-    await page.waitForTimeout(1600);
+  const linesSeen = new Set();
+  for (let i = 0; i < 12; i++) {
+    await page.waitForTimeout(1500);
+    linesSeen.add(await page.locator('#mt-line').textContent().catch(() => ''));
     if (await has('.ov.show')) { await shot('mecz-okno'); break; }
-    await shot(`mecz-${i + 1}`);
+    await shot(`mecz-${String(i + 1).padStart(2, '0')}`);
   }
+  check('komentarz zmienia się w trakcie meczu', linesSeen.size >= 4, `${linesSeen.size} różnych linii`);
   if (canvas) {
-    const st = await page.evaluate(() => (window.__pitch ? window.__pitch.debugState() : null));
-    report.info.pitch = st;
-    check('animacja 2D działa', st && st.frames > 30, st ? `klatki: ${st.frames}` : 'brak');
+    const a = await page.evaluate(() => (window.__pitch ? window.__pitch.debugState() : null));
+    await page.waitForTimeout(3000);
+    const b = await page.evaluate(() => (window.__pitch ? window.__pitch.debugState() : null));
+    report.info.pitch = b;
+    const fps = a && b ? Math.round((b.frames - a.frames) / 3) : 0;
+    report.info.fps = fps;
+    check('animacja 2D działa płynnie', fps >= 20, `${fps} kl./s`);
+    const box = await page.locator('#mt-wrap').boundingBox();
+    report.info.pitchBox = box;
+    check('duże boisko (min. 50% wysokości ekranu)', box && box.height >= 0.5 * (await page.evaluate(() => innerHeight)), box ? `${Math.round(box.width)}×${Math.round(box.height)}` : '');
   }
   // szybciej i do przerwy / końca
   for (let k = 0; k < 2; k++) await click('[data-a="mt.speed"]', 200);
