@@ -1,5 +1,6 @@
 // Pulpit menedżera.
 import { screen, actions, go, reset, rerender, flag, team, esc, icon, seg, bar, resChip, confirmBox, modal, av, toast } from '../ui.js';
+import { orb, ensureOrbDefs } from '../orbs.js';
 import { G, me, natName, nextUserFixture, userFixtures, senderName, trustLabel, nextWindow, acceptOffer, declineOffer } from '../../engine/game.js';
 import { NAT } from '../../data/nations.js';
 import { fmtDateLong, fmtDateShort, fmtDate, plural, hashStr } from '../../core/util.js';
@@ -74,8 +75,16 @@ function tabsCard() {
   return `<div class="card">${seg('home.tab', [['fx', 'Terminarz'], ['msg', `Wiadomości${unread ? ` (${unread})` : ''}`], ['obj', 'Cele']], ui.tab)}${body}</div>`;
 }
 
+const ORB_IC = { squad: 'squad', tactics: 'tactics', training: 'training', opponents: 'opponents', comps: 'comps', friendlies: 'friendlies', u21: 'u21', federation: 'federation', ranking: 'ranking', stats: 'stats', offers: 'offers', achievements: 'achievements', messages: 'messages', save: 'save', settings: 'settings' };
+
 function tile(k, ic, label, color = '', badge = 0) {
-  return `<button class="tile" data-a="go" data-k="${k}"><span class="ic-wrap ${color}">${icon(ic)}</span>${label}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
+  ensureOrbDefs();
+  return orb(ORB_IC[k] || 'squad', label, `data-a="go" data-k="${k}"`, badge);
+}
+
+function menuOrb() {
+  ensureOrbDefs();
+  return orb('menu', 'Menu', 'data-a="home.menu"');
 }
 
 function unemployedCard() {
@@ -100,7 +109,7 @@ screen('home', {
       body += nextMatchCard();
       body += trustCard();
       body += tabsCard();
-      body += `<div class="tiles">
+      body += `<div class="tiles orbs">
         ${tile('squad', 'users', 'Kadra')}
         ${tile('tactics', 'clipboard', 'Taktyka')}
         ${tile('training', 'dumbbell', 'Trening')}
@@ -111,27 +120,27 @@ screen('home', {
         ${tile('federation', 'building', 'Federacja', 'blue')}
         ${tile('ranking', 'globe', 'Ranking', 'blue')}
         ${tile('stats', 'chart', 'Statystyki', 'blue')}
-        ${tile('offers', 'briefcase', 'Oferty pracy', 'gold', offers)}
+        ${tile('offers', 'briefcase', 'Oferty', 'gold', offers)}
         ${tile('achievements', 'star', 'Osiągnięcia', 'gold')}
         ${tile('messages', 'mail', 'Wiadomości', '', unread)}
-        ${tile('save', 'save', 'Zapisz grę')}
+        ${tile('save', 'save', 'Zapisz')}
         ${tile('settings', 'gear', 'Ustawienia')}
-        <button class="tile" data-a="home.menu"><span class="ic-wrap red">${icon('exit')}</span>Menu główne</button>
+        ${menuOrb()}
       </div>`;
     } else {
       body += `<div class="dash-head"><span class="flag">💼</span><div class="grow"><div class="date">${fmtDateLong(G.day)}</div><div class="small muted">${esc(G.user.name)} · bez pracy</div></div></div>`;
       body += unemployedCard();
       body += tabsCard();
-      body += `<div class="tiles">
-        ${tile('offers', 'briefcase', 'Oferty pracy', 'gold', offers)}
+      body += `<div class="tiles orbs">
+        ${tile('offers', 'briefcase', 'Oferty', 'gold', offers)}
         ${tile('comps', 'trophy', 'Rozgrywki', 'gold')}
         ${tile('ranking', 'globe', 'Ranking', 'blue')}
         ${tile('stats', 'chart', 'Statystyki', 'blue')}
         ${tile('achievements', 'star', 'Osiągnięcia', 'gold')}
         ${tile('messages', 'mail', 'Wiadomości', '', unread)}
-        ${tile('save', 'save', 'Zapisz grę')}
+        ${tile('save', 'save', 'Zapisz')}
         ${tile('settings', 'gear', 'Ustawienia')}
-        <button class="tile" data-a="home.menu"><span class="ic-wrap red">${icon('exit')}</span>Menu główne</button>
+        ${menuOrb()}
       </div>`;
     }
     return {

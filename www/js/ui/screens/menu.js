@@ -10,10 +10,10 @@ import { nextEvent } from '../flow.js';
 export const VERSION = '0.1.0';
 
 export const LOGO = `<svg viewBox="0 0 120 120" aria-hidden="true">
-<defs><linearGradient id="lg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2ff6e"/><stop offset="1" stop-color="#78bf18"/></linearGradient></defs>
-<path d="M60 6 L104 21 V57 C104 85 85 103 60 114 C35 103 16 85 16 57 V21 Z" fill="#0f1c18" stroke="url(#lg1)" stroke-width="5"/>
-<path d="M60 22 V100" stroke="#24433a" stroke-width="3"/>
-<circle cx="60" cy="60" r="19" fill="none" stroke="#24433a" stroke-width="3"/>
+<defs><linearGradient id="lg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0dcff"/><stop offset="1" stop-color="#9a50ff"/></linearGradient></defs>
+<path d="M60 6 L104 21 V57 C104 85 85 103 60 114 C35 103 16 85 16 57 V21 Z" fill="#1a0a3a" stroke="url(#lg1)" stroke-width="5"/>
+<path d="M60 22 V100" stroke="#4a2690" stroke-width="3"/>
+<circle cx="60" cy="60" r="19" fill="none" stroke="#4a2690" stroke-width="3"/>
 <path d="M60 39 l5.3 11.2 12.2 1.6 -9 8.5 2.2 12.1 -10.7-5.9 -10.7 5.9 2.2-12.1 -9-8.5 12.2-1.6z" fill="url(#lg1)"/>
 <path d="M34 92 h52" stroke="url(#lg1)" stroke-width="4" stroke-linecap="round"/>
 </svg>`;
