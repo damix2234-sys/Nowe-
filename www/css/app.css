@@ -378,6 +378,9 @@ textarea.input { min-height: 140px; font-family: ui-monospace, monospace; font-s
 .feed .ev.goal { background: linear-gradient(90deg, rgba(198, 244, 50, 0.12), transparent); border-radius: 8px; }
 .feed .ev.goal .txt { font-weight: 700; }
 .lineups { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.lineups.one { grid-template-columns: 1fr; gap: 16px; }
+.lineups.one .lu-p { font-size: 13.5px; gap: 8px; }
+.lineups.one .lu-p .mr { min-width: 34px; height: 22px; font-size: 12.5px; }
 .lu-p { display: flex; align-items: center; gap: 6px; padding: 5px 0; font-size: 12.5px; border-bottom: 1px solid var(--line); }
 .lu-p .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lu-p .stm { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 12px; }
@@ -476,3 +479,9 @@ main.view.match-view { padding-top: 8px; }
 .match-view .bubble { min-height: 56px; padding: 10px 12px; font-size: 14.5px; margin-bottom: 0; }
 .match-view .ctrl { margin: 8px 0 12px; }
 .lu-p .num { display: inline-block; min-width: 18px; text-align: right; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.attr-group { margin-top: 6px; }
+.attr-group + .attr-group { margin-top: 12px; }
+.attr-group .label { margin-bottom: 2px; }
+.attr.key span:first-child { color: var(--text); font-weight: 750; }
+.good-t { color: #8dee7e; font-weight: 700; }
+.bad-t { color: #f37f71; font-weight: 700; }

@@ -37,6 +37,9 @@ jobs:
       - name: Test silnika gry (symulacja 2 lat)
         run: node tools/sim-test.mjs POL 2
 
+      - name: Test meczu na żywo (bez teleportów, stałe fragmenty tylko po wyjściu piłki)
+        run: node tools/view-test.mjs 4
+
       - name: Synchronizacja Capacitor
         run: npx cap sync android
 

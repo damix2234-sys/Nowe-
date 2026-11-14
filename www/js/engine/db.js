@@ -2,7 +2,7 @@
 import { mkRng, rint, gauss, pick, wpick, clamp } from '../core/util.js';
 import { NATIONS, NAT, LEAGUES } from '../data/nations.js';
 import { POOLS } from '../data/names.js';
-import { POS_W, ATTRS, ALT_CHANCES, posRating, ovr, applyDelta, clubStatusFor, setOvr } from './player.js';
+import { POS_W, OLD_POS_W, OLD_ATTRS, ALT_CHANCES, posRating, ovr, applyDelta, clubStatusFor, setOvr, extendAttrs, oldRating } from './player.js';
 
 export const DEFAULT_SEED = 20260901;
 
@@ -94,7 +94,7 @@ function buildClubs(world, r) {
 
 /** Dobiera klub do zawodnika na podstawie jego oceny. */
 export function assignClub(world, p, r = Math.random) {
-  const o = ovr(p);
+  const o = p._o ?? ovr(p);
   const nat = NAT[p.nat];
   if (!world._maxLv) world._maxLv = Math.max(...world.clubs.map((c) => c.lv));
   const aim = Math.min(o + gauss(r) * 2.5, world._maxLv);
@@ -157,10 +157,14 @@ export function genName(nat, r = Math.random, used = null) {
   return res;
 }
 
+/** Generator losowy nowych umiejętności – osobny strumień z id zawodnika (baza świata pozostaje taka sama). */
+export const attrRng = (id) => mkRng(((id * 2654435761) ^ 0x5bd1e995) >>> 0);
+
+// Podstawowe 10 umiejętności (dawny zestaw); nowe uzupełnia extendAttrs.
 export function genAttrs(pos, target, age, r = Math.random) {
-  const w = POS_W[pos];
+  const w = OLD_POS_W[pos];
   const a = {};
-  for (const k of ATTRS) {
+  for (const k of OLD_ATTRS) {
     if (k === 'ld') continue;
     if (pos === 'GK') {
       if (k === 'gk') a.gk = target + gauss(r) * 2;
@@ -179,7 +183,7 @@ export function genAttrs(pos, target, age, r = Math.random) {
   for (const k in w) cur += w[k] * a[k];
   const diff = target - cur;
   for (const k in w) a[k] += diff;
-  for (const k of ATTRS) if (k !== 'ld') a[k] = clamp(Math.round(a[k] * 10) / 10, 1, 99);
+  for (const k of OLD_ATTRS) if (k !== 'ld') a[k] = clamp(Math.round(a[k] * 10) / 10, 1, 99);
   a.ld = clamp(Math.round(30 + (age - 18) * 1.8 + gauss(r) * 12), 5, 95);
   return a;
 }
@@ -195,10 +199,13 @@ export function makePlayer(world, natId, pos, target, age, r = Math.random, used
     a: genAttrs(pos, target, age, r), pot: target, club: 0, cst: 1,
     caps: 0, goals: 0, form: 0, cond: 95, mor: 55, inj: 0, susp: 0,
   };
-  const o = ovr(p);
+  // pozycje alternatywne według dawnych wag (ta sama sekwencja losowań – baza świata bez zmian)
+  const o = oldRating(p.a, pos);
   for (const [q, c] of ALT_CHANCES[pos]) {
-    if (p.alt.length < 2 && r() < c && posRating(p, q) >= o - 7) p.alt.push(q);
+    if (p.alt.length < 2 && r() < c && oldRating(p.a, q) >= o - 7) p.alt.push(q);
   }
+  p._o = o;
+  extendAttrs(p, attrRng(p.id));
   p.form = r() < 0.6 ? 0 : r() < 0.5 ? 1 : -1;
   p.cond = rint(88, 100, r);
   p.mor = rint(45, 70, r);
@@ -218,6 +225,7 @@ export function makeYouth(world, natId, r = Math.random, age = null) {
   if (r() < 0.07) pot += rint(5, 11, r); // wielki talent
   p.pot = clamp(Math.round(Math.max(pot, target + 3)), 30, 96);
   assignClub(world, p, r);
+  delete p._o;
   return p;
 }
 
@@ -250,6 +258,7 @@ export function generateWorld(seed = DEFAULT_SEED) {
       const p = world.players[pick(pool, r)];
       const boost = rint(5, 10, r);
       setOvr(p, clamp(ovr(p) + boost, 30, 95));
+      if (p._o != null) p._o = clamp(p._o + boost, 30, 95);
       p.pot = Math.max(p.pot, Math.round(ovr(p)));
       p.caps = Math.round(p.caps * 1.4 + 5);
       p.goals = Math.round(p.goals * 1.5 + (GOAL_RATE[p.pos] > 0.1 ? 4 : 0));
@@ -273,6 +282,7 @@ export function generateWorld(seed = DEFAULT_SEED) {
     const coach = genName(nat, r);
     world.nats[nat.id] = { pool, coach: { fn: coach.fn, ln: coach.ln, ord: coach.ord } };
   }
+  for (const p of Object.values(world.players)) delete p._o;
   return world;
 }
 
@@ -291,6 +301,8 @@ export function applyOverrides(world, ov) {
         p.a = genAttrs(o.pos, keep, p.age, Math.random);
         p.pos = o.pos;
         p.alt = [];
+        extendAttrs(p, attrRng(p.id));
+        setOvr(p, keep);
       }
     }
     if (o.ovr) {

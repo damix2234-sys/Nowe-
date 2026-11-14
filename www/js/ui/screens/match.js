@@ -1,4 +1,5 @@
-// Mecz na żywo (animowane boisko 2D z komentarzem zsynchronizowanym z akcjami) i podsumowanie.
+// Mecz na żywo: boisko 2D, na którym zawodnicy sami grają (silnik engine/sim.js), komentarz opisujący
+// prawdziwe zdarzenia z boiska, oceny na żywo, zmęczenie, zmiany i taktyka w trakcie meczu, podsumowanie.
 import { screen, actions, go, reset, esc, icon, posBadge, matchRating, sheet, closeOverlay, modal, flag, seg, toast, S as UIS, empty } from '../ui.js';
 import { G, natName, prepareMatch, completeUserMatch } from '../../engine/game.js';
 import { FORMATION_NAMES, STYLE_NAMES, PRESS_NAMES, TW_NAMES, TRAP_NAMES } from '../../engine/tactics.js';
@@ -12,22 +13,24 @@ import { nextEvent } from '../flow.js';
 import { Pitch2D } from '../pitch2d.js';
 import { whistle, crowd, kick, post, ambience, unlockAudio, soundOn, setSound } from '../sound.js';
 
-// rate – sekundy czasu boiska na sekundę rzeczywistą, min – długość spokojnej minuty na boisku
-const SPEEDS = [{ rate: 1.4, min: 2.3, label: '½×' }, { rate: 2.5, min: 2.0, label: '1×' }, { rate: 4.2, min: 1.7, label: '2×' }, { rate: 7.5, min: 1.1, label: '4×' }];
+// rate – sekundy symulacji na sekundę rzeczywistą (sekunda symulacji = 10 s zegara meczu)
+const SPEEDS = [{ rate: 0.8, label: '½×' }, { rate: 1.5, label: '1×' }, { rate: 3, label: '2×' }, { rate: 6, label: '4×' }];
+const WAIT_LABEL = { HT: 'Przerwa', ETB: 'Przed dogrywką', ETH: 'Przerwa w dogrywce', PENB: 'Przed karnymi' };
 
 let M = null;
 let pitch = null;
 let playing = false;
 let speed = 1;
 let feed = [];
-let shown = { score: [0, 0], min: "0'", pens: null };
 let tab = 'feed';
 let finished = false;
 let lastInfo = null;
 let subSel = { out: null, in: null };
-let shownGoals = [];
-let tabTick = 0;
 let lastLine = '';
+let simBusy = false;
+let feedDirty = false;
+let lastTabT = 0;
+let lastMin = '';
 
 export function setLastInfo(i) { lastInfo = i; }
 
@@ -38,6 +41,11 @@ function vib(ms) {
 }
 
 function $(id) { return document.getElementById(id); }
+
+function hook(m) {
+  m.onComm = onComm;
+  m.onEvent = onEvent;
+}
 
 // ---------------- render ----------------
 screen('match', {
@@ -50,13 +58,13 @@ screen('match', {
     if (!M || M.fx.id !== f.id) {
       if (pitch) { pitch.destroy(); pitch = null; }
       M = prepareMatch(f);
+      hook(M);
       feed = [];
-      shown = { score: [0, 0], min: "0'", pens: null };
       finished = false;
+      simBusy = false;
       tab = 'feed';
-      speed = getSettings().speed ?? 1;
+      speed = Math.min(SPEEDS.length - 1, getSettings().speed ?? 1);
       playing = true;
-      shownGoals = [];
       lastLine = 'Zawodnicy wychodzą na murawę…';
     }
     const c = G.comps[f.comp];
@@ -66,7 +74,7 @@ screen('match', {
     const body = `
       <div class="mt-board">
         <div class="tm">${flag(f.h)}<span class="tn">${esc(H.name)}</span>${kit(kits[0])}</div>
-        <div class="mid"><div class="sc" id="mt-sc">${shown.score[0]}:${shown.score[1]}</div><div class="min ${playing && !finished ? 'live' : ''}" id="mt-min">${shown.min}</div></div>
+        <div class="mid"><div class="sc" id="mt-sc">${H.goals}:${A.goals}</div><div class="min ${playing && !finished ? 'live' : ''}" id="mt-min">${minText()}</div></div>
         <div class="tm r">${kit(kits[1])}<span class="tn">${esc(A.name)}</span>${flag(f.a)}</div>
         <div class="scorers" id="mt-scorers"></div>
       </div>
@@ -93,17 +101,18 @@ screen('match', {
     sizePitch();
     const cv = $('mt-pitch');
     if (cv) {
-      if (!pitch) {
-        pitch = new Pitch2D(cv, M, { need: pump, start: onStart, line: onLine, end: onEnd, sfx: onSfx });
-        if (finished) pitch.finalState();
-      } else pitch.attach(cv);
+      if (!pitch) pitch = new Pitch2D(cv, M, { frame: onFrame });
+      else pitch.attach(cv);
       pitch.setRate(SPEEDS[speed].rate);
+      pitch.draw();
       window.__pitch = pitch;
     }
     window.addEventListener('resize', sizePitch);
     updateDyn();
     renderTab();
     if (finished) showFinishBanner();
+    else if (M.waiting) showBreakBanner();
+    else if (simBusy) showSimBanner();
     else if (playing) { ambience(true); if (pitch) pitch.play(); }
   },
   unmount() {
@@ -113,6 +122,7 @@ screen('match', {
   },
   onBack() {
     if (!M) return false;
+    if (finished) return false;
     pause();
     modal({
       title: 'Mecz w toku', body: '<p>Nie można opuścić meczu w trakcie gry. Możesz wrócić do meczu albo dokończyć go symulacją.</p>',
@@ -147,51 +157,67 @@ function nameOf(pid) {
   return p ? p.ln : '?';
 }
 
+function minText() {
+  if (!M) return '';
+  if (finished || M.done) return 'Koniec';
+  if (M.phase === 'PEN' && M.pens) return `karne ${M.pens[0]}:${M.pens[1]}`;
+  if (M.waiting) return WAIT_LABEL[M.waiting] || 'Przerwa';
+  if (M.phase === 'PRE') return "0'";
+  return M.minLabel();
+}
+
 function updateDyn() {
   if (!M) return;
-  const sc = $('mt-sc'); if (sc) sc.textContent = `${shown.score[0]}:${shown.score[1]}`;
+  const sc = $('mt-sc'); if (sc) sc.textContent = `${M.sides[0].goals}:${M.sides[1].goals}`;
   const mn = $('mt-min');
   if (mn) {
-    mn.textContent = finished ? 'Koniec' : shown.pens ? `karne ${shown.pens[0]}:${shown.pens[1]}` : shown.min;
-    mn.classList.toggle('live', playing && !finished);
+    lastMin = minText();
+    mn.textContent = lastMin;
+    mn.classList.toggle('live', (playing || simBusy) && !finished);
   }
-  const mom = $('mt-mom'); if (mom) mom.style.setProperty('--p', `${Math.round(50 + M.mom * 50)}%`);
-  const subs = $('mt-subs'); if (subs) subs.textContent = `Zmiany (${M.sides[us()].subsLeft})`;
+  const mom = $('mt-mom'); if (mom) mom.style.setProperty('--p', `${Math.round(50 + (M.mom || 0) * 50)}%`);
+  const S = M.sides[us()];
+  const subs = $('mt-subs'); if (subs) subs.textContent = `Zmiany (${S.subsLeft})`;
   const pl = $('mt-play'); if (pl) pl.innerHTML = `${icon(playing ? 'pause' : 'play')}<span>${playing ? 'Pauza' : 'Graj'}</span>`;
   const sp = $('mt-speed'); if (sp) sp.innerHTML = `${icon('ff')}<span>${SPEEDS[speed].label}</span>`;
   const scr = $('mt-scorers');
   if (scr) {
-    const col = (side) => shownGoals.filter((g) => g.side === side).map((g) => `${esc(nameOf(g.pid))} ${g.min}${g.og ? ' (sam.)' : ''}`).join('<br>');
-    scr.innerHTML = shownGoals.length ? `<div>${col(0)}</div><div style="text-align:right">${col(1)}</div>` : '';
+    const goals = M.key.filter((k) => k.type === 'goal');
+    const col = (side) => goals.filter((g) => g.side === side).map((g) => `${esc(g.pid != null ? nameOf(g.pid) : '?')} ${g.min}${g.og ? ' (sam.)' : g.pen ? ' (k)' : ''}`).join('<br>');
+    scr.innerHTML = goals.length ? `<div>${col(0)}</div><div style="text-align:right">${col(1)}</div>` : '';
   }
 }
 
-function evIcon(e) {
-  const t = new Set(e.acts.map((a) => a.t));
-  if (t.has('goal') || t.has('ownGoal')) return '⚽';
-  if (t.has('red') || t.has('secondYellow')) return '🟥';
-  if (t.has('yellow')) return '🟨';
-  if (t.has('sub')) return '🔁';
-  if (t.has('injury')) return '✚';
-  if (t.has('pk')) return '🥅';
-  if (t.has('penalty') || (e.kind === 'pen')) return '🎯';
-  if (e.kind === 'whistle') return '📣';
-  if (t.has('stoppage')) return 'ℹ';
-  if (e.kind === 'chance') return '•';
-  return '';
+/** Co klatkę animacji: zegar, pasek przewagi, odświeżanie zakładek. */
+function onFrame() {
+  if (!M) return;
+  const now = performance.now();
+  if (minText() !== lastMin) updateDyn();
+  else {
+    const mom = $('mt-mom'); if (mom) mom.style.setProperty('--p', `${Math.round(50 + (M.mom || 0) * 50)}%`);
+  }
+  if ((tab === 'feed' && feedDirty && now - lastTabT > 350) || (tab !== 'feed' && now - lastTabT > 1500)) {
+    lastTabT = now;
+    renderTab();
+  }
 }
 
 function numOf(side, pid) {
-  const n = pitch && pitch.teams[side].nums[pid];
+  const n = M.teams[side].nums[pid];
   return n != null ? `<b class="num">${n}</b>` : '';
 }
+
+const stm = (v) => `<span class="stm ${v >= 70 ? 'hi' : v >= 50 ? 'md' : 'lo'}">${Math.round(v)}%</span>`;
 
 function renderTab() {
   const el = $('mt-tabbody');
   if (!el || !M) return;
+  feedDirty = false;
   if (tab === 'feed') {
-    const items = feed.filter((x) => x.n > 0).filter((x, i) => x.ev.kind !== 'quiet' || i < 6).slice(0, 60);
-    el.innerHTML = items.length ? `<div class="feed">${items.map(({ ev: e, n }) => `<div class="ev ${e.kind === 'goal' && n === e.lines.length ? 'goal' : ''}"><span class="m">${e.min}</span><span class="i">${evIcon(e)}</span><span class="txt">${e.lines.slice(0, n).map(esc).join(' ')}</span></div>`).join('')}</div>` : '<div class="empty">Mecz zaraz się rozpocznie.</div>';
+    const items = feed.slice(0, 70);
+    el.innerHTML = items.length
+      ? `<div class="feed">${items.map((e) => `<div class="ev ${e.kind === 'goal' ? 'goal' : ''} ${e.imp ? 'imp' : ''}"><span class="m">${esc(e.min)}</span><span class="i">${e.ic || ''}</span><span class="txt">${esc(e.text)}</span></div>`).join('')}</div>`
+      : '<div class="empty">Mecz zaraz się rozpocznie.</div>';
   } else if (tab === 'lineups') {
     const col = (S) => {
       const on = S.on.filter(Boolean).sort((a, b) => POS_ORDER[a.pos] - POS_ORDER[b.pos]);
@@ -199,14 +225,18 @@ function renderTab() {
         const ps = S.ps[pid] || {};
         return `${'⚽'.repeat(ps.g || 0)}${ps.yc ? '🟨' : ''}${ps.rc ? '🟥' : ''}${ps.inj ? '✚' : ''}`;
       };
-      const stm = (v) => `<span class="stm ${v >= 70 ? 'hi' : v >= 50 ? 'md' : 'lo'}">${Math.round(v)}%</span>`;
       const off = [...S.played].filter((pid) => !S.on.some((s) => s && s.pid === pid));
+      const pend = new Set((S.pend || []).map((q) => q.out));
       return `<div><div class="label mb">${esc(S.name)}</div>
-        ${on.map((s) => `<div class="lu-p">${numOf(S.idx, s.pid)}${posBadge(s.pos)}<span class="nm">${esc(s.p.ln)}</span><span>${icons(s.pid)}</span>${stm(S.st[s.pid])}</div>`).join('')}
+        ${on.map((s) => {
+          const r = M.liveRating(S.idx, s.pid);
+          return `<div class="lu-p">${numOf(S.idx, s.pid)}${posBadge(s.pos)}<span class="nm">${esc(s.p.ln)}${pend.has(s.pid) ? ' 🔁' : ''}</span><span>${icons(s.pid)}</span>${r != null ? matchRating(r) : ''}${stm(S.st[s.pid] ?? 0)}</div>`;
+        }).join('')}
         ${off.length ? `<div class="small muted mt">Zeszli: ${off.map((pid) => esc(S.spec.players[pid].ln) + ' ' + icons(pid)).join(', ')}</div>` : ''}
         <div class="small muted mt">Ławka: ${S.bench.map((pid) => esc(S.spec.players[pid].ln)).join(', ') || '—'}</div></div>`;
     };
-    el.innerHTML = `<div class="lineups">${col(M.sides[0])}${col(M.sides[1])}</div>`;
+    const u = us();
+    el.innerHTML = `<div class="small muted mb">Ocena na żywo: od 7,0 zawodnik dostaje premię do umiejętności, poniżej 6,3 – karę i częściej się myli. Procent to świeżość (zmęczenie obniża umiejętności).</div><div class="lineups one">${col(M.sides[u])}${col(M.sides[1 - u])}</div>`;
   } else {
     const r = M.result();
     const [a, b] = r.stats;
@@ -214,82 +244,76 @@ function renderTab() {
       const t = (x + y) || 1;
       return `<div class="lbl center small muted">${lbl}</div><div class="stat-row"><b>${fmt(x)}</b><div class="dual"><i style="width:${(x / t) * 100}%"></i><i style="width:${(y / t) * 100}%"></i></div><b>${fmt(y)}</b></div>`;
     };
-    el.innerHTML = `<div class="small muted center mb">Widzów: ${M.attendance.toLocaleString('pl-PL')}</div>`
+    el.innerHTML = `<div class="small muted center mb">Widzów: ${(M.attendance || 0).toLocaleString('pl-PL')}</div>`
       + row('Posiadanie piłki', a.poss, b.poss, (v) => v + '%') + row('Strzały', a.shots, b.shots) + row('Strzały celne', a.sot, b.sot)
       + row('Rzuty rożne', a.corners, b.corners) + row('Faule', a.fouls, b.fouls) + row('Spalone', a.offsides, b.offsides)
       + row('Żółte kartki', a.yc, b.yc) + row('Czerwone kartki', a.rc, b.rc) + row('Oczekiwane gole (xG)', a.xg, b.xg, (v) => (+v).toFixed(2));
   }
 }
 
-// ---------------- współpraca z animacją ----------------
-/** Animacja potrzebuje kolejnej minuty: krok silnika i akcje do odegrania. */
-function pump() {
-  if (!M || M.done || !pitch) return;
-  const evs = M.step();
-  let any = false;
-  for (const e of evs) {
-    if (!e.lines.length) continue;
-    any = true;
-    pitch.push(e.lines.map((text, i) => ({ type: 'act', act: e.acts[i], text, ev: e, i, last: i === e.lines.length - 1 })));
+// ---------------- komentarz i zdarzenia z silnika ----------------
+function onComm(e) {
+  if ((e.kind === 'assist' || e.kind === 'score') && feed[0] && feed[0].kind === 'goal') {
+    feed[0] = { ...feed[0], text: `${feed[0].text} ${e.text}` };
+    lastLine = feed[0].text;
+  } else {
+    feed.unshift(e);
+    if (feed.length > 220) feed.length = 220;
+    lastLine = e.text;
   }
-  if (!any) {
-    if (!evs.length) shown.min = M.minLabel();
-    pitch.push([{ type: 'minute', s: M.poss, dur: SPEEDS[speed].min, min: M.minLabel() }]);
-  }
-  if (++tabTick % 4 === 0 && tab !== 'feed') renderTab();
-}
-
-function onStart(it) {
-  shown.min = it.ev ? it.ev.min : it.min || shown.min;
-  if (it.type === 'act' && it.i === 0 && !feed.some((x) => x.ev === it.ev)) feed.unshift({ ev: it.ev, n: 0 });
-  updateDyn();
-}
-
-function onLine(it) {
-  const e = it.ev, a = it.act || {};
-  const f = feed.find((x) => x.ev === e);
-  if (f) f.n = Math.max(f.n, it.i + 1);
-  const isGoal = a.t === 'goal' || a.t === 'ownGoal';
-  if (isGoal || it.last) shown.score = e.score.slice();
-  if (isGoal && !shownGoals.includes(e)) shownGoals.push(e);
-  if (a.t === 'pk' && a.score) shown.pens = a.score.slice();
-  lastLine = it.text;
+  feedDirty = true;
+  if (simBusy) return;
   const ln = $('mt-line');
-  const bub = $('mt-bubble');
-  if (ln) ln.textContent = it.text;
-  if (bub) {
-    bub.classList.remove('goal');
-    if (isGoal) { void bub.offsetWidth; bub.classList.add('goal'); vib([80, 60, 160]); }
-  }
-  updateDyn();
-  if (tab === 'feed') renderTab();
-}
-
-function onEnd(it) {
-  if (!it.last || !M) return;
-  const e = it.ev;
-  if (e.ft) { finishMatch(); return; }
-  if (e.ht && !M.done) {
-    pause();
-    showBreakBanner(e);
-    return;
-  }
-  if (e.kind === 'inj' && e.side === us() && e.needSub && !M.done) {
-    pause();
-    toast('Kontuzja! Wprowadź zmianę.', 'bad');
-    subSel = { out: e.pid, in: null };
-    setTimeout(openSubs, 300);
+  if (ln) ln.textContent = lastLine;
+  if (e.kind === 'goal') {
+    const bub = $('mt-bubble');
+    if (bub) { bub.classList.remove('goal'); void bub.offsetWidth; bub.classList.add('goal'); }
   }
 }
 
-function onSfx(kind, data) {
-  if (kind === 'whistle') whistle(data);
-  else if (kind === 'kick') kick(data);
-  else if (kind === 'post') post();
-  else if (kind === 'goal') crowd(data === us() ? 'goal' : 'groan', 1);
-  else if (kind === 'crowd' && data) {
-    if (data.type === 'goal' || data.type === 'groan') crowd(data.type, data.small ? 0.6 : 1);
-    else crowd('ooh', data.loud ? 1 : 0.7);
+function onEvent(type, d) {
+  if (!M) return;
+  const quiet = simBusy;
+  switch (type) {
+    case 'goal':
+      updateDyn();
+      if (!quiet) { crowd(d.side === us() ? 'goal' : 'groan', 1); vib([80, 60, 160]); }
+      break;
+    case 'periodStart': if (!quiet) whistle('short'); updateDyn(); break;
+    case 'halftime': case 'etStart': case 'etHalf': case 'pensStart':
+      if (quiet) break;
+      whistle('double');
+      pause();
+      showBreakBanner();
+      break;
+    case 'fulltime':
+      if (quiet) break;
+      whistle('end');
+      finishMatch();
+      break;
+    case 'foul': case 'offside': if (!quiet) whistle('short'); break;
+    case 'penalty': if (!quiet) whistle('long'); break;
+    case 'shot': if (!quiet) kick(1); break;
+    case 'pass': if (!quiet) kick(d.kind === 'air' ? 0.6 : 0.3); break;
+    case 'cross': case 'clear': if (!quiet) kick(0.7); break;
+    case 'save': if (!quiet) crowd('ooh', d.big ? 1 : 0.6); break;
+    case 'miss': if (!quiet && (d.big || d.dist < 18)) crowd('ooh', d.big ? 1 : 0.6); break;
+    case 'woodwork': if (!quiet) { post(); crowd('ooh', 1); } break;
+    case 'sub': updateDyn(); refreshSubs(); break;
+    case 'card': if (!quiet && d.red) crowd('groan', 0.6); break;
+    case 'pk':
+      updateDyn();
+      if (!quiet) crowd(d.how === 'goal' ? (d.side === us() ? 'goal' : 'groan') : (d.side === us() ? 'groan' : 'goal'), 0.7);
+      break;
+    case 'injury':
+      if (d.a && d.a.side === us() && d.needSub && !quiet && !M.done) {
+        pause();
+        toast(`Kontuzja: ${esc(d.a.ln)}. Wprowadź zmianę.`, 'bad');
+        subSel = { out: d.a.pid, in: null };
+        setTimeout(openSubs, 300);
+      }
+      break;
+    default: break;
   }
 }
 
@@ -301,7 +325,8 @@ function pause() {
 }
 
 function resume() {
-  if (finished || !M) return;
+  if (finished || !M || simBusy) return;
+  if (M.waiting) M.resume();
   const b = $('mt-banner');
   if (b) b.innerHTML = '';
   playing = true;
@@ -310,11 +335,19 @@ function resume() {
   if (pitch) pitch.play();
 }
 
-function showBreakBanner(e) {
+function showBreakBanner() {
   const b = $('mt-banner');
-  const label = e.lines[0] || 'Przerwa';
-  if (b) b.innerHTML = `<div class="note pitch-note"><b>${esc(label)}</b><div class="small muted">Możesz teraz wprowadzić zmiany lub skorygować taktykę.</div>
+  if (!b || !M) return;
+  const w = M.waiting;
+  const sc = `${M.sides[0].name} ${M.sides[0].goals}:${M.sides[1].goals} ${M.sides[1].name}`;
+  const label = w === 'HT' ? 'Przerwa' : w === 'ETB' ? 'Remis – będzie dogrywka' : w === 'ETH' ? 'Przerwa w dogrywce' : w === 'PENB' ? 'Rzuty karne' : 'Przerwa';
+  b.innerHTML = `<div class="note pitch-note"><b>${esc(label)}</b> · ${esc(sc)}<div class="small muted">Możesz teraz wprowadzić zmiany lub skorygować taktykę.</div>
     <div class="btnrow mt"><button class="btn ghost small" data-a="mt.subs">${icon('swap')} Zmiany</button><button class="btn ghost small" data-a="mt.tactics">${icon('clipboard')} Taktyka</button><button class="btn small" data-a="mt.play">${icon('play')} Wznów</button></div></div>`;
+}
+
+function showSimBanner() {
+  const b = $('mt-banner');
+  if (b) b.innerHTML = `<div class="note pitch-note"><b>Symulacja do końca…</b> <span id="mt-simmin">${esc(minText())}</span></div>`;
 }
 
 function finishMatch() {
@@ -322,16 +355,7 @@ function finishMatch() {
   finished = true;
   playing = false;
   ambience(false);
-  shown.score = [M.sides[0].goals, M.sides[1].goals];
-  if (M.pens) shown.pens = M.pens.slice();
-  shownGoals = M.events.filter((e) => e.kind === 'goal');
-  for (const x of feed) x.n = x.ev.lines.length;
-  if (pitch) {
-    pitch.finalState();
-    pitch.play();
-    const p = pitch;
-    setTimeout(() => { if (p === pitch && finished) p.pause(); }, 5000);
-  }
+  if (pitch) { pitch.pause(); }
   updateDyn();
   renderTab();
   showFinishBanner();
@@ -343,52 +367,66 @@ function showFinishBanner() {
     <div class="btnrow mt"><button class="btn" data-a="mt.summary">Podsumowanie ${icon('right')}</button></div></div>`;
 }
 
-function simulateToEnd() {
-  if (!M) return;
-  M.opts.autoSubs = M.opts.autoSubs || [false, false];
-  M.opts.autoSubs[us()] = true;
-  if (pitch) pitch.clear();
-  let guard = 0;
-  while (!M.done && guard++ < 1000) {
-    const evs = M.step();
-    for (const e of evs) if (e.lines.length && !feed.some((x) => x.ev === e)) feed.unshift({ ev: e, n: e.lines.length });
+/** Reszta meczu bez animacji – w porcjach, by nie blokować ekranu. */
+async function simulateToEnd() {
+  if (!M || finished || simBusy) return;
+  const m = M;
+  m.opts.autoSubs = m.opts.autoSubs || [false, false];
+  m.opts.autoSubs[us()] = true;
+  pause();
+  simBusy = true;
+  showSimBanner();
+  while (!m.done) {
+    const t0 = performance.now();
+    while (!m.done && performance.now() - t0 < 35) {
+      if (m.waiting) m.resume();
+      m.advance(2);
+    }
+    const el = $('mt-simmin'); if (el) el.textContent = minText();
+    updateDyn();
+    await new Promise((r) => setTimeout(r, 0));
+    if (m !== M) return;
   }
-  for (const e of M.events) if (e.lines.length && !feed.some((x) => x.ev === e)) feed.unshift({ ev: e, n: e.lines.length });
-  const last = M.events[M.events.length - 1];
-  if (last) { lastLine = last.lines[last.lines.length - 1]; const ln = $('mt-line'); if (ln) ln.textContent = lastLine; }
+  simBusy = false;
+  const ln = $('mt-line'); if (ln) ln.textContent = lastLine;
   finishMatch();
+  if (pitch) pitch.draw();
 }
 
 // ---------------- zmiany ----------------
 function subsHTML() {
   const S = M.sides[us()];
   const on = S.on.filter(Boolean).sort((a, b) => POS_ORDER[a.pos] - POS_ORDER[b.pos]);
-  const stm = (v) => `<span class="stm ${v >= 70 ? 'hi' : v >= 50 ? 'md' : 'lo'}">${Math.round(v)}%</span>`;
   const outSlot = on.find((s) => s.pid === subSel.out);
-  const benchRows = S.bench.map((pid) => {
+  const pend = S.pend || [];
+  const pendOut = new Set(pend.map((q) => q.out)), pendIn = new Set(pend.map((q) => q.in));
+  const benchRows = S.bench.filter((pid) => !pendIn.has(pid)).map((pid) => {
     const p = S.spec.players[pid];
     const r = outSlot ? Math.round(slotRating(p, outSlot.pos)) : Math.round(slotRating(p, p.pos));
-    return `<div class="row tap ${subSel.in === pid ? 'me' : ''}" data-a="mt.subIn" data-k="${pid}">${posBadge(p.pos)}<div class="main"><div class="t1">${esc(fullName(p))}</div><div class="t2">${outSlot ? `na pozycji ${outSlot.pos}: ${r}` : `ocena ${r}`}</div></div>${stm(p.cond)}</div>`;
+    return `<div class="row tap ${subSel.in === pid ? 'me' : ''}" data-a="mt.subIn" data-k="${pid}">${posBadge(p.pos)}<div class="main"><div class="t1">${esc(fullName(p))}</div><div class="t2">${outSlot ? `na pozycji ${outSlot.pos}: ${r}` : `ocena ${r}`}</div></div>${stm(p.cond ?? 95)}</div>`;
   }).join('');
-  return `<p class="small muted">Pozostało zmian: <b>${S.subsLeft}</b>. Wybierz zawodnika schodzącego, a potem wchodzącego.</p>
-    <div class="label mb">Na boisku</div>
-    <div class="list">${on.map((s) => {
+  const pendHTML = pend.length ? `<div class="note small mb">🔁 Czeka na przerwę w grze: ${pend.map((q) => `${esc(S.spec.players[q.in].ln)} za ${esc(S.spec.players[q.out].ln)}`).join(', ')}</div>` : '';
+  return `<p class="small muted">Pozostało zmian: <b>${S.subsLeft}</b>. Wybierz zawodnika schodzącego, a potem wchodzącego. Zmiana nastąpi przy najbliższej przerwie w grze.</p>
+    ${pendHTML}
+    <div class="label mb">Na boisku <span class="muted small">(ocena na żywo · świeżość)</span></div>
+    <div class="list">${on.filter((s) => !pendOut.has(s.pid)).map((s) => {
       const ps = S.ps[s.pid] || {};
-      return `<div class="row tap ${subSel.out === s.pid ? 'me' : ''}" data-a="mt.subOut" data-k="${s.pid}">${posBadge(s.pos)}<div class="main"><div class="t1">${esc(fullName(s.p))} ${ps.yc ? '🟨' : ''}${ps.inj ? '✚' : ''}${'⚽'.repeat(ps.g || 0)}</div></div>${stm(S.st[s.pid])}</div>`;
+      const r = M.liveRating(S.idx, s.pid);
+      return `<div class="row tap ${subSel.out === s.pid ? 'me' : ''}" data-a="mt.subOut" data-k="${s.pid}">${posBadge(s.pos)}<div class="main"><div class="t1">${esc(fullName(s.p))} ${ps.yc ? '🟨' : ''}${ps.inj ? '✚' : ''}${'⚽'.repeat(ps.g || 0)}</div></div>${r != null ? matchRating(r) : ''}${stm(S.st[s.pid] ?? 0)}</div>`;
     }).join('')}</div>
     <div class="label mb mt">Ławka</div><div class="list">${benchRows || '<div class="empty">Brak rezerwowych.</div>'}</div>
     <div class="btnrow mt"><button class="btn ghost" data-a="ui.close">Zamknij</button><button class="btn" data-a="mt.subDo" ${subSel.out && subSel.in && S.subsLeft > 0 ? '' : 'disabled'}>Wykonaj zmianę</button></div>`;
 }
 
 function openSubs() {
-  if (!M || M.done) return;
+  if (!M || M.done || simBusy) return;
   pause();
   sheet(`<div id="subs-body">${subsHTML()}</div>`, { title: 'Zmiany' });
 }
 
 function refreshSubs() {
   const el = document.getElementById('subs-body');
-  if (el) el.innerHTML = subsHTML();
+  if (el && M) el.innerHTML = subsHTML();
 }
 
 function tacticsHTML() {
@@ -400,7 +438,12 @@ function tacticsHTML() {
 }
 
 actions({
-  'mt.play': () => { if (finished) return; unlockAudio(); if (playing) pause(); else { closeOverlayIfAny(); resume(); } },
+  'mt.play': () => {
+    if (finished || simBusy) return;
+    unlockAudio();
+    if (playing) pause();
+    else { closeOverlayIfAny(); resume(); }
+  },
   'mt.cam': () => {
     if (!pitch) return;
     const m = pitch.toggleCam();
@@ -428,18 +471,19 @@ actions({
   'mt.subOut': (d) => { subSel.out = +d.k; refreshSubs(); },
   'mt.subIn': (d) => { subSel.in = +d.k; refreshSubs(); },
   'mt.subDo': () => {
+    const S = M.sides[us()];
+    const outP = S.spec.players[subSel.out], inP = S.spec.players[subSel.in];
     if (M.sub(us(), subSel.out, subSel.in)) {
-      const e = M.events[M.events.length - 1];
-      if (pitch) pitch.push(e.lines.map((text, i) => ({ type: 'act', act: e.acts[i], text, ev: e, i, last: i === e.lines.length - 1 })));
+      const done = !S.pend.some((q) => q.in === subSel.in);
       subSel = { out: null, in: null };
       refreshSubs();
       updateDyn();
       renderTab();
-      toast('Zmiana przeprowadzona.', 'good');
+      toast(done ? 'Zmiana przeprowadzona.' : `${esc(inP.ln)} za ${esc(outP.ln)} – przy najbliższej przerwie w grze.`, 'good');
     }
   },
   'mt.tactics': () => {
-    if (!M || M.done) return;
+    if (!M || M.done || simBusy) return;
     pause();
     sheet(`<div id="mtac-body">${tacticsHTML()}</div>`, { title: 'Taktyka w meczu' });
   },
@@ -449,14 +493,13 @@ actions({
   },
   'mt.tacF': (d) => {
     M.setTactics(us(), { f: d.k });
-    if (pitch) pitch.syncSlots();
     const el = document.getElementById('mtac-body'); if (el) el.innerHTML = tacticsHTML();
     toast(`Nowe ustawienie: ${d.k}`);
   },
   'mt.end': () => {
-    if (finished) return;
+    if (finished || simBusy) return;
     pause();
-    modal({ title: 'Symulować do końca?', body: '<p>Pozostała część meczu zostanie rozegrana natychmiast. Zmiany przeprowadzi asystent.</p>', buttons: [{ label: 'Anuluj', cls: 'ghost', a: 'ui.close' }, { label: 'Symuluj', a: 'mt.endNow' }] });
+    modal({ title: 'Symulować do końca?', body: '<p>Pozostała część meczu zostanie rozegrana bez animacji. Zmiany przeprowadzi asystent.</p>', buttons: [{ label: 'Anuluj', cls: 'ghost', a: 'ui.close' }, { label: 'Symuluj', a: 'mt.endNow' }] });
   },
   'mt.endNow': () => { closeOverlayIfAny(); simulateToEnd(); },
   'mt.summary': () => {
@@ -472,6 +515,22 @@ actions({
 });
 
 function closeOverlayIfAny() { while (UIS.overlays.length) closeOverlay(); }
+
+/** Szybka symulacja meczu (bez oglądania) – w porcjach, z postępem na ekranie. */
+export async function quickSim(f, onProgress) {
+  const m = prepareMatch(f, { quick: true });
+  while (!m.done) {
+    const t0 = performance.now();
+    while (!m.done && performance.now() - t0 < 35) {
+      if (m.waiting) m.resume();
+      m.advance(2);
+    }
+    if (onProgress) onProgress(m);
+    await new Promise((r) => setTimeout(r, 0));
+  }
+  lastInfo = completeUserMatch(m);
+  return lastInfo;
+}
 
 // ---------------- podsumowanie ----------------
 screen('postmatch', {

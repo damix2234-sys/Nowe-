@@ -1,7 +1,7 @@
 // Kadra, powołania, U-21, profil zawodnika, rozmowy.
 import { screen, actions, go, rerender, esc, icon, posBadge, rating, formIcon, chips, seg, toast, sheet, closeOverlay, modal, bar, attrVal, av, flag, stars, empty, current } from '../ui.js';
 import { G, me, poolOf, natName, confirmCallup, talkTo, windowAt, trustChange, removeEvent } from '../../engine/game.js';
-import { ovr, ovrI, ATTRS, ATTR_NAMES, POS_NAMES, POS_GROUP, POS_ORDER, value, CLUB_STATUS, FORM_NAMES } from '../../engine/player.js';
+import { ovr, ovrI, ATTR_NAMES, ATTR_GROUPS, ATTR_HINTS, POS_W, POS_NAMES, POS_GROUP, POS_ORDER, value, CLUB_STATUS, FORM_NAMES, FORM_MUL } from '../../engine/player.js';
 import { fullName } from '../../data/names.js';
 import { NAT } from '../../data/nations.js';
 import { TALKS } from '../../data/press.js';
@@ -132,6 +132,27 @@ function potentialText(p) {
   return `${Math.round(p.pot)} ${gap >= 10 ? '🔥' : gap >= 5 ? '↗' : ''}`;
 }
 
+function formEffect(p) {
+  const m = FORM_MUL[p.form] ?? 1;
+  if (m === 1) return '';
+  const pct = Math.round((m - 1) * 100);
+  return ` <span class="${pct > 0 ? 'good-t' : 'bad-t'}">(${pct > 0 ? '+' : ''}${pct}% w meczu)</span>`;
+}
+
+function attrGroups(p) {
+  const key = POS_W[p.pos];
+  const gk = p.pos === 'GK';
+  return ATTR_GROUPS.map(([name, keys]) => {
+    // umiejętności bramkarskie pokazujemy bramkarzom; zawodnikom z pola tylko jako mały dopisek
+    if (name === 'Bramkarskie' && !gk) return '';
+    const rows = keys.map((k) => {
+      const v = p.a[k] ?? 0;
+      return `<div class="attr ${key[k] ? 'key' : ''}" title="${ATTR_HINTS[k]}"><span>${key[k] ? '★ ' : ''}${ATTR_NAMES[k]}</span>${attrVal(v)}${bar(v, v >= 66 ? 'good' : v >= 45 ? 'mid' : 'low')}</div>`;
+    }).join('');
+    return `<div class="attr-group"><div class="label">${name}</div>${rows}</div>`;
+  }).join('');
+}
+
 screen('player', {
   render({ pid }) {
     const p = G.players[pid];
@@ -158,12 +179,13 @@ screen('player', {
         ${fact('Status w klubie', CLUB_STATUS[p.cst])}
         ${fact('Wartość', fmtMoney(value(p)))}
         ${fact('Potencjał', potentialText(p))}
-        ${fact('Forma', `${formIcon(p.form)} ${FORM_NAMES[p.form + 2]}`)}
-        ${fact('Kondycja', `${Math.round(p.cond)}%`)}
+        ${fact('Forma', `${formIcon(p.form)} ${FORM_NAMES[p.form + 2]}${formEffect(p)}`)}
+        ${fact('Świeżość', `${Math.round(p.cond)}%`)}
       </div>
       <div class="card"><div class="card-h"><h3>Morale</h3><b>${Math.round(p.mor)}</b></div>${bar(p.mor)}</div>
       <div class="card"><div class="card-h"><h3>Umiejętności</h3><span class="big-ovr">${ovrI(p)}</span></div>
-        ${ATTRS.map((k) => `<div class="attr"><span>${ATTR_NAMES[k]}</span>${attrVal(p.a[k])}${bar(p.a[k], p.a[k] >= 66 ? 'good' : p.a[k] >= 45 ? 'mid' : 'low')}</div>`).join('')}
+        <div class="small muted mb">★ – kluczowe na pozycji ${POS_NAMES[p.pos].toLowerCase()}</div>
+        ${attrGroups(p)}
       </div>
       ${s && s.apps ? `<div class="card"><div class="card-h"><h3>Pod Twoją wodzą</h3></div><div class="facts">
         ${fact('Mecze', s.apps)}${fact('Gole / asysty', `${s.g} / ${s.a}`)}${fact('Średnia ocena', (s.rs / s.apps).toFixed(2))}${fact('Zawodnik meczu', s.mom)}${fact('Kartki ż/cz', `${s.yc} / ${s.rc}`)}${fact('Minuty', s.min)}

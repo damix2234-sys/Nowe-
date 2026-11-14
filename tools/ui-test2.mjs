@@ -126,7 +126,7 @@ await page.screenshot({ path: `${OUT}/t2-lineups.png` });
 await click('[data-a="mt.tab"][data-k="stats"]');
 await click('[data-a="mt.end"]');
 await click('.ov.show [data-a="mt.endNow"]');
-await page.waitForTimeout(400);
+await page.waitForSelector('[data-a="mt.summary"]', { timeout: 30000 });
 await page.screenshot({ path: `${OUT}/t2-match-end.png` });
 await click('[data-a="mt.summary"]');
 ok('podsumowanie po symulacji', await page.locator('.score .sc').count() > 0);

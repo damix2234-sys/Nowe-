@@ -7,9 +7,13 @@ import { fullName } from '../data/names.js';
 
 const R = Math.random;
 
-const unitDef = (a) => 0.4 * a.tk + 0.2 * a.hd + 0.2 * a.st + 0.2 * a.sp;
-const unitMid = (a) => 0.4 * a.ps + 0.3 * a.te + 0.15 * a.tk + 0.15 * a.sp;
-const unitAtt = (a) => 0.4 * a.sh + 0.25 * a.te + 0.2 * a.sp + 0.1 * a.cr + 0.05 * a.hd;
+// siła formacji z umiejętności (Odbiór, Krycie, Gra głową, Siła, Szybkość, Podania, Technika, Drybling,
+// Opanowanie, Kondycja, Strzały, Dośrodkowania)
+const av = (a, k) => a[k] ?? 50;
+const unitDef = (a) => 0.3 * av(a, 'tk') + 0.2 * av(a, 'mk') + 0.15 * av(a, 'hd') + 0.15 * av(a, 'st') + 0.15 * av(a, 'sp') + 0.05 * av(a, 'cm');
+const unitMid = (a) => 0.3 * av(a, 'ps') + 0.2 * av(a, 'te') + 0.15 * av(a, 'dr') + 0.1 * av(a, 'cm') + 0.1 * av(a, 'tk') + 0.1 * av(a, 'sp') + 0.05 * av(a, 'en');
+const unitAtt = (a) => 0.3 * av(a, 'sh') + 0.15 * av(a, 'te') + 0.15 * av(a, 'dr') + 0.15 * av(a, 'sp') + 0.1 * av(a, 'cm') + 0.1 * av(a, 'cr') + 0.05 * av(a, 'hd');
+const gkQ = (a) => 0.8 * av(a, 'gk') + 0.2 * av(a, 'gw');
 
 const POS_INVOLVE = { GK: 0, CB: 0.8, LB: 2.2, RB: 2.2, DM: 2, CM: 4, AM: 6.5, LW: 7, RW: 7, CF: 8 };
 const SHOOT_W = { GK: 0, CB: 0.5, LB: 0.7, RB: 0.7, DM: 1.3, CM: 2.8, AM: 5.5, LW: 5.5, RW: 5.5, CF: 10 };
@@ -153,7 +157,7 @@ export class Match {
     for (const s of this.onSlots(S)) {
       const p = s.p;
       const f = familiarity(p, s.pos) * stateFactor(p) * stamF(S.st[s.pid]);
-      if (s.pos === 'GK') { gk = p.a.gk * f; continue; }
+      if (s.pos === 'GK') { gk = gkQ(p.a) * f; continue; }
       def += s.w.d * unitDef(p.a) * f;
       mid += s.w.m * unitMid(p.a) * f;
       att += s.w.a * unitAtt(p.a) * f;
@@ -352,7 +356,7 @@ export class Match {
     const t = S.tac;
     const cond = 1 - 0.25 * this.lvl(S, 'cond');
     for (const s of this.onSlots(S)) {
-      const drain = 0.33 * PRESS_DRAIN[t.press] * STYLE_DRAIN[t.style] * DRAIN_POS[s.pos] * cond * (1 + Math.max(0, s.p.age - 29) * 0.02) * (0.9 + R() * 0.2);
+      const drain = 0.33 * PRESS_DRAIN[t.press] * STYLE_DRAIN[t.style] * DRAIN_POS[s.pos] * cond * (1 + Math.max(0, s.p.age - 29) * 0.02) * (1.3 - 0.6 * av(s.p.a, 'en') / 100) * (0.9 + R() * 0.2);
       S.st[s.pid] = Math.max(5, S.st[s.pid] - drain);
     }
   }
@@ -586,9 +590,9 @@ export class Match {
   shot(A, D, s, type, ast, st, setPiece = false, act = null) {
     const p = s.p, a = p.a;
     const f = familiarity(p, s.pos) * stateFactor(p) * stamF(A.st[s.pid]);
-    const sq = (type === 'head' ? 0.7 * a.hd + 0.3 * a.st : 0.62 * a.sh + 0.38 * a.te) * f;
+    const sq = (type === 'head' ? 0.7 * a.hd + 0.3 * a.st : 0.5 * a.sh + 0.3 * a.te + 0.2 * av(a, 'cm')) * f;
     const gk = this.gkSlot(D);
-    const gq = gk ? gk.p.a.gk * familiarity(gk.p, 'GK') * stateFactor(gk.p) * stamF(D.st[gk.pid]) : 8;
+    const gq = gk ? gkQ(gk.p.a) * familiarity(gk.p, 'GK') * stateFactor(gk.p) * stamF(D.st[gk.pid]) : 8;
     let xg = XG[type];
     if (type === 'fk' || setPiece) xg *= A.mods.sp;
     const ratio = clamp(Math.pow(Math.max(5, sq) / Math.max(5, gq), type === 'pen' ? 0.45 : 0.85), 0.4, 1.9);
@@ -870,7 +874,7 @@ export class Match {
       const gk = on.filter((s) => s.pos === 'GK');
       return [...(pen ? [pen] : []), ...rest, ...gk];
     };
-    const kickQ = (p) => 0.6 * p.a.sh + 0.25 * p.a.te + 0.15 * p.a.ld;
+    const kickQ = (p) => 0.5 * p.a.sh + 0.25 * p.a.te + 0.25 * av(p.a, 'cm');
     const k = [order(this.sides[0]), order(this.sides[1])];
     const sc = [0, 0], taken = [0, 0];
     const kicks = [];
@@ -881,7 +885,7 @@ export class Match {
       const s = list[taken[si] % list.length];
       taken[si]++;
       const gk = this.gkSlot(D);
-      const gq = gk ? gk.p.a.gk : 20;
+      const gq = gk ? gkQ(gk.p.a) : 20;
       const pr = clamp(0.75 + (kickQ(s.p) - gq) / 220 + 0.05 * (this.lvl(S, 'ment') - 0.5) + (stamF(S.st[s.pid]) - 0.95), 0.5, 0.92);
       const ok = R() < pr;
       if (ok) sc[si]++;

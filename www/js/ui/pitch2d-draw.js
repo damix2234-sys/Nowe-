@@ -276,16 +276,27 @@ function drawPlayer(V, P, p) {
   }
 }
 
+// Piłka: cieniowana kula z czarnymi łatami obracającymi się zgodnie z ruchem, połysk i miękki cień.
+function pentagon(c, x, y, r, rot) {
+  c.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const a = rot + (i * TAU) / 5;
+    if (i === 0) c.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r); else c.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+  }
+  c.closePath();
+  c.fill();
+}
+
 function drawBall(V, P) {
   const { c, k, X, Y, R } = V;
   const b = P.ball;
-  // smuga po strzale
+  // smuga po mocnym uderzeniu
   if (P.trail.length > 1) {
     c.lineCap = 'round';
     for (let i = 1; i < P.trail.length; i++) {
       const a = P.trail[i - 1], q = P.trail[i];
-      c.strokeStyle = `rgba(255,255,255,${(i / P.trail.length) * 0.45})`;
-      c.lineWidth = Math.max(1, (i / P.trail.length) * R * 0.45);
+      c.strokeStyle = `rgba(255,255,255,${(i / P.trail.length) * 0.42})`;
+      c.lineWidth = Math.max(1, (i / P.trail.length) * R * 0.5);
       c.beginPath();
       c.moveTo(X(a.x), Y(a.y) - a.z * k * 0.55);
       c.lineTo(X(q.x), Y(q.y) - q.z * k * 0.55);
@@ -295,29 +306,52 @@ function drawBall(V, P) {
   }
   const x = X(b.x), y = Y(b.y);
   const z = Math.max(0, b.z);
-  const r = Math.max(3.1, 0.5 * k) * (1 + z * 0.06);
-  c.fillStyle = `rgba(0,0,0,${0.34 / (1 + z * 0.35)})`;
+  const r = Math.max(4.4, 0.68 * k) * (1 + z * 0.07);
+  // cień na murawie (oddala się i rozmywa z wysokością)
+  c.fillStyle = `rgba(0,0,0,${0.38 / (1 + z * 0.4)})`;
   c.beginPath();
-  c.ellipse(x + z * k * 0.25, y + z * k * 0.18 + r * 0.25, r * 0.95, r * 0.65, 0, 0, TAU);
+  c.ellipse(x + z * k * 0.28, y + z * k * 0.2 + r * 0.3, r * (1 + z * 0.08), r * 0.62 * (1 + z * 0.05), 0, 0, TAU);
   c.fill();
   const by = y - z * k * 0.55;
+  // kula z cieniowaniem
+  const g = c.createRadialGradient(x - r * 0.38, by - r * 0.42, r * 0.1, x, by, r);
+  g.addColorStop(0, '#ffffff');
+  g.addColorStop(0.55, '#eef1f4');
+  g.addColorStop(1, '#a7b0ba');
   c.beginPath();
   c.arc(x, by, r, 0, TAU);
-  c.fillStyle = '#ffffff';
+  c.fillStyle = g;
   c.fill();
+  // łaty – obrót zależny od drogi przebytej przez piłkę
+  c.save();
+  c.beginPath();
+  c.arc(x, by, r * 0.98, 0, TAU);
+  c.clip();
+  const roll = b.spin * 1.6;
+  const dir = Math.atan2(-(b.vy || 0.0001), b.vx || 0.0001);
+  const off = Math.sin(roll) * r * 0.42;
+  c.fillStyle = '#1e2127';
+  pentagon(c, x + Math.cos(dir) * off, by + Math.sin(dir) * off, r * 0.36, roll * 0.5);
+  for (let i = 0; i < 5; i++) {
+    const a = dir + roll * 0.35 + (i * TAU) / 5;
+    pentagon(c, x + Math.cos(a) * r * 0.98, by + Math.sin(a) * r * 0.98, r * 0.3, a);
+  }
+  c.restore();
+  // obrys i połysk
+  c.beginPath();
+  c.arc(x, by, r, 0, TAU);
   c.lineWidth = 1;
   c.strokeStyle = 'rgba(0,0,0,0.7)';
   c.stroke();
-  // łata obracająca się z piłką
-  const a = b.spin * 2.2;
+  c.fillStyle = 'rgba(255,255,255,0.75)';
   c.beginPath();
-  c.arc(x + Math.cos(a) * r * 0.35, by + Math.sin(a) * r * 0.35, r * 0.34, 0, TAU);
-  c.fillStyle = '#2a2a2a';
+  c.ellipse(x - r * 0.36, by - r * 0.42, r * 0.28, r * 0.17, -0.6, 0, TAU);
   c.fill();
 }
 
-function label(c, text, x, y, color = '#ffffff') {
+function label(c, text, x, y, color = '#ffffff', W = 0) {
   c.font = '700 10.5px system-ui, sans-serif';
+  if (W) { const hw = c.measureText(text).width / 2 + 3; x = clamp(x, hw, W - hw); }
   c.textAlign = 'center';
   c.textBaseline = 'bottom';
   c.lineWidth = 3;
@@ -334,7 +368,7 @@ function drawLabels(V, P, people) {
     if (p.state === 'gone') continue;
     const show = p === own || p.hl > 0;
     if (!show) continue;
-    label(c, p.ln, X(p.x), Y(p.y) - R - 4, p.side === P.user ? '#e8ff8a' : '#ffffff');
+    label(c, p.ln, X(p.x), Y(p.y) - R - 4, p.side === P.user ? '#e8ff8a' : '#ffffff', V.W);
   }
 }
 

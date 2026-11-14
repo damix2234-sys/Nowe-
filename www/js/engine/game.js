@@ -4,10 +4,11 @@ import { NATIONS, NAT } from '../data/nations.js';
 import { fullName } from '../data/names.js';
 import { ACH } from '../data/achievements.js';
 import { QUESTIONS, OUTLETS, GREETINGS, GREET_ANSWERS } from '../data/press.js';
-import { generateWorld, applyOverrides, DEFAULT_SEED, genName, makeYouth, assignClub } from './db.js';
-import { ovr, developMonthly, POS_GROUP, clubStatusFor, CLUB_STATUS } from './player.js';
+import { generateWorld, applyOverrides, DEFAULT_SEED, genName, makeYouth, assignClub, attrRng } from './db.js';
+import { ovr, developMonthly, POS_GROUP, clubStatusFor, CLUB_STATUS, extendAttrs } from './player.js';
 import { FORMATIONS, defaultTactics, autoLineup, autoBench, defaultSetPieces, pickSquad, aiTactics, available, matchScore } from './tactics.js';
 import { Match } from './match.js';
+import { LiveMatch } from './sim.js';
 import { initRanking, updateRanking, rankPositions, expected } from './ranking.js';
 import {
   windowsForYear, createLN, checkLN, createQualifiers, checkQual, createFinals, checkFinals, addFriendly, hasFixture,
@@ -19,7 +20,13 @@ const hooks = { achieve: null };
 export function setHooks(h) { Object.assign(hooks, h); }
 
 const winCache = new Map();
-export function setGame(g) { G = g; resetFxIndex(); winCache.clear(); }
+export function setGame(g) { G = g; migrate(g); resetFxIndex(); winCache.clear(); }
+
+/** Uzupełnia starsze zapisy o nowe umiejętności zawodników (ta sama metoda co przy tworzeniu świata). */
+function migrate(g) {
+  if (!g || !g.players) return;
+  for (const p of Object.values(g.players)) if (p && p.a && p.a.dr == null) extendAttrs(p, attrRng(p.id));
+}
 
 export const TRAIN_KEYS = ['cond', 'poss', 'sp', 'off', 'def', 'ment'];
 export const TRAIN_NAMES = { cond: 'Kondycja', poss: 'Posiadanie piłki', sp: 'Stałe fragmenty gry', off: 'Ofensywa', def: 'Defensywa', ment: 'Przygotowanie mentalne' };
@@ -397,7 +404,7 @@ export function prepareMatch(fx, opts = {}) {
   const userSide = home ? 0 : 1;
   const autoSubs = [false, false];
   if (opts.quick) autoSubs[userSide] = true;
-  const m = new Match(home ? us : them, home ? them : us, { ko: fx.ko, neutral: fx.neutral, autoSubs });
+  const m = new LiveMatch(home ? us : them, home ? them : us, { ko: fx.ko, neutral: fx.neutral, autoSubs });
   m.userSide = userSide;
   m.fx = fx;
   m.attendance = attendance(fx);

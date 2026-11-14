@@ -201,8 +201,8 @@ function squadValue(p) {
 export function aiTactics(base, myStr, oppStr) {
   const t = { ...base };
   const d = myStr - oppStr;
-  t.style = d <= -12 ? 0 : d <= -5 ? 1 : d >= 12 ? 4 : d >= 5 ? 3 : 2;
-  t.press = d >= 6 ? 2 : d <= -10 ? 0 : 1;
+  t.style = d <= -15 ? 0 : d <= -5 ? 1 : d >= 15 ? 4 : d >= 5 ? 3 : 2;
+  t.press = d >= 8 ? 2 : d <= -15 ? 0 : 1;
   t.trap = 0;
   t.tw = d <= -5 ? 1 : 0;
   if (d <= -12 && !['5-4-1', '5-3-2', '4-5-1'].includes(t.f)) t.f = wpick(['5-4-1', '4-5-1', '5-3-2'], () => 1);

@@ -1,6 +1,6 @@
 // Taktyka: ustawienie, polecenia drużyny i indywidualne, stałe fragmenty; ekran przedmeczowy.
 import { screen, actions, go, rerender, esc, icon, posBadge, rating, sheet, closeOverlay, modal, seg, flag, team, resChip, toast, empty } from '../ui.js';
-import { G, me, natName, userSquadPlayers, ensureLineup, prepareMatch, quickSimUserMatch, poolOf } from '../../engine/game.js';
+import { G, me, natName, userSquadPlayers, ensureLineup, prepareMatch, poolOf } from '../../engine/game.js';
 import { FORMATIONS, FORMATION_NAMES, STYLE_NAMES, PRESS_NAMES, TW_NAMES, TRAP_NAMES, INSTR, defaultInstr, defaultSetPieces, autoLineup, matchScore, available } from '../../engine/tactics.js';
 import { slotRating, familiarity, ovr, POS_NAMES, POS_ORDER } from '../../engine/player.js';
 import { fullName } from '../../data/names.js';
@@ -10,6 +10,8 @@ import { fmtDateLong } from '../../core/util.js';
 import { setLastList } from './squad.js';
 import { unlockAudio } from '../sound.js';
 import { scoutTips } from './world.js';
+
+let quickBusy = false;
 
 const PITCH_SVG = `<svg class="lines" viewBox="0 0 68 96" preserveAspectRatio="none" fill="none" stroke="rgba(255,255,255,.33)" stroke-width=".45">
 <rect x="2" y="2" width="64" height="92" rx="1"/><line x1="2" y1="48" x2="66" y2="48"/><circle cx="34" cy="48" r="7"/>
@@ -283,10 +285,18 @@ actions({
   },
   'pm.quick': async (d) => {
     const f = G.fixtures.find((x) => x.id === +d.k);
+    if (!f || f.res || quickBusy) return;
     ensureLineup();
-    const info = quickSimUserMatch(f);
-    const { setLastInfo } = await import('./match.js');
-    setLastInfo(info);
+    quickBusy = true;
+    modal({ title: 'Symulacja meczu', body: `<p class="center">${esc(natName(f.h))} – ${esc(natName(f.a))}</p><p class="center"><b id="qs-min">0'</b> <span id="qs-sc" class="muted"></span></p>`, dismiss: false });
+    try {
+      const { quickSim } = await import('./match.js');
+      await quickSim(f, (m) => {
+        const el = document.getElementById('qs-min'); if (el) el.textContent = m.done ? 'Koniec' : m.minLabel();
+        const sc = document.getElementById('qs-sc'); if (sc) sc.textContent = `${m.sides[0].goals}:${m.sides[1].goals}`;
+      });
+    } finally { quickBusy = false; }
+    closeOverlay();
     go('postmatch', { fx: f.id }, { replace: true });
   },
 });

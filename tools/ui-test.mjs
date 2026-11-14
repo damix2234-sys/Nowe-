@@ -47,6 +47,12 @@ async function handle() {
     for (let i = 0; i < 3; i++) { const sp = await page.locator('#mt-speed span').textContent(); if (sp === '4×') break; await click('[data-a="mt.speed"]'); }
     for (let t = 0; t < 900; t++) {
       if (await page.locator('[data-a="mt.summary"]').count()) break;
+      // po ok. 20 s oglądania – reszta meczu symulacją (w porcjach, bez blokowania ekranu)
+      if (t === 80 && await page.locator('[data-a="mt.end"]').count()) {
+        await page.locator('.ov.show [data-a="ui.close"]').first().click().catch(() => {});
+        await click('[data-a="mt.end"]');
+        if (await page.locator('.ov.show [data-a="mt.endNow"]').count()) await click('.ov.show [data-a="mt.endNow"]');
+      }
       if (await page.locator('.ov.show [data-a="mt.subDo"]').count()) {
         // kontuzja – wybierz pierwszego rezerwowego
         const ins = page.locator('.ov.show [data-a="mt.subIn"]');

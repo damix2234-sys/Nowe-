@@ -157,7 +157,7 @@ async function main() {
     check('animacja 2D działa', fps >= 4, `${fps} kl./s, gęstość pikseli ${b ? b.dpr : '?'}, poziom jakości ${b ? b.qual : '?'}`);
     const worldPerSec = b ? (b.time - min0) / ((Date.now() - tWatch) / 1000) : 0;
     report.info.worldPerSec = Math.round(worldPerSec * 100) / 100;
-    check('tempo meczu zgodne z ustawieniem 1×', worldPerSec > 1.2, `${worldPerSec.toFixed(2)} s boiska na sekundę`);
+    check('tempo meczu zgodne z ustawieniem 1×', worldPerSec > 0.8, `${worldPerSec.toFixed(2)} s symulacji na sekundę`);
     const box = await page.locator('#mt-wrap').boundingBox();
     report.info.pitchBox = box;
     check('duże boisko (min. 50% wysokości ekranu)', box && box.height >= 0.5 * (await page.evaluate(() => innerHeight)), box ? `${Math.round(box.width)}×${Math.round(box.height)}` : '');

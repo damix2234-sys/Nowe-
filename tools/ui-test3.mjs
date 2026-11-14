@@ -38,6 +38,9 @@ let got = false;
 for (let i = 0; i < 40 && !got; i++) {
   if (await page.locator('.ov.show [data-a="flow.offer"]').count()) { got = true; break; }
   if (await page.locator('.ov.show .m-actions .btn').count()) { const b = page.locator('.ov.show .m-actions .btn'); await b.nth((await b.count()) - 1).click(); await page.waitForTimeout(200); continue; }
+  // okno w trakcie otwierania/zamykania – poczekaj, zamiast klikać przez nakładkę
+  if (await page.locator('#overlays .ov-bg').count() && !(await page.locator('.ov.show').count())) { await page.waitForTimeout(300); continue; }
+  if (await page.locator('.ov.show').count()) { await page.waitForTimeout(300); continue; }
   await click('[data-a="flow.advance"]');
   await page.waitForTimeout(400);
 }
