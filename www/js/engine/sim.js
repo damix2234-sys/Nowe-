@@ -714,7 +714,7 @@ export class LiveMatch extends Match {
     let top = this.topSpeed(a) * g;
     let u = tg.u;
     if ((this.phase === 'BREAK' || (this.dead && this.dead.type === 'goal')) && !a.goal) { top *= 0.5; u = Math.min(u, 0.4); }
-    if (a.state === 'dive' || a.state === 'slide') top *= 1.5;
+    if (a.state === 'dive' || a.state === 'slide') top = Math.min(top * 1.5, a.state === 'dive' ? 9 : 10);
     const want = d < 0.05 ? 0 : Math.min(top * (0.3 + 0.7 * u), d * 2.2 * g);
     const vx = d > 0 ? (dx / d) * want : 0, vy = d > 0 ? (dy / d) * want : 0;
     const acc = (a.state === 'dive' || a.state === 'slide' ? 30 : this.accel(a)) * g * g * h;
