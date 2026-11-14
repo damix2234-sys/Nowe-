@@ -1,6 +1,6 @@
 // Mecz na żywo: boisko 2D, na którym zawodnicy sami grają (silnik engine/sim.js), komentarz opisujący
 // prawdziwe zdarzenia z boiska, oceny na żywo, zmęczenie, zmiany i taktyka w trakcie meczu, podsumowanie.
-import { screen, actions, go, reset, esc, icon, posBadge, matchRating, sheet, closeOverlay, modal, flag, seg, toast, S as UIS, empty } from '../ui.js';
+import { screen, actions, go, reset, esc, icon, posBadge, matchRating, sheet, closeOverlay, modal, flag, seg, toast, S as UIS, empty, formIcon } from '../ui.js';
 import { G, natName, prepareMatch, completeUserMatch } from '../../engine/game.js';
 import { FORMATION_NAMES, STYLE_NAMES, PRESS_NAMES, TW_NAMES, TRAP_NAMES, LINE_NAMES } from '../../engine/tactics.js';
 import { POS_ORDER, slotRating } from '../../engine/player.js';
@@ -230,7 +230,7 @@ function renderTab() {
       return `<div><div class="label mb">${esc(S.name)}</div>
         ${on.map((s) => {
           const r = M.liveRating(S.idx, s.pid);
-          return `<div class="lu-p">${numOf(S.idx, s.pid)}${posBadge(s.pos)}<span class="nm">${esc(s.p.ln)}${pend.has(s.pid) ? ' 🔁' : ''}</span><span>${icons(s.pid)}</span>${r != null ? matchRating(r) : ''}${stm(S.st[s.pid] ?? 0)}</div>`;
+          return `<div class="lu-p">${numOf(S.idx, s.pid)}${posBadge(s.pos)}<span class="nm">${esc(s.p.ln)}${pend.has(s.pid) ? ' 🔁' : ''}</span><span>${icons(s.pid)}</span>${formIcon(s.p.form ?? 0)}${r != null ? matchRating(r) : ''}${stm(S.st[s.pid] ?? 0)}</div>`;
         }).join('')}
         ${off.length ? `<div class="small muted mt">Zeszli: ${off.map((pid) => esc(S.spec.players[pid].ln) + ' ' + icons(pid)).join(', ')}</div>` : ''}
         <div class="small muted mt">Ławka: ${S.bench.map((pid) => esc(S.spec.players[pid].ln)).join(', ') || ''}</div></div>`;
@@ -403,18 +403,18 @@ function subsHTML() {
   const benchRows = S.bench.filter((pid) => !pendIn.has(pid)).map((pid) => {
     const p = S.spec.players[pid];
     const r = outSlot ? Math.round(slotRating(p, outSlot.pos)) : Math.round(slotRating(p, p.pos));
-    return `<div class="row tap ${subSel.in === pid ? 'me' : ''}" data-a="mt.subIn" data-k="${pid}">${posBadge(p.pos)}<div class="main"><div class="t1">${esc(fullName(p))}</div><div class="t2">${outSlot ? `na pozycji ${outSlot.pos}: ${r}` : `ocena ${r}`}</div></div>${stm(p.cond ?? 95)}</div>`;
+    return `<div class="row tap ${subSel.in === pid ? 'me' : ''}" data-a="mt.subIn" data-k="${pid}">${posBadge(p.pos)}<div class="main"><div class="t1">${esc(fullName(p))}</div><div class="t2">${outSlot ? `na pozycji ${outSlot.pos}: ${r}` : `ocena ${r}`}</div></div>${formIcon(p.form ?? 0)}${stm(p.cond ?? 95)}</div>`;
   }).join('');
   const pendHTML = pend.length ? `<div class="note small mb">🔁 Czeka na przerwę w grze: ${pend.map((q) => `${esc(S.spec.players[q.in].ln)} za ${esc(S.spec.players[q.out].ln)}`).join(', ')}</div>` : '';
   return `<p class="small muted">Pozostało zmian: <b>${S.subsLeft}</b>. Wybierz zawodnika schodzącego, a potem wchodzącego. Zmiana nastąpi przy najbliższej przerwie w grze.</p>
     ${pendHTML}
-    <div class="label mb">Na boisku <span class="muted small">ocena na żywo · świeżość</span></div>
+    <div class="label mb">Na boisku <span class="muted small">forma · ocena na żywo · świeżość</span></div>
     <div class="list">${on.filter((s) => !pendOut.has(s.pid)).map((s) => {
       const ps = S.ps[s.pid] || {};
       const r = M.liveRating(S.idx, s.pid);
-      return `<div class="row tap ${subSel.out === s.pid ? 'me' : ''}" data-a="mt.subOut" data-k="${s.pid}">${posBadge(s.pos)}<div class="main"><div class="t1">${esc(fullName(s.p))} ${ps.yc ? '🟨' : ''}${ps.inj ? '✚' : ''}${'⚽'.repeat(ps.g || 0)}</div></div>${r != null ? matchRating(r) : ''}${stm(S.st[s.pid] ?? 0)}</div>`;
+      return `<div class="row tap ${subSel.out === s.pid ? 'me' : ''}" data-a="mt.subOut" data-k="${s.pid}">${posBadge(s.pos)}<div class="main"><div class="t1">${esc(fullName(s.p))} ${ps.yc ? '🟨' : ''}${ps.inj ? '✚' : ''}${'⚽'.repeat(ps.g || 0)}</div></div>${formIcon(s.p.form ?? 0)}${r != null ? matchRating(r) : ''}${stm(S.st[s.pid] ?? 0)}</div>`;
     }).join('')}</div>
-    <div class="label mb mt">Ławka</div><div class="list">${benchRows || '<div class="empty">Brak rezerwowych.</div>'}</div>
+    <div class="label mb mt">Ławka <span class="muted small">forma · świeżość</span></div><div class="list">${benchRows || '<div class="empty">Brak rezerwowych.</div>'}</div>
     <div class="btnrow mt"><button class="btn ghost" data-a="ui.close">Zamknij</button><button class="btn" data-a="mt.subDo" ${subSel.out && subSel.in && S.subsLeft > 0 ? '' : 'disabled'}>Wykonaj zmianę</button></div>`;
 }
 

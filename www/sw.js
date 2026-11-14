@@ -1,5 +1,5 @@
 // Service worker: działanie offline (stale-while-revalidate).
-const CACHE = 'selekcjoner-v15';
+const CACHE = 'selekcjoner-v16';
 const SHELL = ['./', 'index.html', 'css/app.css', 'js/main.js', 'manifest.webmanifest', 'icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {
