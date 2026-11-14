@@ -1,0 +1,19 @@
+{
+  "name": "selekcjoner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Selekcjoner – menedżer reprezentacji narodowej (gra mobilna)",
+  "scripts": {
+    "serve": "python3 -m http.server 8080 --directory www",
+    "test": "node tools/sim-test.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.2"
+  }
+}

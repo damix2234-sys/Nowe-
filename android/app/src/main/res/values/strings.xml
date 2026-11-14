@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Selekcjoner</string>
+    <string name="title_activity_main">Selekcjoner</string>
+    <string name="package_name">pl.selekcjoner.gra</string>
+    <string name="custom_url_scheme">pl.selekcjoner.gra</string>
+</resources>

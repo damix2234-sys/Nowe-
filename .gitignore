@@ -1,0 +1,9 @@
+node_modules/
+.DS_Store
+*.log
+tools/.icons/
+# kopia zasobów www tworzona przez "npx cap sync"
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/capacitor-cordova-android-plugins/

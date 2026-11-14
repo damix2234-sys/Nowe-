@@ -1,0 +1,187 @@
+// Ekran tytułowy, nowa gra, wczytywanie, informacje o grze.
+import { screen, actions, go, reset, rerender, busy, toast, flag, natStars, esc, icon, chips, confirmBox, seg } from '../ui.js';
+import { NATIONS, NAT, CONFS, CONF_ORDER, starsFor } from '../../data/nations.js';
+import { newGame, G } from '../../engine/game.js';
+import { slotMeta, SLOTS, getEdits, deleteSlot } from '../../core/storage.js';
+import { loadGame, autosave } from '../session.js';
+import { fmtDateLong, fmtDate } from '../../core/util.js';
+import { nextEvent } from '../flow.js';
+
+export const VERSION = '0.1.0';
+
+export const LOGO = `<svg viewBox="0 0 120 120" aria-hidden="true">
+<defs><linearGradient id="lg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2ff6e"/><stop offset="1" stop-color="#78bf18"/></linearGradient></defs>
+<path d="M60 6 L104 21 V57 C104 85 85 103 60 114 C35 103 16 85 16 57 V21 Z" fill="#0f1c18" stroke="url(#lg1)" stroke-width="5"/>
+<path d="M60 22 V100" stroke="#24433a" stroke-width="3"/>
+<circle cx="60" cy="60" r="19" fill="none" stroke="#24433a" stroke-width="3"/>
+<path d="M60 39 l5.3 11.2 12.2 1.6 -9 8.5 2.2 12.1 -10.7-5.9 -10.7 5.9 2.2-12.1 -9-8.5 12.2-1.6z" fill="url(#lg1)"/>
+<path d="M34 92 h52" stroke="url(#lg1)" stroke-width="4" stroke-linecap="round"/>
+</svg>`;
+
+let metas = null;
+async function loadMetas() {
+  const out = {};
+  for (const s of SLOTS) out[s] = await slotMeta(s);
+  metas = out;
+}
+
+screen('menu', {
+  render() {
+    if (!metas) loadMetas().then(() => rerender());
+    const auto = metas && metas.auto;
+    const autoNat = auto ? auto.nat || auto.lastNat : null;
+    return {
+      noHeader: true, cls: 'nofoot', appCls: 'title-app',
+      body: `<div class="title-screen">
+        <div class="logo">${LOGO}<h1>SELEKCJONER</h1><div class="tagline">Menedżer reprezentacji narodowej</div></div>
+        <div class="menu-btns">
+          ${G ? `<button class="btn" data-a="menu.resume">${icon('play')}<span class="continue-card">Wróć do gry<small>${G.user.nat ? esc(NAT[G.user.nat].name) : 'Bez pracy'} · ${fmtDate(G.day)}</small></span></button>` : ''}
+          ${!G && auto ? `<button class="btn" data-a="menu.continue">${icon('play')}<span class="continue-card">Kontynuuj<small>${autoNat ? NAT[autoNat].flag + ' ' + esc(NAT[autoNat].name) : ''} · ${fmtDate(auto.day)}</small></span></button>` : ''}
+          <button class="btn ${G || auto ? 'ghost' : ''}" data-a="menu.new">${icon('ball')}Nowa gra</button>
+          <button class="btn ghost" data-a="menu.load">${icon('save')}Wczytaj grę</button>
+          <button class="btn ghost" data-a="menu.editor">${icon('pencil')}Edytor zawodników</button>
+          <button class="btn ghost" data-a="menu.ach">${icon('star')}Osiągnięcia</button>
+          <button class="btn ghost" data-a="menu.about">${icon('info')}O grze</button>
+        </div>
+        <div class="ver">wersja ${VERSION}</div>
+      </div>`,
+    };
+  },
+});
+
+// ---------------- nowa gra ----------------
+const ng = { conf: 'EU', nat: 'POL', name: '', db: 'edited', diff: 1 };
+
+screen('newgame', {
+  render() {
+    const list = NATIONS.filter((n) => n.conf === ng.conf).sort((a, b) => a.name.localeCompare(b.name, 'pl'));
+    const sel = NAT[ng.nat];
+    const edits = Object.keys(getEdits()).length;
+    return {
+      title: 'Nowa gra', sub: 'Wybierz reprezentację',
+      body: `
+      ${chips('ng.conf', CONF_ORDER.map((c) => [c, CONFS[c].name]), ng.conf)}
+      <div class="card tight"><div class="list">
+        ${list.map((n) => `<div class="row tap ${n.id === ng.nat ? 'me' : ''}" data-a="ng.nat" data-k="${n.id}">
+          <span class="flag" style="font-size:28px">${n.flag}</span>
+          <div class="main"><div class="t1">${esc(n.name)}</div><div class="t2">${natStars(n.id)}</div></div>
+          ${n.id === ng.nat ? `<span class="toggle on">${icon('check')}</span>` : ''}
+        </div>`).join('')}
+      </div></div>
+      <div class="card">
+        <div class="card-h"><h3>Twoja kariera</h3></div>
+        <label class="field"><span>Imię i nazwisko selekcjonera</span><input class="input" data-input="ng.name" maxlength="40" placeholder="np. Jan Kowalski" value="${esc(ng.name)}"></label>
+        <div class="field"><span>Baza zawodników</span>
+          <div class="opt">
+            <button class="${ng.db === 'edited' ? 'on' : ''}" data-a="ng.db" data-k="edited">Domyślna${edits ? ` (+${edits} edycji)` : ''}</button>
+            <button class="${ng.db === 'random' ? 'on' : ''}" data-a="ng.db" data-k="random">Losowa nowa</button>
+          </div>
+        </div>
+        <div class="field"><span>Poziom trudności (cierpliwość federacji)</span>
+          <div class="opt">
+            ${['Łagodny', 'Normalny', 'Wymagający'].map((t, i) => `<button class="${ng.diff === i ? 'on' : ''}" data-a="ng.diff" data-k="${i}">${t}</button>`).join('')}
+          </div>
+        </div>
+      </div>`,
+      foot: `<button class="btn block" data-a="ng.start">${sel.flag}&nbsp; Start: ${esc(sel.name)}</button>`,
+    };
+  },
+});
+
+// ---------------- wczytywanie ----------------
+screen('load', {
+  render() {
+    if (!metas) { loadMetas().then(() => rerender()); return { title: 'Wczytaj grę', body: '<div class="empty">Wczytywanie…</div>', cls: 'nofoot' }; }
+    const rows = SLOTS.map((s) => {
+      const m = metas[s];
+      const label = s === 'auto' ? 'Autozapis' : `Slot ${s}`;
+      if (!m) return `<div class="row dim"><div class="main"><div class="t1">${label}</div><div class="t2">pusty</div></div></div>`;
+      const nat = m.nat || m.lastNat;
+      return `<div class="row tap" data-a="load.slot" data-k="${s}">
+        <span class="flag" style="font-size:28px">${nat ? NAT[nat].flag : '💼'}</span>
+        <div class="main"><div class="t1">${label}: ${esc(m.manager || '')}</div><div class="t2">${nat ? esc(NAT[nat].name) : ''}${m.unemployed ? ' (bez pracy)' : ''} · ${fmtDateLong(m.day)}</div><div class="t2">zapisano ${new Date(m.saved).toLocaleString('pl-PL')}</div></div>
+        <button class="iconbtn" data-a="load.del" data-k="${s}" aria-label="Usuń">${icon('trash')}</button>
+      </div>`;
+    }).join('');
+    return { title: 'Wczytaj grę', body: `<div class="card tight"><div class="list">${rows}</div></div>`, cls: 'nofoot' };
+  },
+});
+
+screen('about', {
+  render() {
+    return {
+      title: 'O grze', cls: 'nofoot',
+      body: `<div class="card center">${LOGO.replace('<svg', '<svg style="width:84px;height:84px"')}<h2 class="mt">Selekcjoner</h2><div class="muted">wersja ${VERSION}</div></div>
+      <div class="card"><p>Wciel się w selekcjonera reprezentacji narodowej. Powołuj zawodników, ustalaj taktykę i trening, prowadź drużynę w Lidze Narodów, eliminacjach i turniejach finałowych. Dbaj o zaufanie federacji, kibiców, piłkarzy i mediów.</p>
+      <p class="small muted">Wszyscy zawodnicy, kluby i dziennikarze są fikcyjni – nazwiska generowane są losowo. W edytorze możesz zmienić dane zawodników według własnego uznania.</p></div>
+      <div class="card"><div class="card-h"><h3>Jak grać</h3></div>
+      <p class="small">• Przycisk <b>Dalej</b> przesuwa czas do kolejnego ważnego wydarzenia.<br>• Przed każdym zgrupowaniem ogłaszasz powołania (23 zawodników, na turniej 26).<br>• Przed meczem ustaw wyjściową jedenastkę i polecenia. Mecz możesz oglądać na żywo i reagować zmianami.<br>• Odpowiedzi na konferencjach wpływają na zaufanie mediów, kibiców, piłkarzy i federacji.<br>• Zbyt niskie zaufanie federacji kończy się zwolnieniem – wtedy czekasz na oferty innych krajów.</p></div>`,
+    };
+  },
+});
+
+actions({
+  'menu.new': () => go('newgame'),
+  'menu.load': () => { metas = null; go('load'); },
+  'menu.editor': () => go('editor'),
+  'menu.ach': () => go('achievements'),
+  'menu.about': () => go('about'),
+  'menu.resume': () => { reset('home'); nextEvent(); },
+  'menu.continue': async () => {
+    busy(true, 'Wczytywanie…');
+    const ok = await loadGame('auto');
+    busy(false);
+    if (!ok) { toast('Nie udało się wczytać zapisu.', 'bad'); return; }
+    reset('home');
+    nextEvent();
+  },
+  'ng.conf': (d) => { ng.conf = d.k; const first = NATIONS.filter((n) => n.conf === d.k).sort((a, b) => a.name.localeCompare(b.name, 'pl'))[0]; if (NAT[ng.nat].conf !== d.k) ng.nat = first.id; rerender(); },
+  'ng.nat': (d) => { ng.nat = d.k; rerender(); },
+  'ng.name': (d, el) => { ng.name = el.value; },
+  'ng.db': (d) => { ng.db = d.k; rerender(); },
+  'ng.diff': (d) => { ng.diff = +d.k; rerender(); },
+  'ng.start': async () => {
+    if (G) {
+      const ok = await confirmBox('Rozpocząć nową grę? Niezapisany postęp obecnej kariery zostanie utracony.', 'Nowa gra', 'Anuluj', true);
+      if (!ok) return;
+    }
+    busy(true, 'Tworzenie świata piłkarskiego…');
+    setTimeout(() => {
+      try {
+        newGame({ nat: ng.nat, manager: (ng.name || '').trim() || 'Selekcjoner', useEdited: ng.db === 'edited', overrides: getEdits(), diff: ng.diff });
+      } catch (e) {
+        console.error(e);
+        busy(false);
+        toast('Błąd tworzenia gry: ' + esc(e.message), 'bad');
+        return;
+      }
+      busy(false);
+      metas = null;
+      autosave(true);
+      reset('home');
+      nextEvent();
+    }, 40);
+  },
+  'load.slot': async (d) => {
+    if (G) {
+      const ok = await confirmBox('Wczytać zapis? Niezapisany postęp obecnej gry zostanie utracony.', 'Wczytaj');
+      if (!ok) return;
+    }
+    busy(true, 'Wczytywanie…');
+    const ok = await loadGame(d.k);
+    busy(false);
+    if (!ok) { toast('Nie udało się wczytać zapisu.', 'bad'); return; }
+    reset('home');
+    nextEvent();
+  },
+  'load.del': async (d, el, e) => {
+    e.stopPropagation();
+    const ok = await confirmBox('Usunąć ten zapis?', 'Usuń', 'Anuluj', true);
+    if (!ok) return;
+    await deleteSlot(d.k);
+    metas = null;
+    rerender();
+  },
+});
+
+export function invalidateMetas() { metas = null; }

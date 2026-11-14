@@ -1,0 +1,16 @@
+{
+  "appId": "pl.selekcjoner.gra",
+  "appName": "Selekcjoner",
+  "webDir": "www",
+  "backgroundColor": "#08110e",
+  "android": {
+    "backgroundColor": "#08110e",
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK",
+      "insetsHandling": "css"
+    }
+  }
+}
