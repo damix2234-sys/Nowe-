@@ -14,7 +14,7 @@ export function ensureOrbDefs() {
   svg.style.position = 'absolute';
   svg.innerHTML = `<defs>
     <linearGradient id="ogBody" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#5b23c9"/><stop offset="0.5" stop-color="#34108a"/><stop offset="1" stop-color="#1a0550"/>
+      <stop offset="0" stop-color="#6a30dc"/><stop offset="0.45" stop-color="#3a1192"/><stop offset="1" stop-color="#18043f"/>
     </linearGradient>
     <linearGradient id="ogEdge" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#f1e2ff"/><stop offset="1" stop-color="#a874ff"/>
@@ -100,13 +100,20 @@ const G = {
     + `<path ${B} d="M38 26 h10 v-7 l12 13 l-12 13 v-7 h-10 Z"/><rect ${H} x="15" y="11" width="6" height="18" rx="3"/>`,
 };
 
-/** Okrągły przycisk menu. k – ekran (lub akcja), ic – nazwa ikony, label – napis na plakietce. */
+/** Okrągły przycisk menu. ic – nazwa ikony, label – napis na plakietce. „Kadra” to grafika z projektu. */
 export function orb(ic, label, attrs, badge = 0) {
+  const b = badge ? `<span class="badge">${badge}</span>` : '';
+  if (ic === 'squad') {
+    return `<button class="orb orb-img" ${attrs} aria-label="${label}"><img src="img/kadra.png" alt="" draggable="false">${b}</button>`;
+  }
   const g = G[ic] ? G[ic]() : '';
-  const long = label.length > 9 ? ' long' : '';
+  const hl = g.match(/<[^>]*class="oh"[^>]*\/>/g) || [];
+  const body = g.replace(/<[^>]*class="oh"[^>]*\/>/g, '');
+  const long = label.length > 8 ? ' long' : '';
+  // trzy warstwy jak w ręcznie rysowanej ikonie: ciemny kontur, bryła z jasną krawędzią, połysk
   return `<button class="orb" ${attrs} aria-label="${label}">
-    <span class="orb-disc"><svg class="orb-ic" viewBox="0 0 64 64" aria-hidden="true">${g}</svg></span>
+    <span class="orb-disc"><svg class="orb-ic" viewBox="-4 -4 72 72" aria-hidden="true"><g class="o-out">${body}</g><g class="o-fill">${body}</g><g class="o-hl">${hl.join('')}</g></svg></span>
     <span class="orb-label${long}"><b>${label}</b></span>
-    ${badge ? `<span class="badge">${badge}</span>` : ''}
+    ${b}
   </button>`;
 }

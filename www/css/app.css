@@ -2,9 +2,9 @@
 :root {
   --bg: #0a0614;
   --bg2: #100a1f;
-  --surface: #160e2a;
-  --surface2: #1e1438;
-  --surface3: #2a1c4c;
+  --surface: rgba(26, 10, 52, 0.78);
+  --surface2: rgba(40, 16, 78, 0.82);
+  --surface3: rgba(58, 26, 104, 0.9);
   --line: rgba(190, 150, 255, 0.11);
   --line2: rgba(190, 150, 255, 0.2);
   --text: #f3eeff;
@@ -33,8 +33,9 @@ body {
   min-height: 100dvh;
   background-color: var(--bg);
   background-image:
-    radial-gradient(1200px 520px at 50% -180px, rgba(150, 70, 255, 0.22), transparent 60%), radial-gradient(800px 400px at 50% 110%, rgba(120, 40, 220, 0.14), transparent 70%),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0 64px, rgba(0, 0, 0, 0.0) 64px 128px);
+    radial-gradient(900px 600px at 0% 0%, rgba(230, 30, 90, 0.42), transparent 60%),
+    radial-gradient(900px 700px at 100% 100%, rgba(120, 30, 230, 0.45), transparent 60%),
+    linear-gradient(160deg, #4a0828 0%, #3a0b4e 38%, #2a0b66 65%, #120436 100%);
   background-attachment: fixed;
   color: var(--text);
   font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -55,7 +56,7 @@ header.top {
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; gap: 8px;
   padding: calc(var(--sat) + 8px) 10px 8px;
-  background: rgba(10, 6, 20, 0.86);
+  background: rgba(40, 6, 40, 0.55);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line);
   min-height: 56px;
@@ -80,7 +81,7 @@ footer.foot {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
   max-width: 560px; margin: 0 auto;
   padding: 12px 16px calc(12px + var(--sab));
-  background: linear-gradient(180deg, rgba(10, 6, 20, 0), rgba(10, 6, 20, 0.94) 30%);
+  background: linear-gradient(180deg, rgba(30, 6, 50, 0), rgba(30, 6, 50, 0.9) 30%);
   display: flex; gap: 8px;
 }
 footer.foot .btn { flex: 1; }
@@ -251,13 +252,13 @@ textarea.input { min-height: 140px; font-family: ui-monospace, monospace; font-s
 .ov-modal .ov-box {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -46%) scale(0.98); opacity: 0;
   width: min(92vw, 460px); max-height: 86vh; overflow: auto;
-  background: var(--surface); border: 1px solid var(--line2); border-radius: 20px; padding: 18px; transition: 0.18s ease;
+  background: linear-gradient(160deg, #3a0b3e, #241058 60%, #170638); border: 1px solid var(--line2); border-radius: 20px; padding: 18px; transition: 0.18s ease;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 .ov-modal.show .ov-box { opacity: 1; transform: translate(-50%, -50%); }
 .ov-sheet .ov-box {
   position: absolute; left: 0; right: 0; bottom: 0; margin: 0 auto; max-width: 560px; max-height: 88vh; overflow: auto;
-  background: var(--surface); border-radius: 22px 22px 0 0; border-top: 1px solid var(--line2);
+  background: linear-gradient(170deg, #3a0b3e, #241058 50%, #170638); border-radius: 22px 22px 0 0; border-top: 1px solid var(--line2);
   padding: 6px 16px calc(18px + var(--sab)); transform: translateY(100%); transition: transform 0.22s ease;
 }
 .ov-sheet.show .ov-box { transform: translateY(0); }
@@ -498,15 +499,18 @@ main.view.match-view { padding-top: 8px; }
 .orb-disc {
   position: absolute; inset: 3% 7% 9% 7%; border-radius: 50%;
   background:
-    radial-gradient(circle at 50% 28%, rgba(196, 140, 255, 0.55) 0%, rgba(120, 50, 230, 0.15) 38%, transparent 60%),
-    radial-gradient(circle at 50% 55%, #4e1ab0 0%, #2d0b70 55%, #16033d 100%);
+    radial-gradient(circle at 50% 22%, rgba(214, 160, 255, 0.7) 0%, rgba(150, 70, 255, 0.25) 30%, transparent 55%),
+    radial-gradient(circle at 50% 60%, #3d0f9a 0%, #250868 50%, #12033a 100%);
   box-shadow:
-    0 0 0 2.5px #c99bff,
-    0 0 0 5px #3b1278,
-    0 0 0 6.5px rgba(214, 170, 255, 0.55),
-    0 0 18px 5px rgba(160, 80, 255, 0.55),
-    inset 0 0 14px rgba(210, 160, 255, 0.45),
-    inset 0 -12px 22px rgba(10, 0, 40, 0.7);
+    0 0 0 2px #0b0220,
+    0 0 0 4.5px #e9c4ff,
+    0 0 0 8px #9b45ff,
+    0 0 0 10px #2a0866,
+    0 0 0 11.5px #0b0220,
+    0 0 22px 9px rgba(185, 80, 255, 0.75),
+    inset 0 0 0 2px rgba(0, 0, 0, 0.6),
+    inset 0 0 16px rgba(200, 130, 255, 0.55),
+    inset 0 -14px 24px rgba(5, 0, 25, 0.75);
   animation: orbGlow 3.2s ease-in-out infinite;
   overflow: hidden;
 }
@@ -522,14 +526,18 @@ main.view.match-view { padding-top: 8px; }
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0));
 }
 .orb-ic {
-  position: absolute; left: 13%; right: 13%; top: 7%; bottom: 25%; width: 74%; height: 68%; z-index: 1;
+  position: absolute; left: 9%; right: 9%; top: 3%; bottom: 24%; width: 82%; height: 73%; z-index: 1;
   filter: drop-shadow(0 0 4px rgba(210, 150, 255, 0.9)) drop-shadow(0 2px 2px rgba(20, 0, 50, 0.8));
 }
-.orb-ic .ob { fill: url(#ogBody); stroke: url(#ogEdge); stroke-width: 2.4; stroke-linejoin: round; }
+.orb-ic .o-out * { fill: #0b0220 !important; stroke: #0b0220 !important; stroke-width: 6 !important; stroke-linejoin: round; stroke-linecap: round; }
+.orb-ic .o-fill .ob { fill: url(#ogBody); stroke: url(#ogEdge); stroke-width: 2; stroke-linejoin: round; }
 .orb-ic .oh { fill: url(#ogShine); stroke: none; }
+.orb-img { overflow: visible; }
+.orb-img img { position: absolute; inset: -11%; width: 122%; height: 122%; object-fit: contain; pointer-events: none; user-select: none;
+  filter: drop-shadow(0 0 10px rgba(170, 90, 255, 0.55)); animation: orbGlow 3.2s ease-in-out infinite; }
 /* plakietka z nazwą */
 .orb-label {
-  position: absolute; left: -3%; right: -3%; top: 63%; height: 23%; z-index: 2;
+  position: absolute; left: -4%; right: -4%; top: 60%; height: 26%; z-index: 2;
   clip-path: polygon(7% 0, 93% 0, 100% 50%, 93% 100%, 7% 100%, 0 50%);
   background: linear-gradient(180deg, #f0dcff 0%, #b27bff 35%, #6d2de0 100%);
   filter: drop-shadow(0 0 6px rgba(170, 90, 255, 0.8));
@@ -541,11 +549,11 @@ main.view.match-view { padding-top: 8px; }
     linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 45%),
     linear-gradient(180deg, #5a20c8 0%, #3a0f91 55%, #24065e 100%);
   font-weight: 900; font-style: italic; text-transform: uppercase; letter-spacing: 0.02em;
-  font-size: clamp(11px, 3.6vw, 16px); line-height: 1; color: #fff;
-  text-shadow: 0 1.5px 0 #2a0866, 0 0 6px rgba(220, 180, 255, 0.7);
+  font-size: clamp(13px, 4.6vw, 20px); line-height: 1; color: #fff;
+  text-shadow: -1px -1px 0 #1a0440, 1px -1px 0 #1a0440, -1px 1px 0 #1a0440, 1px 1px 0 #1a0440, 0 2.5px 0 #1a0440, 0 0 8px rgba(225, 185, 255, 0.8);
   white-space: nowrap; overflow: hidden;
 }
-.orb-label.long b { font-size: clamp(9px, 2.75vw, 12.5px); letter-spacing: 0; }
+.orb-label.long b { font-size: clamp(10px, 3.2vw, 14px); letter-spacing: 0; }
 /* błysk przesuwający się po plakietce */
 .orb-label b::after {
   content: ""; position: absolute; top: 0; bottom: 0; width: 30%; left: -40%;
