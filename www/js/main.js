@@ -11,14 +11,7 @@ import './ui/screens/press.js';
 import './ui/screens/world.js';
 import './ui/screens/office.js';
 
-function initBack() {
-  const App = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
-  if (App && App.addListener) {
-    App.addListener('backButton', () => {
-      if (!handleBack()) App.exitApp();
-    });
-    return;
-  }
+function historyBack() {
   // przeglądarka / PWA: przechwycenie przycisku „wstecz” (nie w osadzonej ramce)
   let embedded = false;
   try { embedded = window.self !== window.top; } catch (e) { embedded = true; }
@@ -30,6 +23,26 @@ function initBack() {
       else history.back();
     });
   } catch (e) { /* brak historii */ }
+}
+
+async function initBack() {
+  const cap = window.Capacitor;
+  const hasApp = !!(cap && Array.isArray(cap.PluginHeaders) && cap.PluginHeaders.some((h) => h.name === 'App'));
+  if (hasApp) {
+    // aplikacja na Androida: systemowy przycisk „wstecz” przez wtyczkę App
+    try {
+      const { registerPlugin } = await import('./vendor/capacitor-core.js');
+      const App = registerPlugin('App');
+      const ok = await Promise.race([
+        App.addListener('backButton', () => { if (!handleBack()) App.exitApp(); }).then(() => true, () => false),
+        new Promise((r) => setTimeout(() => r(false), 2500)),
+      ]);
+      if (ok) return;
+    } catch (e) {
+      console.warn('Wtyczka App niedostępna', e);
+    }
+  }
+  historyBack();
 }
 
 function initSW() {
