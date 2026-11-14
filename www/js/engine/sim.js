@@ -18,6 +18,7 @@ const PERIOD_END = [0, 2700, 5400, 6300, 7200];
 const NUMS = { GK: [1], RB: [2], LB: [3], CB: [4, 5, 15], DM: [6, 16], CM: [8, 14, 18], AM: [10, 20], RW: [7, 17], LW: [11, 21], CF: [9, 19, 22] };
 const SHW = [0.45, 1, 1.6];         // skłonność do strzałów (polecenie)
 const DRW = [0.55, 1, 1.5];         // skłonność do dryblingu
+const DEF_ATTRS = new Set(['tk', 'mk', 'psn', 'ant', 'brv', 'con']);
 const TK_RATE = [0.45, 0.75, 1.15]; // próby odbioru na sekundę (delikatny / normalny / ostry), obrońca najpierw asekuruje
 const ATTR_SPREAD = 0.7;            // różnice umiejętności w meczu (1 = pełne); pojedynki mają też losowość
 
@@ -153,8 +154,12 @@ export class LiveMatch extends Match {
     const behind = this.sides[1 - a.side].goals > S.goals ? 1 + ((p.a.det ?? 50) - 50) / 1500 : 1;
     const base = formMul(p) * moraleMul(p) * rMul * behind * this.teamMul[a.side] * (a.limp ? 0.85 : 1);
     const tr = S.train || AI_TRAIN;
+    // zwarta, głęboka obrona broni się lepiej; ofensywny styl i wysoki pressing zostawiają luki
+    const tac = S.tac || {};
+    const defM = 1 - 0.05 * ((tac.style ?? 2) - 2) + [0.08, 0, -0.04][tac.press ?? 1];
     for (const k of ATTRS) {
       let m = base * (PHYS_ATTRS.has(k) ? fatP : fatT) * attrTrainMul(tr, k);
+      if (DEF_ATTRS.has(k)) m *= defM;
       if (!PHYS_ATTRS.has(k)) m *= fam;
       a.eff[k] = (55 + ((p.a[k] ?? 40) - 55) * ATTR_SPREAD) * m;
     }
@@ -249,6 +254,12 @@ export class LiveMatch extends Match {
       if (o.gk || o.state !== 'play') continue;
       const sd = segDist(o.x, o.y, x, y, 34, gy);
       if (sd.u > 0.04 && sd.d < 1.4) v *= 0.72;
+    }
+    // tłok w polu karnym: każdy obrońca w szesnastce utrudnia czysty strzał (atut głębokiej, zwartej obrony)
+    if (Y > PL - 30) {
+      let crowd = 0;
+      for (const o of this.active(1 - s)) if (!o.gk && o.state === 'play' && this.inBox(s, o.x, o.y)) crowd++;
+      v *= clamp(1.3 - 0.095 * crowd, 0.55, 1.15);
     }
     if (by) {
       const pr = this.pressure(by);
@@ -460,8 +471,9 @@ export class LiveMatch extends Match {
       wid = 1; shift = 0.18;
     } else {
       // defensywny styl: głębiej, węziej i ciaśniej między liniami; ofensywny: wyżej i szerzej (więcej miejsca dla rywala)
-      dl = clamp(by - 27 + pr * 7 + st * 2.5 + trap * 2, 6, 46);
-      al = clamp(dl + 33 + pr * 3 + st * 2, 28, 74);
+      // niski pressing: cała drużyna cofnięta, ale zwarta (pomoc blisko obrony, mało miejsca między liniami)
+      dl = clamp(by - 27 + clamp(pr * 4 + st * 2.5, -6, 10) + trap * 2, by < 20 ? 5 : by < 30 ? 11 : by < 40 ? 14 : 16.5, 46);
+      al = clamp(dl + Math.max(25, 31 + pr * 5 + st * 2), 26, 74);
       wid = 0.68 + st * 0.04; shift = 0.42;
     }
     const off = offL;
@@ -492,6 +504,8 @@ export class LiveMatch extends Match {
         X = 34 + ((a.sx - 50) / 50) * 31 * wid + (bx - 34) * shift;
         // boczni obrońcy podłączają się przy ofensywnym stylu
         if (att && (a.pos === 'LB' || a.pos === 'RB') && st >= 1 && by > 55) Y += 8 + st * 3;
+        // w obronie najbardziej wysunięty napastnik zostaje wyżej jako wyjście do kontry
+        if (!att && a.sy >= 82) Y = Math.max(Y, Math.min(dl + 38, 62));
         if (att && Y > off - 0.8 && Y > by) Y = Math.max(by, off - 0.8);
         const loose = 1.5 - (a.p.a.tmw ?? 60) / 100;
         X += Math.sin(this.t * 0.55 + a.ph1) * 1.3 * loose;
@@ -559,10 +573,10 @@ export class LiveMatch extends Match {
       const a = cands[i];
       const dist = D2(a, o);
       // pressing wysoki zależy od polecenia; na własnej połowie każda drużyna doskakuje do rywala z piłką
-      const lim = i === 0 ? (inOwnThird ? 40 : inOwnHalf ? Math.max(26, [16, 24, 32][pr]) : [16, 24, 32][pr]) : inOwnThird ? 18 : 14;
+      const lim = i === 0 ? (inOwnThird ? 40 : inOwnHalf ? Math.max(26, [20, 24, 29][pr]) : [20, 24, 29][pr]) : inOwnThird ? 18 : 14;
       if (dist > lim) continue;
       a.mode = 'press';
-      a.urg = (0.8 + 0.35 * this.E(a, 'wr') / 100) * (i === 0 ? (inOwnThird ? 1 : inOwnHalf ? Math.max(0.85, [0.62, 0.82, 1][pr]) : [0.62, 0.82, 1][pr]) : inOwnThird ? 0.9 : 0.7);
+      a.urg = (0.8 + 0.35 * this.E(a, 'wr') / 100) * (i === 0 ? (inOwnThird ? 1 : inOwnHalf ? Math.max(0.85, [0.72, 0.82, 0.94][pr]) : [0.72, 0.82, 0.94][pr]) : inOwnThird ? 0.9 : 0.7);
       a.pressCover = i > 0;
     }
     // pressing wysoko: kolejni zawodnicy odcinają najbliższe opcje podania (ustawiają się między rywalem a piłką)
@@ -790,7 +804,7 @@ export class LiveMatch extends Match {
     this.stAcc = 0;
     const k = h * (CLOCK / 10);
     for (const S of this.sides) {
-      const press = [0.88, 1, 1.22][S.tac.press ?? 1];
+      const press = [0.8, 1, 1.45][S.tac.press ?? 1];
       // trening kondycji: 10 pkt męczy się o ok. 22% wolniej niż 5 pkt, 0 pkt o ok. 27% szybciej
       const cond = 0.94 - (trainMul(S.train ? S.train.cond : 5) - 1) * 2;
       for (const a of this.active(S.idx)) {
@@ -880,7 +894,9 @@ export class LiveMatch extends Match {
     // defensywny styl = gra bezpośrednia (szybko do przodu, mało podań z tyłu); ofensywny = cierpliwe rozegranie
     const risk = [0.88, 0.94, 1, 1.02, 1.04][tac.style ?? 2];
     // kontratak: świeżo odzyskana piłka, gra do przodu, zanim rywal się ustawi (bardziej przy defensywnym stylu)
-    const counter = this.t - (this.wonT[s] ?? -9) < 4.5 ? 1 + Math.max(0, -style) * 0.35 : 0;
+    const oppTac = this.sides[1 - s].tac || {};
+    // kontra jest groźniejsza przeciw rywalowi, który gra ofensywnie lub wysokim pressingiem (zostawia miejsce za plecami)
+    const counter = this.t - (this.wonT[s] ?? -9) < 4.5 ? 1 + Math.max(0, -style) * 0.35 + ((tac.press ?? 1) === 0 ? 0.45 : 0) + Math.max(0, (oppTac.style ?? 2) - 2) * 0.6 + ((oppTac.press ?? 1) === 2 ? 0.5 : 0) : 0;
     const wasting = tac.tw === 2 || (tac.tw === 1 && S.goals > this.sides[1 - s].goals && this.clk > 3600);
     const behind = this.sides[1 - s].goals - S.goals;
     const desperate = behind > 0 && this.clk > 4800 ? 0.35 : 0;
@@ -910,6 +926,9 @@ export class LiveMatch extends Match {
         const o = this.evalPass(a, m, kind, pres, risk, lc);
         if (!o) continue;
         if (kind === 'through') o.u *= o.u > 0 ? 0.7 + 0.6 * this.E(a, 'vis') / 100 : 1;
+        // polecenie podań: krótkie = cierpliwe granie po ziemi, długie = szybko górą do przodu
+        if (ins.ps === 0) { if (kind === 'ground' && d < 24) o.u += 0.0014; else if (kind !== 'ground' || d >= 32) o.u -= 0.0026; }
+        else if (ins.ps === 2) { if (kind !== 'ground' && this.ry(s, o.R.y) - Y > 10) o.u += 0.0028; else if (kind === 'ground' && d < 16) o.u -= 0.0012; }
         if (counter && this.ry(s, o.R.y) - Y > 8) o.u += 0.0035 * counter;
         if (style < 0 && Y < 52 && this.ry(s, o.R.y) - Y < 3) o.u -= 0.0016 * -style;
         // gra bezpośrednia: długa piłka do przodu z własnej połowy (plan drużyny grającej defensywnie)
@@ -1090,6 +1109,12 @@ export class LiveMatch extends Match {
     let foulP = (won ? (fromBehind ? 0.2 : 0.06 + 0.04 * aggr) : 0.2 + 0.08 * aggr + (fromBehind ? 0.1 : 0) + Math.max(0, (60 - this.E(d, 'tk')) / 200)) * (0.7 + 0.6 * this.E(d, 'agg') / 100);
     if (this.inBox(a.side, a.x, a.y)) foulP *= 0.42;
     if (Math.random() < foulP) { this.foul(d, a, fromBehind, aggr); return; }
+    // symulowanie fauli: po stracie piłki pod bramką rywala zawodnik może się rzucić na murawę
+    const dv = this.instr(a).dv || 0;
+    if (won && dv && this.ry(a.side, a.y) > 60 && Math.random() < 0.06 * dv) {
+      if (Math.random() < 0.45) this.card(a, 'yellow', { dive: true });
+      else { this.foul(d, a, false, 0); return; }
+    }
     const dps = this.ps(d);
     dps.tka = (dps.tka || 0) + 1;
     const aps = this.ps(a);
@@ -1822,7 +1847,7 @@ export class LiveMatch extends Match {
     }
   }
 
-  card(a, kind) {
+  card(a, kind, extra = {}) {
     const S = this.sides[a.side];
     const p = this.ps(a);
     this.cardsHalf++;
@@ -1837,7 +1862,7 @@ export class LiveMatch extends Match {
     }
     const second = red && kind !== 'red';
     this.addFx('card', { pid: a.pid, side: a.side, red });
-    this.emit('card', { a, red, second });
+    this.emit('card', { a, red, second, ...extra });
     if (red) {
       S.red++;
       p.rc = 1;

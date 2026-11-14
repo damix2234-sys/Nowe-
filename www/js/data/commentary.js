@@ -108,6 +108,7 @@ export const C = {
 // na boisku. {A} zawodnik z piłką / strzelający, {B} odbierający podanie / asystujący, {D} obrońca,
 // {G} bramkarz, {T} drużyna, {N} liczba, {S} wynik. Nazwiska i nazwy drużyn zawsze w mianowniku.
 export const N = {
+  diveYellow: ['Sędzia nie dał się nabrać! Żółta kartka za symulację, ukarany {A}.', '{A} rzuca się na murawę, ale arbiter pokazuje mu żółtą kartkę za symulowanie.'],
   kickoff: ['Sędzia gwiżdże, zaczynamy! Od środka rozpoczyna {T}.', 'Ruszyło! Grę rozpoczyna {T}.'],
   secondHalf: ['Rozpoczynamy drugą połowę! Od środka zaczyna {T}.', 'Druga połowa w toku, grę wznawia {T}.'],
   etKick1: ['Rusza dogrywka!', 'Pierwsza część dogrywki w toku.'],

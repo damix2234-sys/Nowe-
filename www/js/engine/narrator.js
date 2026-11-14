@@ -138,6 +138,7 @@ export class Narrator {
         break;
       case 'penTaker': this.say('penTaker', { A: this.nm(d.a, true) }, { prio: 1, side: d.side }); break;
       case 'card':
+        if (d.dive && !d.red) { this.say('diveYellow', { A: this.nm(d.a, true) }, { prio: 1, side: d.a.side, ic: '🟨' }); break; }
         this.say(d.red ? (d.second ? 'secondYellow' : 'red') : 'yellow', { D: this.nm(d.a, true) }, { prio: 1, side: d.a.side, ic: d.red ? '🟥' : '🟨' });
         break;
       case 'offside': this.say('offside', { A: this.nm(d.a) }, { prio: 2, side: d.a.side, ic: '🚩' }); break;

@@ -163,11 +163,19 @@ const SECTIONS = [
   { id: 'tactics', ic: '🧠', t: 'Taktyka', b: () => `
     <ul>
       <li><b>Formacja.</b> Dobierz ją do zawodników, których masz. Lepiej mieć silnych zawodników na swoich pozycjach niż modną formację.</li>
-      <li><b>Styl gry.</b> Ofensywny daje więcej okazji, ale zostawia miejsce rywalowi. Defensywny odwrotnie.</li>
-      <li><b>Pressing.</b> Wysoki odbiera piłkę wyżej, ale szybko męczy. Niski oszczędza siły.</li>
-      <li><b>Gra na czas.</b> Pomaga dowieźć prowadzenie, ale zmniejsza liczbę Twoich akcji.</li>
-      <li><b>Pułapki ofsajdowe.</b> Więcej spalonych rywala, ale gdy się nie uda, rywal wychodzi sam na sam.</li>
-      <li><b>Polecenia indywidualne.</b> Jak często strzelać, dryblować, jakie podania grać i jak ostro odbierać. Ostry odbiór to więcej kartek.</li>
+      <li><b>Styl gry.</b> Ofensywny: więcej zawodników w ataku, więcej strzałów i dośrodkowań, ale obrońcy grają słabiej i rywal ma groźniejsze kontry. Defensywny: drużyna cofa się i gra bezpośrednio długimi piłkami, mniej traci, mniej strzela, częściej remisuje. Dobry dla słabszej drużyny.</li>
+      <li><b>Pressing.</b> Wysoki: drużyna doskakuje do rywala na jego połowie i odcina mu podania, ale męczy się dużo szybciej i zostawia miejsce za plecami. Niski: zwarty blok przed polem karnym, mniej zmęczenia, groźniejsze kontry, ale rywal dłużej trzyma piłkę.</li>
+      <li><b>Gra na czas.</b> Drużyna wolniej rozgrywa, rzadziej drybluje i strzela. Pomaga dowieźć prowadzenie, ale oddaje inicjatywę rywalowi.</li>
+      <li><b>Pułapki ofsajdowe.</b> Linia obrony wychodzi wyżej, więc rywal częściej jest na spalonym. Gdy pułapka się nie uda, rywal wychodzi sam na sam.</li>
+      <li><b>Tłok w polu karnym.</b> Im więcej Twoich obrońców w szesnastce, tym trudniej rywalowi o czysty strzał.</li>
+      <li><b>Polecenia indywidualne.</b>
+        <ul>
+          <li><b>Strzały:</b> nigdy oznacza, że zawodnik szuka podania zamiast strzału z daleka. Często, że strzela przy każdej okazji.</li>
+          <li><b>Drybling:</b> częściej próbuje minąć rywala. Więcej szans, ale i strat.</li>
+          <li><b>Podania krótkie:</b> cierpliwe granie po ziemi, więcej posiadania piłki i więcej podań. <b>Długie:</b> szybko górą do przodu, mniej posiadania, więcej szybkich akcji.</li>
+          <li><b>Odbiór ostry:</b> więcej odbiorów, ale też dużo więcej fauli i żółtych kartek.</li>
+          <li><b>Symulowanie fauli:</b> po stracie piłki pod bramką rywala zawodnik czasem się przewraca. Sędzia może podyktować faul, nawet karny, albo ukarać go żółtą kartką.</li>
+        </ul></li>
       <li><b>Stałe fragmenty.</b> Wybierz wykonawców: do rożnych zawodnika z dobrymi Rzutami rożnymi, do karnych z Rzutami karnymi i Opanowaniem. W pole karne wysyłaj wysokich z dobrą Grą głową.</li>
     </ul>
     <div class="tip">Przed meczem czytaj Raport asystenta. Podpowiada, kto jest zmęczony, kto gra poza pozycją i jakie słabości ma rywal.</div>` },
