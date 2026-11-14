@@ -19,7 +19,10 @@ function initBack() {
     });
     return;
   }
-  // przeglądarka / PWA: przechwycenie przycisku „wstecz”
+  // przeglądarka / PWA: przechwycenie przycisku „wstecz” (nie w osadzonej ramce)
+  let embedded = false;
+  try { embedded = window.self !== window.top; } catch (e) { embedded = true; }
+  if (embedded) return;
   try {
     history.pushState({ guard: 1 }, '');
     window.addEventListener('popstate', () => {
