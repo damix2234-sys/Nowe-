@@ -119,6 +119,7 @@ screen('settings', {
     const s = getSettings();
     const sw = (k, label, desc) => `<div class="switch" data-a="set.toggle" data-k="${k}"><div><b>${label}</b><div class="small muted">${desc}</div></div><span class="sw ${s[k] ? 'on' : ''}"></span></div>`;
     const body = `<div class="card"><div class="card-h"><h3>Mecz</h3></div><div class="field"><span>Domyślna prędkość relacji</span><div class="opt">${['½×', '1×', '2×', '4×'].map((l, i) => `<button class="${s.speed === i ? 'on' : ''}" data-a="set.speed" data-k="${i}">${l}</button>`).join('')}</div></div>
+      ${sw('sound', 'Dźwięki meczu', 'Gwizdek sędziego i reakcje kibiców.')}
       ${sw('vibrate', 'Wibracje', 'Krótka wibracja przy golu.')}</div>
       <div class="card"><div class="card-h"><h3>Gra</h3></div>${sw('autosave', 'Autozapis', 'Zapis automatyczny przed meczami i po wydarzeniach.')}</div>
       <div class="card"><button class="btn ghost block" data-a="go" data-k="about">${icon('info')} O grze</button></div>`;

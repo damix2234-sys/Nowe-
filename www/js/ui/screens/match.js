@@ -8,6 +8,7 @@ import { fixtureStage } from '../../engine/comps.js';
 import { getSettings, setSettings } from '../../core/storage.js';
 import { fmtDateLong } from '../../core/util.js';
 import { nextEvent } from '../flow.js';
+import { whistle, crowd, ambience, unlockAudio, soundOn, setSound } from '../sound.js';
 
 const SPEEDS = [{ min: 1300, line: 1000, label: '½×' }, { min: 600, line: 520, label: '1×' }, { min: 200, line: 240, label: '2×' }, { min: 45, line: 70, label: '4×' }];
 
@@ -22,6 +23,7 @@ let tab = 'feed';
 let finished = false;
 let lastInfo = null;
 let subSel = { out: null, in: null };
+let shownGoals = [];
 
 export function setLastInfo(i) { lastInfo = i; }
 
@@ -49,6 +51,7 @@ screen('match', {
       tab = 'feed';
       speed = getSettings().speed ?? 1;
       playing = true;
+      shownGoals = [];
     }
     const c = G.comps[f.comp];
     const [H, A] = M.sides;
@@ -60,6 +63,7 @@ screen('match', {
           <div><div class="sc" id="mt-sc">${shown.score[0]}:${shown.score[1]}</div><div class="min ${playing && !finished ? 'live' : ''}" id="mt-min">${shown.min}</div><div id="mt-pens"></div></div>
           <div class="tm">${flag(f.a)}<span class="tn">${esc(A.name)}</span></div>
         </div>
+        <div class="scorers" id="mt-scorers"></div>
         <div class="mom" id="mt-mom" style="--p:50%"></div>
         <div class="strip"><div class="ballpos" id="mt-ball" style="left:50%"></div></div>
       </div>
@@ -74,15 +78,15 @@ screen('match', {
       <div id="mt-banner"></div>
       <div class="mt">${seg('mt.tab', [['feed', 'Relacja'], ['lineups', 'Składy'], ['stats', 'Statystyki']], tab)}</div>
       <div class="card" id="mt-tabbody"></div>`;
-    return { title: `${H.name} – ${A.name}`, sub: c ? c.short : '', back: false, body, cls: 'nofoot' };
+    return { title: `${H.name} – ${A.name}`, sub: c ? c.short : '', back: false, body, cls: 'nofoot', right: `<button class="iconbtn" id="mt-snd" data-a="mt.sound" aria-label="Dźwięk">${icon(soundOn() ? 'volume' : 'mute')}</button>` };
   },
   mount() {
     updateDyn();
     renderTab();
     if (finished) showFinishBanner();
-    else if (playing) schedule(400);
+    else if (playing) { ambience(true); schedule(400); }
   },
-  unmount() { clearTimeout(timer); timer = null; },
+  unmount() { clearTimeout(timer); timer = null; ambience(false); },
   onBack() {
     if (!M) return false;
     pause();
@@ -107,6 +111,12 @@ function updateDyn() {
   const sp = $('mt-speed'); if (sp) sp.innerHTML = `${icon('ff')}<span>${SPEEDS[speed].label}</span>`;
   const pens = $('mt-pens');
   if (pens && M.pens) pens.innerHTML = `<div class="small muted">karne ${M.pens[0]}:${M.pens[1]}</div>`;
+  const scr = $('mt-scorers');
+  if (scr) {
+    const nameOf = (pid) => { const p = M.sides[0].spec.players[pid] || M.sides[1].spec.players[pid]; return p ? p.ln : '?'; };
+    const col = (side) => shownGoals.filter((g) => g.side === side).map((g) => `${esc(nameOf(g.pid))} ${g.min}${g.og ? ' (sam.)' : ''}`).join('<br>');
+    scr.innerHTML = shownGoals.length ? `<div>${col(0)}</div><div style="text-align:right">${col(1)}</div>` : '';
+  }
 }
 
 const EV_ICON = { goal: '⚽', card: '🟨', pen: '🎯', sub: '🔁', inj: '✚', whistle: '📣', chance: '•', play: '', quiet: '', info: 'ℹ', pens: '🥅' };
@@ -199,10 +209,22 @@ function flushQueue() {
   while (queue.length) showLine(queue.shift(), true);
 }
 
+function lineSound(q, isGoal) {
+  const e = q.ev;
+  const first = e.lines[0] === q.text;
+  if (isGoal) { crowd(e.side === us() ? 'goal' : 'groan', 1); return; }
+  if (e.kind === 'whistle' && first) { whistle(e.ft ? 'end' : e.ht ? 'double' : 'short'); return; }
+  if (e.kind === 'pen' && first) { whistle('long'); return; }
+  if (/żółt|Żółt|czerwień|Czerwona/.test(q.text)) { whistle('short'); return; }
+  if (/^(Słupek|Poprzeczka|W słupek|Pudło|Niewiarygodne|Fatalnie)/.test(q.text)) crowd('ooh', 0.8);
+}
+
 function showLine(q, silent = false) {
   shown.min = q.ev.min;
   const isGoal = q.ev.kind === 'goal' && /^(GO+L|GOL|Jest gol|Samobój)/.test(q.text);
   if (q.last || isGoal) shown.score = q.ev.score.slice();
+  if (isGoal && !shownGoals.includes(q.ev)) shownGoals.push(q.ev);
+  if (!silent) lineSound(q, isGoal);
   const ln = $('mt-line');
   const bub = $('mt-bubble');
   if (ln) ln.textContent = q.text;
@@ -218,6 +240,7 @@ function pause() {
   playing = false;
   clearTimeout(timer);
   timer = null;
+  ambience(false);
   updateDyn();
 }
 
@@ -226,6 +249,7 @@ function resume() {
   const b = $('mt-banner');
   if (b) b.innerHTML = '';
   playing = true;
+  ambience(true);
   updateDyn();
   schedule(200);
 }
@@ -240,7 +264,9 @@ function showBreakBanner(e) {
 function finishMatch() {
   finished = true;
   playing = false;
+  ambience(false);
   shown.score = [M.sides[0].goals, M.sides[1].goals];
+  shownGoals = M.events.filter((e) => e.kind === 'goal');
   updateDyn();
   renderTab();
   showFinishBanner();
@@ -307,6 +333,13 @@ function tacticsHTML() {
 
 actions({
   'mt.play': () => { if (finished) return; if (playing) pause(); else { closeOverlayIfAny(); resume(); } },
+  'mt.sound': () => {
+    setSound(!soundOn());
+    const b = $('mt-snd');
+    if (b) b.innerHTML = icon(soundOn() ? 'volume' : 'mute');
+    if (soundOn()) { unlockAudio(); if (playing) ambience(true); }
+    toast(soundOn() ? 'Dźwięk włączony' : 'Dźwięk wyłączony');
+  },
   'mt.speed': () => {
     speed = (speed + 1) % SPEEDS.length;
     const s = getSettings(); s.speed = speed; setSettings(s);

@@ -1,8 +1,8 @@
 // Ekran tytułowy, nowa gra, wczytywanie, informacje o grze.
-import { screen, actions, go, reset, rerender, busy, toast, flag, natStars, esc, icon, chips, confirmBox, seg } from '../ui.js';
+import { screen, actions, go, reset, rerender, busy, toast, flag, natStars, esc, icon, chips, confirmBox, seg, modal, closeOverlay } from '../ui.js';
 import { NATIONS, NAT, CONFS, CONF_ORDER, starsFor } from '../../data/nations.js';
 import { newGame, G } from '../../engine/game.js';
-import { slotMeta, SLOTS, getEdits, deleteSlot } from '../../core/storage.js';
+import { slotMeta, SLOTS, getEdits, deleteSlot, lsGet, lsSet } from '../../core/storage.js';
 import { loadGame, autosave } from '../session.js';
 import { fmtDateLong, fmtDate } from '../../core/util.js';
 import { nextEvent } from '../flow.js';
@@ -48,6 +48,29 @@ screen('menu', {
     };
   },
 });
+
+// ---------------- samouczek ----------------
+const TUT = [
+  { t: 'Witaj, selekcjonerze!', b: 'Przejmujesz reprezentację na kilka tygodni przed pierwszym zgrupowaniem. Czas w grze płynie po naciśnięciu przycisku <b>Dalej</b> – gra sama zatrzyma się przy każdym ważnym wydarzeniu: powołaniach, meczach, konferencjach i telefonach od dziennikarzy.' },
+  { t: 'Powołania i skład', b: 'Przed każdym zgrupowaniem ogłaszasz kadrę (23 zawodników, na turniej 26). Przed meczem ustawiasz wyjściową jedenastkę – dotknij zawodnika na boisku, aby go zmienić. Pasek pod żetonem pokazuje kondycję, a <b>Raport asystenta</b> podpowie, kogo warto oszczędzać.' },
+  { t: 'Zaufanie i cele', b: 'Federacja stawia cele w każdych rozgrywkach. Wyniki, decyzje kadrowe i odpowiedzi na konferencjach wpływają na zaufanie federacji, kibiców, piłkarzy i mediów. Gdy zaufanie federacji spadnie zbyt nisko, stracisz pracę i poczekasz na oferty innych krajów.' },
+];
+const tut = { step: 0, fromAbout: false };
+export function showTutorial(fromAbout = false) {
+  tut.step = 0;
+  tut.fromAbout = fromAbout;
+  openTut();
+}
+function openTut() {
+  const s = TUT[tut.step];
+  const last = tut.step === TUT.length - 1;
+  modal({
+    title: s.t,
+    body: `<div class="qprog">${TUT.map((_, i) => `<i class="${i <= tut.step ? 'on' : ''}"></i>`).join('')}</div><p>${s.b}</p>`,
+    dismiss: false,
+    buttons: [{ label: 'Pomiń', cls: 'ghost', a: 'tut.end' }, { label: last ? 'Zaczynamy!' : 'Dalej', a: last ? 'tut.end' : 'tut.next' }],
+  });
+}
 
 // ---------------- nowa gra ----------------
 const ng = { conf: 'EU', nat: 'POL', name: '', db: 'edited', diff: 1 };
@@ -115,6 +138,7 @@ screen('about', {
       <div class="card"><p>Wciel się w selekcjonera reprezentacji narodowej. Powołuj zawodników, ustalaj taktykę i trening, prowadź drużynę w Lidze Narodów, eliminacjach i turniejach finałowych. Dbaj o zaufanie federacji, kibiców, piłkarzy i mediów.</p>
       <p class="small muted">Wszyscy zawodnicy, kluby i dziennikarze są fikcyjni – nazwiska generowane są losowo. W edytorze możesz zmienić dane zawodników według własnego uznania.</p></div>
       <div class="card"><div class="card-h"><h3>Jak grać</h3></div>
+      <button class="btn ghost small mb" data-a="menu.tutorial">${icon('help')} Pokaż samouczek</button>
       <p class="small">• Przycisk <b>Dalej</b> przesuwa czas do kolejnego ważnego wydarzenia.<br>• Przed każdym zgrupowaniem ogłaszasz powołania (23 zawodników, na turniej 26).<br>• Przed meczem ustaw wyjściową jedenastkę i polecenia. Mecz możesz oglądać na żywo i reagować zmianami.<br>• Odpowiedzi na konferencjach wpływają na zaufanie mediów, kibiców, piłkarzy i federacji.<br>• Zbyt niskie zaufanie federacji kończy się zwolnieniem – wtedy czekasz na oferty innych krajów.</p></div>`,
     };
   },
@@ -122,6 +146,13 @@ screen('about', {
 
 actions({
   'menu.new': () => go('newgame'),
+  'menu.tutorial': () => showTutorial(true),
+  'tut.next': () => { closeOverlay(); tut.step++; setTimeout(openTut, 160); },
+  'tut.end': () => {
+    closeOverlay();
+    lsSet('tutorial', true);
+    if (!tut.fromAbout) nextEvent();
+  },
   'menu.load': () => { metas = null; go('load'); },
   'menu.editor': () => go('editor'),
   'menu.ach': () => go('achievements'),
@@ -159,7 +190,8 @@ actions({
       metas = null;
       autosave(true);
       reset('home');
-      nextEvent();
+      if (!lsGet('tutorial', false)) showTutorial();
+      else nextEvent();
     }, 40);
   },
   'load.slot': async (d) => {

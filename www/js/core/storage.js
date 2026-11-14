@@ -85,7 +85,7 @@ export function lsSet(key, val) {
   try { localStorage.setItem(LS_PREFIX + key, JSON.stringify(val)); return true; } catch (e) { return false; }
 }
 
-export const DEFAULT_SETTINGS = { speed: 1, autosave: true, vibrate: true, prePress: true, confirmAdvance: false };
+export const DEFAULT_SETTINGS = { speed: 1, autosave: true, vibrate: true, sound: true, prePress: true, confirmAdvance: false };
 export function getSettings() { return { ...DEFAULT_SETTINGS, ...lsGet('settings', {}) }; }
 export function setSettings(s) { lsSet('settings', s); }
 

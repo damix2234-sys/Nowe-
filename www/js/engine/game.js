@@ -727,6 +727,16 @@ export function confirmCallup(ev, ids) {
   }
   const omitted = top.filter((p) => !ids.includes(p.id));
   trustChange({ pl: -Math.min(4, pain), fans: omitted.length ? -2 * omitted.length : 0.5, media: omitted.length ? -1 : 0 });
+  for (const p of omitted) {
+    if (p.caps < 15 || !chance(0.55)) continue;
+    const quote = pick([
+      '„Nie rozumiem tej decyzji. W klubie daję z siebie wszystko.”',
+      '„Jestem rozczarowany. Nikt ze sztabu nawet do mnie nie zadzwonił.”',
+      '„Szanuję decyzję selekcjonera, ale uważam, że zasłużyłem na powołanie.”',
+    ]);
+    msg('press', `${fullName(p)} rozczarowany brakiem powołania`, `${fullName(p)} w rozmowie z dziennikarzami nie ukrywał rozczarowania: ${quote}\n\nMedia szeroko komentują decyzję selekcjonera.`);
+    trustChange({ fans: -1, media: -1 });
+  }
   t.prevSquad = ids.slice();
   if (ev) { t.callup = ev.win; removeEvent(ev); }
   ensureLineup();
@@ -1307,6 +1317,21 @@ function midYear(y) {
       keep.push(pid);
     }
     nat.pool = keep;
+    // zakończenia karier reprezentacyjnych (doświadczeni kadrowicze po trzydziestce)
+    const ntRet = [];
+    nat.pool = nat.pool.filter((pid) => {
+      const p = G.players[pid];
+      if (!p || p.age < 33 || p.caps < 30) return true;
+      if (Math.random() < 0.12 + (p.age - 33) * 0.08) {
+        ntRet.push(p);
+        return false;
+      }
+      return true;
+    });
+    for (const p of ntRet) {
+      if (n.id === m) msg('press', `${fullName(p)} kończy karierę w kadrze`, `${fullName(p)} ogłosił zakończenie kariery reprezentacyjnej. Bilans: ${p.caps} ${plural(p.caps, 'mecz', 'mecze', 'meczów')} i ${p.goals} ${plural(p.goals, 'gol', 'gole', 'goli')} w narodowych barwach. Dziękujemy!`);
+      delete G.players[p.id];
+    }
     const add = Math.max(4, 36 - nat.pool.length);
     for (let i = 0; i < Math.min(add, 9); i++) {
       const p = makeYouth(G, n.id, Math.random, rint(16, 18));
@@ -1363,6 +1388,16 @@ function midYear(y) {
 // =====================================================================
 // POMOCNICZE DLA UI
 // =====================================================================
+/** Przewidywana jedenastka rywala (bez zmiany stanu gry). */
+export function predictLineup(nid) {
+  const nat = G.nats[nid];
+  const ids = nat.squad && nat.squad.length ? nat.squad : pickSquad(poolOf(nid), 23);
+  const squad = ids.map((id) => G.players[id]).filter(Boolean);
+  const opp = me();
+  const tac = opp && opp !== nid ? aiTactics(nat.tac, strengthOf(nid), strengthOf(opp)) : { ...nat.tac };
+  return { f: tac.f, tac, lineup: autoLineup(squad, tac.f) };
+}
+
 export function compsOf(nid) {
   return G.compOrder.map((id) => G.comps[id]).filter((c) => c && (c.groups || []).some((g) => g.teams.includes(nid)) || (c && c.type === 'FRI' && G.fixtures.some((f) => f.comp === c.id && (f.h === nid || f.a === nid))));
 }

@@ -1,6 +1,8 @@
 // Rozgrywki, przeciwnicy, ranking, mecze towarzyskie.
 import { screen, actions, go, rerender, esc, icon, posBadge, rating, flag, team, seg, chips, resChip, toast, sheet, closeOverlay, natStars, empty, confirmBox } from '../ui.js';
-import { G, me, natName, poolOf, topScorers, friendlySlots, friendlyCandidates, requestFriendly, cancelFriendly, userFixtures } from '../../engine/game.js';
+import { G, me, natName, poolOf, topScorers, friendlySlots, friendlyCandidates, requestFriendly, cancelFriendly, userFixtures, predictLineup } from '../../engine/game.js';
+import { pitchHTML } from './tactics.js';
+import { STYLE_NAMES } from '../../engine/tactics.js';
 import { NAT, CONFS, CONF_ORDER } from '../../data/nations.js';
 import { standings, fixtureStage, fxById, koWinner, WINDOW_NAMES } from '../../engine/comps.js';
 import { rankPositions, rankedIds } from '../../engine/ranking.js';
@@ -97,7 +99,7 @@ screen('comp', {
 });
 
 // ---------------- przeciwnicy ----------------
-function scoutTips(nid) {
+export function scoutTips(nid) {
   const squad = (G.nats[nid].squad && G.nats[nid].squad.length ? G.nats[nid].squad : G.nats[nid].pool).map((id) => G.players[id]).filter(Boolean);
   const best = squad.slice().sort((a, b) => ovr(b) - ovr(a)).slice(0, 14);
   if (!best.length) return [];
@@ -139,9 +141,11 @@ screen('opponent', {
     const h2h = G.history.filter((h) => h.opp === nid).slice(-6).reverse();
     const coach = nat.coach ? fullName(nat.coach) : 'Ty';
     const recent = G.fixtures.filter((f) => f.res && (f.h === nid || f.a === nid)).sort((a, b) => b.d - a.d).slice(0, 5);
+    const pred = nid !== me() ? predictLineup(nid) : null;
     const body = `<div class="card"><div class="pl-head"><span class="flag" style="font-size:54px">${n.flag}</span><div class="grow"><div class="big">${esc(n.name)}</div><div class="muted small">${CONFS[n.conf].name} · ${pos}. w rankingu (${Math.round(G.rank[nid])} pkt)</div><div>${natStars(nid)}</div></div></div></div>
       <div class="facts mb"><div class="fact"><div class="k">Selekcjoner</div><div class="v">${esc(coach)}</div></div><div class="fact"><div class="k">Ustawienie</div><div class="v">${nat.tac.f}</div></div></div>
       <div class="card"><div class="card-h"><h3>Raport asystenta</h3></div>${scoutTips(nid).map((t) => `<p class="small">• ${esc(t)}</p>`).join('')}</div>
+      ${pred ? `<div class="card-h"><h3>Przewidywany skład</h3><span class="small muted">${pred.f} · ${STYLE_NAMES[pred.tac.style]}</span></div>${pitchHTML(pred.lineup, pred.f, {}, 'pl.open')}` : ''}
       <div class="card"><div class="card-h"><h3>Ostatnie mecze</h3></div>${recent.length ? recent.map(fxRow).join('') : '<div class="small muted">Brak danych.</div>'}</div>
       <div class="card"><div class="card-h"><h3>Najlepsi zawodnicy</h3></div><div class="list">${top.map((p) => `<div class="row tap" data-a="pl.open" data-k="${p.id}">${posBadge(p.pos)}<div class="main"><div class="t1">${esc(fullName(p))}</div><div class="t2">${p.age} l. · ${esc(G.clubs[p.club]?.n || '')}</div></div>${rating(ovr(p))}</div>`).join('')}</div></div>
       ${h2h.length ? `<div class="card"><div class="card-h"><h3>Bilans bezpośredni</h3></div>${h2h.map((h) => `<div class="row"><span class="tag">${fmtDate(h.d)}</span><div class="main"><div class="t1">${esc(h.cs)} · ${h.home ? 'dom' : 'wyjazd'}</div></div><b>${h.gf}:${h.ga}</b>${resChip(h.res)}</div>`).join('')}</div>` : ''}`;

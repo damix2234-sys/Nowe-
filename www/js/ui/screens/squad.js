@@ -1,5 +1,5 @@
 // Kadra, powołania, U-21, profil zawodnika, rozmowy.
-import { screen, actions, go, rerender, esc, icon, posBadge, rating, formIcon, chips, seg, toast, sheet, closeOverlay, modal, bar, attrVal, av, flag, stars, empty } from '../ui.js';
+import { screen, actions, go, rerender, esc, icon, posBadge, rating, formIcon, chips, seg, toast, sheet, closeOverlay, modal, bar, attrVal, av, flag, stars, empty, current } from '../ui.js';
 import { G, me, poolOf, natName, confirmCallup, talkTo, windowAt, trustChange, removeEvent } from '../../engine/game.js';
 import { ovr, ovrI, ATTRS, ATTR_NAMES, POS_NAMES, POS_GROUP, POS_ORDER, value, CLUB_STATUS, FORM_NAMES } from '../../engine/player.js';
 import { fullName } from '../../data/names.js';
@@ -9,7 +9,12 @@ import { pickSquad } from '../../engine/tactics.js';
 import { fmtMoney, fmtDate, clamp, plural } from '../../core/util.js';
 import { squadValid, nextEvent } from '../flow.js';
 
-const st = { sort: 'pos', grp: 'all', draft: null, mode: null };
+const st = { sort: 'pos', grp: 'all', draft: null, mode: null, q: '' };
+const norm = (s) => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ł/g, 'l');
+function matchQ(p) {
+  if (!st.q) return true;
+  return norm(fullName(p)).includes(norm(st.q.trim()));
+}
 let lastList = [];
 
 export function squadLimit() {
@@ -63,12 +68,7 @@ screen('squad', {
     const pool = poolOf(me());
     const called = pool.filter((p) => sel.has(p.id));
     const gk = called.filter((p) => p.pos === 'GK').length;
-    let list;
-    if (tab === 'called') list = sortPlayers(filterGrp(called));
-    else list = sortPlayers(filterGrp(pool));
-    lastList = list.map((p) => p.id);
-    const toggle = mode === 'callup' ? 'sq.toggleDraft' : 'sq.toggle';
-    const rows = list.map((p) => playerRow(p, { toggle, on: sel.has(p.id), cls: tab === 'all' && sel.has(p.id) ? 'me' : '' })).join('');
+    const rows = squadRows(mode, tab, sel, pool, called);
     const grpCount = (g) => called.filter((p) => POS_GROUP[p.pos] === g).length;
     const summary = `<div class="row-flex wrap small muted mb">
       <span class="tag ${called.length > limit ? 'red' : 'acc'}">${called.length}/${limit}</span>
@@ -81,13 +81,23 @@ screen('squad', {
       title: mode === 'callup' ? 'Powołania' : 'Kadra', sub: `${natName(me())} · limit ${limit}`,
       cls: mode === 'callup' ? '' : 'nofoot',
       body: `${seg('sq.tab', [['called', `Powołani (${called.length})`], ['all', `Wszyscy (${pool.length})`]], tab, { mode })}
-        ${summary}${controls()}
-        <div class="card tight"><div class="list">${rows || empty('Brak zawodników.')}</div></div>
+        ${summary}
+        <input class="input mb" id="sq-search" type="search" data-input="sq.search" placeholder="Szukaj zawodnika…" value="${esc(st.q)}" autocomplete="off">
+        ${controls()}
+        <div class="card tight"><div class="list" id="sq-list">${rows}</div></div>
         ${mode !== 'callup' ? `<p class="small muted center">Zmiany w kadrze obowiązują od razu. Przed każdym zgrupowaniem dostaniesz przypomnienie o powołaniach.</p>` : ''}`,
       foot,
     };
   },
 });
+
+function squadRows(mode, tab, sel, pool, called) {
+  const base = tab === 'called' ? called : pool;
+  const list = sortPlayers(filterGrp(base)).filter(matchQ);
+  lastList = list.map((p) => p.id);
+  const toggle = mode === 'callup' ? 'sq.toggleDraft' : 'sq.toggle';
+  return list.map((p) => playerRow(p, { toggle, on: sel.has(p.id), cls: tab === 'all' && sel.has(p.id) ? 'me' : '' })).join('') || empty(st.q ? 'Brak zawodników pasujących do wyszukiwania.' : 'Brak zawodników.');
+}
 
 // ---------------- U-21 ----------------
 const u = { tab: 'squad' };
@@ -189,6 +199,17 @@ function toggleSquad(pid) {
 actions({
   'sq.tab': (d) => go('squad', { mode: d.mode || 'normal', tab: d.k }, { replace: true }),
   'sq.grp': (d) => { st.grp = d.k; rerender(); },
+  'sq.search': (d, el) => {
+    st.q = el.value;
+    const cur = current();
+    const params = (cur && cur.params) || {};
+    const mode = params.mode || 'normal';
+    const tab = params.tab || 'called';
+    const sel = mode === 'callup' ? st.draft : new Set(G.team.squad);
+    const pool = poolOf(me());
+    const listEl = document.getElementById('sq-list');
+    if (listEl) listEl.innerHTML = squadRows(mode, tab, sel, pool, pool.filter((p) => sel.has(p.id)));
+  },
   'sq.sort': (d) => { st.sort = d.k; rerender(); },
   'sq.toggle': (d) => { toggleSquad(+d.k); rerender(); },
   'sq.toggleDraft': (d) => {

@@ -8,6 +8,8 @@ import { fixtureStage } from '../../engine/comps.js';
 import { rankPositions } from '../../engine/ranking.js';
 import { fmtDateLong } from '../../core/util.js';
 import { setLastList } from './squad.js';
+import { unlockAudio } from '../sound.js';
+import { scoutTips } from './world.js';
 
 const PITCH_SVG = `<svg class="lines" viewBox="0 0 68 96" preserveAspectRatio="none" fill="none" stroke="rgba(255,255,255,.33)" stroke-width=".45">
 <rect x="2" y="2" width="64" height="92" rx="1"/><line x1="2" y1="48" x2="66" y2="48"/><circle cx="34" cy="48" r="7"/>
@@ -24,10 +26,13 @@ export function pitchHTML(lineup, formation, sp = {}, action = 'tac.slot') {
     const p = pid != null ? G.players[pid] : null;
     const top = 4 + (100 - y) * 0.9;
     const style = `left:${x}%;top:${top}%`;
-    if (!p) return `<button class="tok empty" style="${style}" data-a="${action}" data-k="${i}"><span class="dot">+</span><span class="nm">${pos}</span></button>`;
+    if (!p) return action === 'pl.open' ? '' : `<button class="tok empty" style="${style}" data-a="${action}" data-k="${i}"><span class="dot">+</span><span class="nm">${pos}</span></button>`;
     const fit = familiarity(p, pos);
     const cls = fit >= 0.95 ? '' : fit >= 0.85 ? 'fit-ok' : 'fit-bad';
-    return `<button class="tok ${cls}" style="${style}" data-a="${action}" data-k="${i}"><span class="dot">${Math.round(slotRating(p, pos))}</span><span class="nm">${esc(label(p))}</span><span class="ps">${pos}${p.inj || p.susp ? ' ⚠' : ''}</span>${sp.cap === pid ? '<span class="cap">C</span>' : ''}</button>`;
+    const key = action === 'pl.open' ? pid : i;
+    const cnd = Math.round(p.cond);
+    const cc = cnd >= 88 ? '' : cnd >= 75 ? 'md' : 'lo';
+    return `<button class="tok ${cls}" style="${style}" data-a="${action}" data-k="${key}"><span class="dot">${Math.round(slotRating(p, pos))}</span><span class="nm">${esc(label(p))}</span><span class="cnd ${cc}" title="Kondycja ${cnd}%"><i style="width:${cnd}%"></i></span><span class="ps">${pos}${p.inj || p.susp ? ' ⚠' : ''}</span>${sp && sp.cap === pid ? '<span class="cap">C</span>' : ''}</button>`;
   });
   return `<div class="pitch">${PITCH_SVG}${toks.join('')}</div>`;
 }
@@ -120,6 +125,31 @@ screen('tactics', {
 });
 
 // ---------------- ekran przedmeczowy ----------------
+/** Uwagi asystenta przed meczem: zmęczenie, pozycje, kartki, rywal. */
+export function assistantReport(f, opp) {
+  const t = G.team;
+  const fm = FORMATIONS[t.tac.f];
+  const c = G.comps[f.comp];
+  const notes = [];
+  const starters = (t.lineup || []).map((id, i) => ({ p: G.players[id], pos: fm[i][0] })).filter((x) => x.p);
+  const tired = starters.filter((x) => x.p.cond < 85).sort((a, b) => a.p.cond - b.p.cond);
+  if (tired.length) notes.push(`🔋 Zmęczeni po ostatnich meczach: ${tired.slice(0, 4).map((x) => `${esc(x.p.ln)} (${Math.round(x.p.cond)}%)`).join(', ')}. Warto rozważyć rotację.`);
+  const off = starters.filter((x) => familiarity(x.p, x.pos) < 0.85);
+  if (off.length) notes.push(`📍 Poza nominalną pozycją: ${off.map((x) => `${esc(x.p.ln)} (${x.p.pos} → ${x.pos})`).join(', ')}.`);
+  if (c && c.type !== 'FRI') {
+    const risk = starters.filter((x) => x.p.ycc === 1);
+    if (risk.length) notes.push(`🟨 Zagrożeni pauzą (jeszcze jedna żółta kartka): ${risk.map((x) => esc(x.p.ln)).join(', ')}.`);
+  }
+  const lowMor = starters.filter((x) => x.p.mor < 35);
+  if (lowMor.length) notes.push(`😟 Niskie morale: ${lowMor.map((x) => esc(x.p.ln)).join(', ')} – może pomóc rozmowa.`);
+  const bench = (t.bench || []).map((id) => G.players[id]).filter(Boolean);
+  const betterOnBench = starters.filter((x) => bench.some((b) => b.pos === x.pos && slotRating(b, x.pos) > slotRating(x.p, x.pos) + 4 && b.cond >= 85));
+  if (betterOnBench.length) notes.push(`🔁 Na ławce są mocniejsi zawodnicy na pozycjach: ${[...new Set(betterOnBench.map((x) => x.pos))].join(', ')}.`);
+  const tips = scoutTips(opp);
+  if (tips.length) notes.push(`🔎 ${esc(tips[0])}`);
+  return notes;
+}
+
 export function oppInfo(nid) {
   const pos = rankPositions(G)[nid];
   const form = G.nats[nid].form.slice(-5);
@@ -149,6 +179,7 @@ screen('prematch', {
         <div class="small muted mt">Kluczowi zawodnicy: ${oi.top.map((p) => `${esc(fullName(p))} (${p.pos}, ${Math.round(ovr(p))})`).join(', ')}</div>
       </div>
       ${warn}
+      <div class="card"><div class="card-h"><h3>Raport asystenta</h3><button class="link" data-a="tac.oppDetails" data-k="${opp}">Skład rywala ›</button></div>${assistantReport(f, opp).map((n) => `<p class="small">${n}</p>`).join('') || '<p class="small muted">Wszystko gotowe – zespół jest w dobrej dyspozycji.</p>'}</div>
       <div class="card-h"><h3>Wyjściowa jedenastka</h3><button class="link" data-a="go" data-k="tactics">Taktyka ›</button></div>
       ${formationChips(t.tac.f)}
       ${pitchHTML(t.lineup, t.tac.f, t.sp)}
@@ -247,6 +278,7 @@ actions({
   'pm.live': (d) => {
     ensureLineup();
     if ((G.team.lineup || []).some((x) => x == null)) { toast('Uzupełnij wyjściową jedenastkę.', 'bad'); return; }
+    unlockAudio();
     go('match', { fx: +d.k }, { replace: true });
   },
   'pm.quick': async (d) => {

@@ -16,6 +16,9 @@ await page.waitForSelector('.title-screen');
 await click('[data-a="menu.new"]');
 await click('[data-a="ng.start"]');
 await page.waitForSelector('.dash-head');
+if (await page.locator('.ov.show [data-a="tut.end"]').count()) await click('.ov.show [data-a="tut.end"]');
+await page.waitForTimeout(300);
+while (await page.locator('.ov.show .m-actions .btn').count()) { const b = page.locator('.ov.show .m-actions .btn'); await b.nth((await b.count()) - 1).click(); await page.waitForTimeout(250); }
 // wymuszone zwolnienie
 await page.evaluate(async () => {
   const g = await import('./js/engine/game.js');
