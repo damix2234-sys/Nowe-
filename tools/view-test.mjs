@@ -57,7 +57,9 @@ for (let k = 0; k < N; k++) {
       const p = prev.get(ag);
       if (p && !restart && ag.state !== 'gone') {
         const d = Math.hypot(ag.x - p.x, ag.y - p.y);
-        if (d > 14 * dt + 0.6) fails.push(`${h}-${a} ${M.minLabel()}: teleport zawodnika ${ag.ln} o ${d.toFixed(1)} m`);
+        // najszybsi biegają ok. 9–10 m/s; wślizg i parada są chwilowo szybsze
+        const vmax = ag.state === 'slide' || ag.state === 'dive' || (ag.gk && M.shot) ? 16 : 11.5;
+        if (d > vmax * dt + 0.5) fails.push(`${h}-${a} ${M.minLabel()}: ${d > 14 * dt + 0.6 ? 'teleport' : 'nienaturalnie szybki ruch'} zawodnika ${ag.ln} o ${d.toFixed(1)} m (${ag.state})`);
       }
       prev.set(ag, { x: ag.x, y: ag.y });
       if (ag.state !== 'gone' && ag.state !== 'off' && (ag.x < -8 || ag.x > PW + 8 || ag.y < -8 || ag.y > PL + 8)) fails.push(`${h}-${a}: ${ag.ln} daleko poza boiskiem (${ag.x.toFixed(0)},${ag.y.toFixed(0)})`);

@@ -708,7 +708,9 @@ export class LiveMatch extends Match {
     if (a.state === 'down') { a.vx *= 0.85; a.vy *= 0.85; a.x += a.vx * h; a.y += a.vy * h; return; }
     const tg = this.targetOf(a);
     const dx = tg.x - a.x, dy = tg.y - a.y, d = hyp(dx, dy);
-    const g = a.gSpd || 1;
+    // ustawianie się do stałych fragmentów: najwyżej trochę szybciej niż zwykle (bez nadludzkiego biegu);
+    // bramkarz może rzucić się szybciej tylko przy obronie strzału i w serii rzutów karnych
+    const g = Math.min(a.gSpd || 1, a.gk && (this.shot || this.phase === 'PEN') ? 2.4 : 1.15);
     let top = this.topSpeed(a) * g;
     let u = tg.u;
     if ((this.phase === 'BREAK' || (this.dead && this.dead.type === 'goal')) && !a.goal) { top *= 0.5; u = Math.min(u, 0.4); }
