@@ -13,6 +13,8 @@ export const SEASON_WEEKS = 30;
 export const INTL_WEEKS = [3, 7, 11, 19, 25];
 export const CUP_WEEKS = [5, 10, 16, 23];
 export const WINTER_WINDOW = 14;
+export const EURO_WEEKS = [2, 4, 6, 9, 13, 15, 18, 21];
+export const EURO_NAMES = { ucl: 'Liga Mistrzów', usl: 'Super Liga' };
 const MONTHS = ['sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień', 'styczeń', 'luty', 'marzec', 'kwiecień', 'maj'];
 const sig = (x) => 1 / (1 + Math.exp(-x));
 const fname = (p) => `${p.fn} ${p.ln}`;
@@ -77,8 +79,27 @@ function roundRobin(ids, r) {
   return [...rounds, ...rounds.map((rd) => rd.map((m) => ({ h: m.a, a: m.h, r: null })))];
 }
 
+/** Liga Mistrzów (miejsca 1–3 w lidze) i Super Liga (miejsca 4–8): faza ligowa, każdy gra 8 meczów z różnymi rywalami. */
+function mkEuro(name, teams, r) {
+  const list = teams.slice();
+  if (list.length % 2) list.push(-1);
+  const fx = roundRobin(list, r).slice(0, EURO_WEEKS.length).map((rd) => rd.filter((m) => m.h >= 0 && m.a >= 0));
+  return { name, teams: teams.slice(), fx, table: Object.fromEntries(teams.map((id) => [id, { p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 }])), round: 0, winner: null };
+}
+
 function newSeason(st) {
   const r = Math.random;
+  // kwalifikacja do pucharów europejskich według poprzedniego sezonu (pierwszy sezon: siła klubów)
+  const qual = { ucl: [], usl: [] };
+  for (const L of Object.values(st.leagues)) {
+    if (L.div !== 1) continue;
+    const played = L.table && Object.values(L.table).some((t) => t.p > 0);
+    const order = (played ? sortedTable(L).map((t) => t.id).filter((id) => L.teams.includes(id)) : []).concat(L.teams.slice().sort((a, b) => st.clubs[b].lv - st.clubs[a].lv));
+    const uniq = [...new Set(order)];
+    qual.ucl.push(...uniq.slice(0, 3));
+    qual.usl.push(...uniq.slice(3, 8));
+  }
+  st.euro = { ucl: mkEuro(EURO_NAMES.ucl, qual.ucl, r), usl: mkEuro(EURO_NAMES.usl, qual.usl, r) };
   for (const L of Object.values(st.leagues)) {
     L.fx = roundRobin(L.teams, r);
     L.table = Object.fromEntries(L.teams.map((id) => [id, { p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 }]));
@@ -91,7 +112,7 @@ function newSeason(st) {
   st.cup = { nat, round: 0, alive: teams.sort(() => r() - 0.5), ties: [], done: false, winner: null };
   st.week = 0;
   st.phase = 'season';
-  st.ss = { apps: 0, starts: 0, goals: 0, assists: 0, rsum: 0, mom: 0, yc: 0, rc: 0, cupApps: 0, natApps: 0, natGoals: 0, cleanSheets: 0, min: 0 };
+  st.ss = { apps: 0, starts: 0, goals: 0, assists: 0, rsum: 0, mom: 0, yc: 0, rc: 0, cupApps: 0, euroApps: 0, natApps: 0, natGoals: 0, cleanSheets: 0, min: 0 };
   st.trainedWeek = -1;
   st.tour = null;
 }
@@ -183,6 +204,13 @@ export function leagueRoundForWeek(w) {
   return rd < 22 ? rd : -1;
 }
 
+/** W którym pucharze europejskim gra klub zawodnika w tym sezonie: 'ucl', 'usl' albo null. */
+export function myEuro() {
+  if (!PC.euro) return null;
+  for (const k of ['ucl', 'usl']) if (PC.euro[k].teams.includes(PC.club)) return k;
+  return null;
+}
+
 /** Czy zawodnik jest powołany do reprezentacji (przy obecnej ocenie). */
 export function natCallup() {
   const s = NAT[PC.me.nat].str;
@@ -211,6 +239,12 @@ export function weekMatches() {
     const t = PC.tour;
     if (t && !t.done && t.next) out.push(t.next);
     return out;
+  }
+  const eu = myEuro();
+  if (eu && EURO_WEEKS.includes(w)) {
+    const i = EURO_WEEKS.indexOf(w), E = PC.euro[eu];
+    const m = E.fx[i] && E.fx[i].find((x) => x.h === PC.club || x.a === PC.club);
+    if (m) out.push({ comp: eu, title: `${E.name}, kolejka ${i + 1}`, h: m.h, a: m.a, fx: m });
   }
   if (CUP_WEEKS.includes(w) && PC.cup && !PC.cup.done) {
     const tie = cupTieFor(PC.club);
@@ -453,6 +487,7 @@ export function finishMatch(M) {
   } else M.tp = 0;
   // zapis wyniku w rozgrywkach
   if (M.comp === 'league') { const f = M.fx.fx; f.r = [hg, ag]; applyResult(myLeague(), f); }
+  if (M.comp === 'ucl' || M.comp === 'usl') { const f = M.fx.fx; f.r = [hg, ag]; applyResult(PC.euro[M.comp], f); if (played) PC.ss.euroApps++; }
   if (M.comp === 'cup') { M.fx.tie.r = [hg, ag]; M.fx.tie.pens = pens; M.fx.tie.w = won ? PC.club : (M.home ? M.fx.a : M.fx.h); }
   if (M.comp === 'tour') tourAfterMatch(M, won, gu === gt && !pens);
   PC.log.unshift({ y: PC.year, w: PC.week, line: M.line, res: `${hg}:${ag}${pens ? ` k. ${pens[0]}:${pens[1]}` : ''}`, comp: M.comp, r: played ? M.rating : null, g: M.my.g, a: M.my.a });
@@ -521,6 +556,14 @@ export function endWeek() {
     }
   }
   if (CUP_WEEKS.includes(w)) cupWeek();
+  if (PC.euro && EURO_WEEKS.includes(w)) {
+    const i = EURO_WEEKS.indexOf(w);
+    for (const E of Object.values(PC.euro)) {
+      for (const m of E.fx[i] || []) { if (m.r) continue; m.r = simScore(PC.clubs[m.h].lv, PC.clubs[m.a].lv, true); applyResult(E, m); }
+      E.round = i + 1;
+    }
+  }
+  if (w === WINTER_WINDOW) clubChanges(true);
   // regeneracja, kontuzje, forma
   if (p.inj > 0) p.inj--;
   if (p.susp > 0 && rd >= 0) p.susp--;
@@ -537,6 +580,26 @@ export function endWeek() {
   PC.week++;
   PC.offers = PC.offers.filter((o) => o.until >= PC.week);
   if (PC.week >= SEASON_WEEKS) endSeason();
+}
+
+/** Zmiany w klubach: wyniki, transfery i rozwój zawodników zmieniają siłę drużyn (latem mocniej, zimą lekko). */
+function clubChanges(winter) {
+  const before = myClub().lv;
+  for (const L of Object.values(PC.leagues)) {
+    const t = sortedTable(L), n = t.length || 1;
+    t.forEach((row, i) => {
+      const c = PC.clubs[row.id];
+      if (!c) return;
+      const perf = winter ? 0 : (n / 2 - i) / n * 1.6;
+      const d = perf + gauss() * (winter ? 0.5 : 0.9);
+      c.lv = clamp(Math.round((c.lv + d) * 10) / 10, 38, 93);
+    });
+  }
+  const c = myClub(), diff = Math.round((c.lv - before) * 10) / 10;
+  const n = rint(winter ? 1 : 2, winter ? 2 : 4);
+  const rr = mkRng(c.id * 13 + PC.year * 7 + (winter ? 1 : 0));
+  const names = Array.from({ length: n }, () => { const g = genName(NAT[c.nat], rr); return `${g.fn} ${g.ln}`; });
+  msg(winter ? 'Zimowe okno: zmiany w klubie' : 'Letnie okno: nowi zawodnicy w klubie', `${c.n} ${winter ? 'uzupełnił skład' : 'przebudował skład przed nowym sezonem'}. Nowi zawodnicy: ${names.join(', ')}. ` + (diff > 0.3 ? `Drużyna jest mocniejsza: siła klubu wzrosła do ${Math.round(c.lv)}.` : diff < -0.3 ? `Drużyna osłabła: siła klubu spadła do ${Math.round(c.lv)}.` : `Siła drużyny bez większych zmian: ${Math.round(c.lv)}.`));
 }
 
 function trophyNote(name) { PC.awards.push({ name, year: PC.year }); }
@@ -645,6 +708,15 @@ function endSeason() {
   if (o >= 86 && avg >= 7.45 && ss.apps >= 20) aw.push('Złota Piłka');
   else if (o >= 82 && avg >= 7.3 && ss.apps >= 20 && Math.random() < 0.35) aw.push('Złota Piłka: miejsce w pierwszej dziesiątce');
   for (const a of aw) PC.awards.push({ name: a, year: PC.year });
+  // puchary europejskie
+  const euroLines = [];
+  if (PC.euro) for (const [k, E] of Object.entries(PC.euro)) {
+    const t = sortedTable(E);
+    E.winner = t[0].id;
+    const mine = t.findIndex((x) => x.id === PC.club);
+    euroLines.push(`${E.name}: wygrywa ${PC.clubs[E.winner].n}${mine >= 0 ? `, ${myClub().n} na ${mine + 1}. miejscu` : ''}`);
+    if (E.winner === PC.club && ss.euroApps >= 2) { trophy(E.name, k); tr.push(E.name); }
+  }
   PC.seasons.push({ year: PC.year, club: myClub().n, league: leagueName(L), pos, apps: ss.apps, goals: ss.goals, assists: ss.assists, avg: Math.round(avg * 100) / 100, nat: ss.natApps, natG: ss.natGoals, ovr: Math.round(o), tr, aw });
   msg(`Koniec sezonu ${PC.year}/${String((PC.year + 1) % 100).padStart(2, '0')}`, `${myClub().n} kończy sezon na ${pos}. miejscu. Twój bilans: ${ss.apps} ${plural(ss.apps, 'mecz', 'mecze', 'meczów')}, ${ss.goals} ${plural(ss.goals, 'gol', 'gole', 'goli')}, ${ss.assists} ${plural(ss.assists, 'asysta', 'asysty', 'asyst')}, średnia ocena ${avg ? avg.toFixed(2) : 'brak'}.` + (tr.length ? `\n\nTrofea: ${tr.join(', ')}.` : '') + (aw.length ? `\n\nNagrody indywidualne: ${aw.join(', ')}.` : ''));
   // awanse i spadki w kraju zawodnika
@@ -660,7 +732,8 @@ function endSeason() {
     if (up.includes(PC.club)) { trophy(`Awans do ${leagueName(L1)}`, 'promo'); msg('Awans!', `${myClub().n} awansuje do najwyższej ligi!`); }
     if (down.includes(PC.club)) msg('Spadek', `${myClub().n} spada do niższej ligi.`);
   }
-  for (const c of PC.clubs) c.lv = clamp(Math.round((c.lv + gauss() * 0.8) * 10) / 10, 38, 93);
+  if (euroLines.length) msg('Puchary europejskie', euroLines.join('\n'));
+  clubChanges(false);
   PC.phase = 'summer';
   PC.week = 0;
   setupTournament();

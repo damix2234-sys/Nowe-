@@ -9,9 +9,61 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 /** Rysuje pełną klatkę. P, instancja Pitch2D. */
 export function render(P) {
-  const c = P.ctx, W = P.W, H = P.H;
-  if (!c || !W) return;
+  const c = P.ctx;
+  if (!c || !P.W) return;
+  // tryb poziomy (rot = 1 albo -1): rysujemy „wirtualny pion” obrócony o 90°, napisy zostają poziome
+  const rot = P.rot || 0;
+  const W = rot ? P.H : P.W, H = rot ? P.W : P.H;
   c.setTransform(P.dpr, 0, 0, P.dpr, 0, 0);
+  if (rot) {
+    c.fillStyle = '#1d6a37';
+    c.fillRect(0, 0, P.W, P.H);
+    if (rot > 0) { c.translate(P.W, 0); c.rotate(Math.PI / 2); } else { c.translate(0, P.H); c.rotate(-Math.PI / 2); }
+    uprightText(c, rot);
+  }
+  try { renderInner(P, c, W, H, rot); } finally { if (rot) plainText(c); }
+  if (rot) { c.setTransform(P.dpr, 0, 0, P.dpr, 0, 0); drawScreenFx(P, c, P.W, P.H); }
+}
+
+/** Napisy w obróconym widoku: każdy tekst obracany z powrotem wokół swojego punktu zaczepienia. */
+function uprightText(c, rot) {
+  const f = CanvasRenderingContext2D.prototype.fillText, s = CanvasRenderingContext2D.prototype.strokeText;
+  const a = rot > 0 ? -Math.PI / 2 : Math.PI / 2;
+  c.fillText = function (t, x, y, m) { this.save(); this.translate(x, y); this.rotate(a); f.call(this, t, 0, 0, m); this.restore(); };
+  c.strokeText = function (t, x, y, m) { this.save(); this.translate(x, y); this.rotate(a); s.call(this, t, 0, 0, m); this.restore(); };
+}
+function plainText(c) { delete c.fillText; delete c.strokeText; }
+
+/** Komunikaty nakładane na ekran w widoku poziomym (gol, napisy), rysowane bez obrotu. */
+function drawScreenFx(P, c, W, H) {
+  for (const f of P.fx) {
+    if (f.type !== 'goal' && f.type !== 'caption') continue;
+    const a = f.t < 0.15 ? f.t / 0.15 : f.t > f.dur - 0.35 ? Math.max(0, (f.dur - f.t) / 0.35) : 1;
+    c.save();
+    c.globalAlpha = a;
+    if (f.type === 'goal') {
+      const T = P.teams[f.s];
+      const h = 64, y = H * 0.36 - h / 2;
+      const g = c.createLinearGradient(0, y, W, y);
+      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.2, 'rgba(8,17,14,0.88)'); g.addColorStop(0.8, 'rgba(8,17,14,0.88)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = g; c.fillRect(0, y, W, h);
+      c.fillStyle = T.kit.shirt; c.fillRect(W * 0.3, y + h - 3, W * 0.4, 3);
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.font = '900 30px system-ui, sans-serif'; c.fillStyle = '#c6f432'; c.fillText('GOL!', W / 2, y + 24);
+      c.font = '700 12px system-ui, sans-serif'; c.fillStyle = '#ffffff'; c.fillText(`${f.name}${f.name ? ' · ' : ''}${T.name}`, W / 2, y + 48);
+    } else {
+      c.font = '800 11px system-ui, sans-serif';
+      const w = c.measureText(f.text.toUpperCase()).width + 20;
+      roundRect(c, W / 2 - w / 2, H - 34, w, 22, 11);
+      c.fillStyle = 'rgba(8,17,14,0.78)'; c.fill();
+      c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#ffffff';
+      c.fillText(f.text.toUpperCase(), W / 2, H - 22.5);
+    }
+    c.restore();
+  }
+}
+
+function renderInner(P, c, W, H, rot) {
   const k = P.cam.k;
   const cx = P.cam.x ?? PW / 2, cy = P.cam.y;
   const X = (x) => W / 2 + (x - cx) * k;
@@ -436,6 +488,7 @@ function drawOffside(V, P) {
 function drawFx(V, P) {
   const { c, X, Y, W, H, R } = V;
   for (const f of P.fx) {
+    if (P.rot && (f.type === 'goal' || f.type === 'caption' || f.type === 'sub' || f.type === 'board')) continue;
     const a = f.t < 0.15 ? f.t / 0.15 : f.t > f.dur - 0.35 ? Math.max(0, (f.dur - f.t) / 0.35) : 1;
     c.save();
     c.globalAlpha = a;

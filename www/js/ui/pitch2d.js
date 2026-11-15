@@ -153,9 +153,11 @@ export class Pitch2D {
     cv.width = Math.round(w * dpr);
     cv.height = Math.round(h * dpr);
     this.W = w; this.H = h; this.dpr = dpr;
+    // rot: boisko obrócone wzdłuż poziomego ekranu (tryb zawodnika); liczymy w wymiarach „wirtualnego pionu”
+    const vw = this.rot ? h : w, vh = this.rot ? w : h;
     const mx = 3, my = 4.2;
-    this.kFull = Math.min(w / (PW + 2 * mx), h / (PL + 2 * my));
-    this.kWide = w / (PW + 2 * mx);
+    this.kFull = Math.min(vw / (PW + 2 * mx), vh / (PL + 2 * my));
+    this.kWide = vw / (PW + 2 * mx);
     this.fits = this.kFull >= this.kWide * 0.88;
     this.camera(1, true);
     this.draw();
@@ -173,7 +175,7 @@ export class Pitch2D {
     // tryb zawodnika: kamera między piłką a sterowaną postacią
     const cp = this.sim.ctrl;
     if (cp && cp.state !== 'gone') { tx = lerp(tx, cp.x, 0.45); ty = lerp(ty, cp.y, 0.45); }
-    const visH = this.H / this.cam.k, visW = this.W / this.cam.k;
+    const visH = (this.rot ? this.W : this.H) / this.cam.k, visW = (this.rot ? this.H : this.W) / this.cam.k;
     let cy = mode === 'full' ? PL / 2 : ty;
     const lo = -4.2 + visH / 2, hi = PL + 4.2 - visH / 2;
     cy = lo > hi ? PL / 2 : clamp(cy, lo, hi);

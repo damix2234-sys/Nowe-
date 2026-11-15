@@ -257,6 +257,8 @@ const SECTIONS = [
       <li>Status w klubie zależy od Twojej oceny w porównaniu z siłą klubu: od młodzieżowca do gwiazdy zespołu.</li>
       <li>Zimą i latem są okna transferowe. Oferty zależą od oceny i formy, a lista transferowa daje więcej ofert.</li>
       <li>Gdy Twoja ocena zbliży się do siły reprezentacji, dostaniesz powołanie. Mistrzostwa Świata są co 4 lata: 2030, 2034. Mistrzostwa kontynentu też co 4 lata, ale przesunięte o 2 lata: 2028, 2032. Dlatego wielki turniej jest co 2 lata na przemian.</li>
+      <li><b>Puchary europejskie:</b> kluby z miejsc 1–3 w najwyższych ligach grają w następnym sezonie w Lidze Mistrzów, a z miejsc 4–8 w Super Lidze. Każdy klub gra 8 meczów z różnymi rywalami, wygrywa zwycięzca tabeli. W pierwszym sezonie o udziale decyduje siła klubów.</li>
+      <li><b>Kluby się zmieniają:</b> latem i zimą sprowadzają nowych zawodników, a dobre wyniki wzmacniają drużynę. Składy rywali są nowe w każdym sezonie.</li>
       <li>Trofea: mistrzostwo ligi, puchar kraju, awans, turnieje reprezentacji. Nagrody: król strzelców, piłkarz sezonu, młodzieżowiec roku, Złota Piłka.</li>
       <li>Od 33 lat możesz zakończyć karierę, w wieku 40 lat kończysz ją na pewno.</li>
     </ul>` },

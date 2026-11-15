@@ -133,7 +133,7 @@ screen('chome', {
     const fxs = C.weekMatches();
     const summer = pc.phase === 'summer';
     let next = '';
-    if (fxs.length) next = fxs.map((fx) => `<div class="row"><span class="tag">${fx.comp === 'league' ? 'Liga' : fx.comp === 'cup' ? 'Puchar' : fx.comp === 'tour' ? 'Turniej' : 'Kadra'}</span><div class="main"><div class="t1 wrap">${fxLine(fx)}</div><div class="t2">${esc(fx.title)}</div></div></div>`).join('');
+    if (fxs.length) next = fxs.map((fx) => `<div class="row"><span class="tag">${fx.comp === 'league' ? 'Liga' : fx.comp === 'cup' ? 'Puchar' : fx.comp === 'ucl' ? 'LM' : fx.comp === 'usl' ? 'SL' : fx.comp === 'tour' ? 'Turniej' : 'Kadra'}</span><div class="main"><div class="t1 wrap">${fxLine(fx)}</div><div class="t2">${esc(fx.title)}</div></div></div>`).join('');
     else next = `<div class="small muted">${summer ? (pc.tour && !pc.tour.done && pc.tour.called ? 'Turniej trwa.' : 'Przerwa letnia. Kliknij Dalej, aby rozpocząć nowy sezon.') : C.isIntlWeek() ? 'Przerwa na mecze reprezentacji. Nie masz powołania.' : 'W tym tygodniu nie masz meczu.'}</div>`;
     const recent = pc.log.slice(0, 5).map((l) => `<div class="row"><div class="main"><div class="t1 wrap">${esc(l.line)}</div><div class="t2">${l.r != null ? `ocena ${l.r.toFixed(1)}${l.g ? ` · ⚽ ${l.g}` : ''}${l.a ? ` · 🅰️ ${l.a}` : ''}` : 'nie grał'}</div></div><b>${esc(l.res)}</b></div>`).join('');
     const unread = pc.msgs.filter((m) => !m.read).slice(0, 2);
@@ -213,7 +213,7 @@ screen('cmatch', {
       <div class="card"><div class="card-h"><h3>Relacja</h3><span class="small muted">${esc(M.title)}</span></div><div id="cm-log" class="cm-log">${logHTML()}</div></div>`;
     const foot = fin ? `<button class="btn block" data-a="cmx.next">${MI + 1 < MQ.length ? 'Następny mecz' : 'Zakończ tydzień'} ${icon('right')}</button>`
       : `<button class="btn ghost" data-a="cmx.sim">Symuluj do końca</button><button class="btn" data-a="cmx.play">${icon('play')} Graj</button>`;
-    return { title: M.comp === 'league' ? 'Mecz ligowy' : M.comp === 'cup' ? 'Mecz pucharowy' : 'Reprezentacja', sub: M.line, body, foot, back: false, cls: '' };
+    return { title: M.comp === 'league' ? 'Mecz ligowy' : M.comp === 'cup' ? 'Mecz pucharowy' : M.comp === 'ucl' ? 'Liga Mistrzów' : M.comp === 'usl' ? 'Super Liga' : 'Reprezentacja', sub: M.line, body, foot, back: false, cls: '' };
   },
   leave() { stopTimer(); },
 });
@@ -229,7 +229,33 @@ function liveStart() {
   L = { M, sim, side: userSide, pitch: null, rate: RATES[clamp(getSettings().liveRate ?? 1, 0, 2)], ended: false, rateIdx: clamp(getSettings().liveRate ?? 1, 0, 2), waitT: 0 };
   go('clive', {}, { replace: current() && ['cmatch', 'clive'].includes(current().name) });
 }
-function stopLive() { if (L && L.pitch) { L.pitch.destroy(); L.pitch = null; } }
+function stopLive() { if (L && L.pitch) { L.pitch.destroy(); L.pitch = null; } orient(false); }
+
+// orientacja ekranu: na czas meczu 2D poziomo (Android: wtyczka ScreenOrientation, przeglądarka: API ekranu)
+let SO = null;
+async function orient(landscape) {
+  try {
+    const cap = window.Capacitor;
+    if (cap && Array.isArray(cap.PluginHeaders) && cap.PluginHeaders.some((h) => h.name === 'ScreenOrientation')) {
+      if (!SO) { const { registerPlugin } = await import('../../vendor/capacitor-core.js'); SO = registerPlugin('ScreenOrientation'); }
+      await SO.lock({ orientation: landscape ? 'landscape' : 'portrait' });
+      return;
+    }
+    if (screen.orientation && screen.orientation.lock) { if (landscape) await screen.orientation.lock('landscape'); else screen.orientation.unlock(); }
+  } catch (e) { /* orientacja niedostępna: zostaje obecna */ }
+}
+/** Obrót boiska: w poziomie drużyna gracza zawsze atakuje w prawo. */
+function rotFor(sim) {
+  if (window.innerWidth <= window.innerHeight) return 0;
+  return sim.goalY(L.side) > 52 ? 1 : -1;
+}
+/** Kierunek z ekranu (prawo, góra) na kierunek na boisku. */
+function screenToWorld(ux, uy) {
+  const r = L && L.pitch ? L.pitch.rot || 0 : 0;
+  if (r === 1) return { x: -uy, y: ux };
+  if (r === -1) return { x: uy, y: -ux };
+  return { x: ux, y: uy };
+}
 function hudHTML() {
   const sim = L.sim, a = sim.sides[0], b = sim.sides[1];
   const S = sim.sides[L.side], ps = S.ps[USER_PID];
@@ -241,6 +267,7 @@ function liveFrame() {
   if (!L) return;
   const sim = L.sim;
   if (!sim.ctrl || sim.ctrl.state === 'gone') sim.ctrl = sim.agentOf(L.side, USER_PID);
+  if (L.pitch) { const r = rotFor(sim); if (r !== (L.pitch.rot || 0)) { L.pitch.rot = r; L.pitch.resize(); if (L.joyU) { const w = screenToWorld(L.joyU.x, L.joyU.y); sim.input.jx = w.x; sim.input.jy = w.y; } } }
   liveSubCheck(M, sim, L.side);
   if (sim.waiting && !sim.done) { L.waitT += 1 / 60; if (L.waitT > 1.6) { L.waitT = 0; sim.resume(); } }
   const h = document.getElementById('lv-hud'); if (h) h.innerHTML = hudHTML();
@@ -272,20 +299,20 @@ function bindLive(root) {
   const setJ = (dx, dy) => {
     const d = Math.hypot(dx, dy), k = d > R ? R / d : 1;
     knob.style.transform = `translate(${dx * k}px, ${dy * k}px)`;
-    if (L) { L.sim.input.jx = clamp(dx / R, -1, 1); L.sim.input.jy = clamp(-dy / R, -1, 1); L.sim.input.lastT = L.sim.t; }
+    if (L) { const u = { x: clamp(dx / R, -1, 1), y: clamp(-dy / R, -1, 1) }; L.joyU = u; const w = screenToWorld(u.x, u.y); L.sim.input.jx = w.x; L.sim.input.jy = w.y; L.sim.input.lastT = L.sim.t; }
   };
   joy.addEventListener('pointerdown', (e) => { jid = e.pointerId; const r = joy.getBoundingClientRect(); cx = r.left + r.width / 2; cy = r.top + r.height / 2; joy.setPointerCapture(jid); setJ(e.clientX - cx, e.clientY - cy); e.preventDefault(); });
   joy.addEventListener('pointermove', (e) => { if (e.pointerId === jid) setJ(e.clientX - cx, e.clientY - cy); });
-  const up = (e) => { if (e.pointerId !== jid) return; jid = null; knob.style.transform = ''; if (L) { L.sim.input.jx = 0; L.sim.input.jy = 0; } };
+  const up = (e) => { if (e.pointerId !== jid) return; jid = null; knob.style.transform = ''; if (L) { L.joyU = null; L.sim.input.jx = 0; L.sim.input.jy = 0; } };
   joy.addEventListener('pointerup', up); joy.addEventListener('pointercancel', up);
   for (const b of root.querySelectorAll('[data-lv]')) b.addEventListener('pointerdown', (e) => { e.preventDefault(); const c = b.dataset.lv; cmd(c === 'lob' && !(L && L.own) ? 'tackle' : c); b.classList.add('hit'); setTimeout(() => b.classList.remove('hit'), 140); });
   const kd = (e) => {
     if (!L || current().name !== 'clive') return;
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'w', 'a', 's', 'd'].includes(k)) { keys.add(k); const v = keyDir(); L.sim.input.jx = v.x; L.sim.input.jy = v.y; L.sim.input.lastT = L.sim.t; e.preventDefault(); }
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'w', 'a', 's', 'd'].includes(k)) { keys.add(k); const v = screenToWorld(...Object.values(keyDir())); L.sim.input.jx = v.x; L.sim.input.jy = v.y; L.sim.input.lastT = L.sim.t; e.preventDefault(); }
     if (k === 'j') cmd('pass'); if (k === 'k') cmd('shoot'); if (k === 'l') cmd('dribble'); if (k === 'i') cmd(L.own ? 'lob' : 'tackle');
   };
-  const ku = (e) => { const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; keys.delete(k); if (L) { const v = keyDir(); L.sim.input.jx = v.x; L.sim.input.jy = v.y; } };
+  const ku = (e) => { const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; keys.delete(k); if (L) { const v = screenToWorld(...Object.values(keyDir())); L.sim.input.jx = v.x; L.sim.input.jy = v.y; } };
   window.removeEventListener('keydown', window.__lvkd || (() => {})); window.removeEventListener('keyup', window.__lvku || (() => {}));
   window.__lvkd = kd; window.__lvku = ku;
   window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
@@ -321,15 +348,17 @@ screen('clive', {
         </div>
       </div>
       <div class="lv-bar"><button class="btn ghost small" data-a="lv.pause" id="lv-pause">${icon('pause')} Pauza</button><button class="btn ghost small" data-a="lv.rate" id="lv-rate">Tempo ${L.rate}×</button><button class="btn ghost small" data-a="lv.cam">Kamera</button><button class="btn ghost small" data-a="lv.sim">Symuluj</button></div></div>`;
-    return { title: M.title, sub: M.line, body, back: false, cls: 'nofoot live-view', noHeader: true };
+    return { title: M.title, sub: M.line, body, back: false, cls: 'nofoot live-view', noHeader: true, appCls: 'live-app' };
   },
   mount(root) {
     const cv = root.querySelector('#lv-pitch');
     if (!L || !cv) return;
     if (!L.pitch) {
+      orient(true);
       L.pitch = new Pitch2D(cv, L.sim, { frame: liveFrame });
+      L.pitch.rot = rotFor(L.sim);
       L.pitch.setRate(L.rate);
-      L.pitch.cam.mode = 'near';
+      L.pitch.cam.mode = L.pitch.rot ? 'full' : 'near';
       clubKits(L);
     }
     else L.pitch.attach(cv);
@@ -386,7 +415,20 @@ screen('ctable', {
   render() {
     const pc = PC();
     const L = C.myLeague();
-    let body = seg('ctab.t', [['table', 'Tabela'], ['fx', 'Terminarz'], ['cup', 'Puchar']], ctab.t);
+    let body = seg('ctab.t', [['table', 'Tabela'], ['fx', 'Terminarz'], ['cup', 'Puchar'], ['euro', 'Europa']], ctab.t);
+    if (ctab.t === 'euro') {
+      const mine = C.myEuro();
+      const k = ctab.e || mine || 'ucl';
+      const E = pc.euro[k];
+      const t = C.sortedTable(E);
+      const idx = t.findIndex((r) => r.id === pc.club);
+      const rows = t.map((r, i) => ({ r, i })).filter(({ i }) => i < 16 || i === idx);
+      body += chips('ctab.e', [['ucl', 'Liga Mistrzów'], ['usl', 'Super Liga']], k);
+      body += `<p class="small muted">${k === 'ucl' ? 'Liga Mistrzów: kluby z miejsc 1–3 w najwyższych ligach.' : 'Super Liga: kluby z miejsc 4–8 w najwyższych ligach.'} Każdy klub gra 8 meczów z różnymi rywalami, wygrywa zwycięzca tabeli. ${mine === k ? 'Twój klub gra w tych rozgrywkach.' : mine ? '' : 'Twój klub nie gra w tym sezonie w pucharach europejskich.'}</p>
+        <div class="card tight"><table class="tbl"><tr><th>#</th><th class="tl">Klub</th><th>M</th><th>B</th><th>Pkt</th></tr>${rows.map(({ r, i }) => `<tr class="${r.id === pc.club ? 'me' : ''}"><td>${i + 1}</td><td class="tl">${flag(pc.clubs[r.id].nat)} ${esc(pc.clubs[r.id].n)}</td><td>${r.p}</td><td>${r.gf}:${r.ga}</td><td><b>${r.pts}</b></td></tr>`).join('')}</table></div>
+        <p class="small muted center">Kolejki w tygodniach: ${C.EURO_WEEKS.map((w) => w + 1).join(', ')}. Rozegrano ${E.round} z ${E.fx.length}.</p>`;
+      return { title: 'Rozgrywki', sub: E.name, body, cls: 'nofoot' };
+    }
     if (ctab.t === 'table') {
       const t = C.sortedTable(L);
       body += `<div class="card tight"><table class="tbl"><tr><th>#</th><th class="tl">Klub</th><th>M</th><th>B</th><th>Pkt</th></tr>${t.map((r, i) => `<tr class="${r.id === pc.club ? 'me' : ''}"><td>${i + 1}</td><td class="tl">${esc(pc.clubs[r.id].n)}</td><td>${r.p}</td><td>${r.gf}:${r.ga}</td><td><b>${r.pts}</b></td></tr>`).join('')}</table></div>
@@ -586,6 +628,7 @@ actions({
   'ct.toDev': () => { closeOverlay(); setTimeout(() => go('cdev'), 50); },
   'cd.buy': (d) => { if (C.buyAttr(d.k)) rerender(); },
   'ctab.t': (d) => { ctab.t = d.k; rerender(); },
+  'ctab.e': (d) => { ctab.e = d.k; rerender(); },
   // transfery
   'ctr.yes': async (d) => {
     const o = PC().offers[+d.k];

@@ -739,3 +739,16 @@ main.view.match-view { padding-top: 8px; }
 .lv-lob { background: radial-gradient(circle at 35% 30%, #ffe07a, #c48a0c); color: #2a1a00; }
 .lv-bar { position: absolute; left: 0; right: 0; bottom: calc(var(--sab, 0px) + 6px); display: flex; gap: 6px; justify-content: center; z-index: 3; padding: 0 8px; }
 .lv-bar .btn { background: rgba(12, 6, 30, 0.8); }
+
+@media (orientation: landscape) {
+  .lv-ctl { bottom: calc(var(--sab, 0px) + 44px); padding: 0 calc(16px + var(--sar, 0px)) 0 calc(16px + var(--sal, 0px)); }
+  .lv-joy { width: 118px; height: 118px; }
+  .lv-btns { grid-template-columns: 60px 60px; grid-template-rows: 60px 60px; gap: 8px; }
+  .lv-hud { top: 4px; }
+  .lv-bar { bottom: 4px; }
+  .lv-bar .btn { padding: 4px 10px; min-height: 30px; font-size: 12px; }
+  .lv-joy, .lv-btns { opacity: 0.92; }
+}
+
+.app.live-app { max-width: none; }
+.app.live-app main.view { max-width: none; }
