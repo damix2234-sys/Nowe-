@@ -7,7 +7,28 @@ import { ovr, posRating, POS_W, ATTR_NAMES, FORM_MUL, applyDelta, GK_ATTRS } fro
 import { SCEN, POS_SCEN } from './scenarios.js';
 
 export let PC = null;
-export function setCareer(pc) { PC = pc; }
+export function setCareer(pc) { PC = pc; if (pc) migrateCareer(pc); }
+
+/** Uzupełnia zapisy kariery z wcześniejszych wersji gry o nowe rozgrywki i pola. */
+function migrateCareer(st) {
+  if (!st.ss) return;
+  if (st.ss.euroApps == null) st.ss.euroApps = 0;
+  if (!st.euro && st.leagues && st.clubs) {
+    // puchary europejskie w trwającym sezonie: kwalifikacja według siły klubów, rozegrane już kolejki symulowane od razu
+    const qual = { ucl: [], usl: [] };
+    for (const L of Object.values(st.leagues)) {
+      if (L.div !== 1) continue;
+      const order = L.teams.slice().sort((a, b) => st.clubs[b].lv - st.clubs[a].lv);
+      qual.ucl.push(...order.slice(0, 3)); qual.usl.push(...order.slice(3, 8));
+    }
+    st.euro = { ucl: mkEuro(EURO_NAMES.ucl, qual.ucl, Math.random), usl: mkEuro(EURO_NAMES.usl, qual.usl, Math.random) };
+    const done = st.phase === 'season' ? EURO_WEEKS.filter((w) => w < st.week).length : EURO_WEEKS.length;
+    for (const E of Object.values(st.euro)) {
+      for (let i = 0; i < done; i++) for (const m of E.fx[i] || []) { m.r = simScore(st.clubs[m.h].lv, st.clubs[m.a].lv, true); applyResult(E, m); }
+      E.round = done;
+    }
+  }
+}
 
 export const SEASON_WEEKS = 30;
 export const INTL_WEEKS = [3, 7, 11, 19, 25];

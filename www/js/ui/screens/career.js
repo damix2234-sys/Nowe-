@@ -431,7 +431,7 @@ screen('ctable', {
     const pc = PC();
     const L = C.myLeague();
     let body = seg('ctab.t', [['table', 'Tabela'], ['fx', 'Terminarz'], ['cup', 'Puchar'], ['euro', 'Europa']], ctab.t);
-    if (ctab.t === 'euro') {
+    if (ctab.t === 'euro' && pc.euro) {
       const mine = C.myEuro();
       const k = ctab.e || mine || 'ucl';
       const E = pc.euro[k];
