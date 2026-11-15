@@ -36,7 +36,7 @@ export const WINTER_WINDOW = 14;
 // tygodnie meczów europejskich: 7 kolejek fazy grupowej, potem ćwierćfinał, półfinał i finał (Ultra Liga: 9 kolejek)
 export const EURO_WEEKS = [1, 2, 4, 6, 8, 12, 13, 15, 17, 20];
 export const EURO_NAMES = { ulg: 'Ultra Liga', ucl: 'Liga Mistrzów', usl: 'Super Liga', unl: 'Unova League' };
-export const EURO_SIZE = 32;
+export const EURO_SIZE = 128;
 export const KO_NAMES = ['ćwierćfinał', 'półfinał', 'finał'];
 export const GROUP_NAMES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 export const koStageName = (E) => ({ 8: '1/8 finału', 4: 'ćwierćfinał', 2: 'półfinał', 1: 'finał' })[E.ko ? E.ko.ties.length : 0] || 'faza pucharowa';
@@ -151,26 +151,25 @@ export function groupTable(E, g) {
   return E.groups[g].map((id) => ({ id, ...E.table[id] })).sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf);
 }
 
-/** Puchary sezonu: kwalifikacja z lig (poprzedni sezon albo siła klubów) i Ultra Liga z poprzedniej fazy pucharowej. */
+/** Puchary sezonu. Miejsce w tabeli daje awans: ligi Europy ustawione według siły (średnia siła klubów najwyższej ligi),
+ *  z każdej kolejnej ligi miejsca 1–3 idą do Ligi Mistrzów, a miejsca 4–8 do Super Ligi, aż do 128 klubów w każdej.
+ *  Kluby z Ultra Ligi grają tylko w niej (ich miejsce dostaje kolejny klub z tabeli). */
 function buildEuro(st, useTables) {
   const r = Math.random;
   const ultra = (st.nextUltra || []).filter((id) => st.clubs[id]).slice(0, 10);
   const inU = new Set(ultra);
-  const c1 = [], c2 = [];
-  for (const L of Object.values(st.leagues)) {
-    // puchary są europejskie: grają w nich tylko kluby z lig Europy
-    if (L.div !== 1 || NAT[L.nat].conf !== 'EU') continue;
+  const leagues = Object.values(st.leagues).filter((L) => L.div === 1 && NAT[L.nat].conf === 'EU');
+  const str = (L) => L.teams.reduce((a, id) => a + st.clubs[id].lv, 0) / L.teams.length;
+  leagues.sort((a, b) => str(b) - str(a));
+  const orders = leagues.map((L) => {
     const played = useTables && L.table && Object.values(L.table).some((t) => t.p > 0);
-    const order = [...new Set((played ? sortedTable(L).map((t) => t.id).filter((id) => L.teams.includes(id)) : []).concat(L.teams.slice().sort((a, b) => st.clubs[b].lv - st.clubs[a].lv)))];
-    c1.push(...order.slice(0, 3)); c2.push(...order.slice(3, 8));
-  }
-  const byLv = (a, b) => st.clubs[b].lv - st.clubs[a].lv;
-  const ucl = c1.filter((id) => !inU.has(id)).sort(byLv).slice(0, EURO_SIZE);
-  // za mało mistrzów i wicemistrzów: brakujące miejsca dostają najlepsze kluby z dalszych miejsc
-  if (ucl.length < EURO_SIZE) ucl.push(...c2.filter((id) => !inU.has(id)).slice().sort(byLv).slice(0, EURO_SIZE - ucl.length));
+    return [...new Set((played ? sortedTable(L).map((t) => t.id).filter((id) => L.teams.includes(id)) : []).concat(L.teams.slice().sort((a, b) => st.clubs[b].lv - st.clubs[a].lv)))].filter((id) => !inU.has(id));
+  });
+  const ucl = [], usl = [];
+  for (const o of orders) { for (const id of o.slice(0, 3)) if (ucl.length < EURO_SIZE) ucl.push(id); }
   const inL = new Set(ucl);
-  const usl = c2.concat(c1).filter((id) => !inU.has(id) && !inL.has(id)).sort(byLv).slice(0, EURO_SIZE);
-  st.euro = { ucl: mkGroups(st, EURO_NAMES.ucl, ucl, r, 4, 'ucl'), usl: mkGroups(st, EURO_NAMES.usl, usl, r, 4, 'usl') };
+  for (const o of orders) { for (const id of o.slice(3, 8)) if (usl.length < EURO_SIZE && !inL.has(id)) usl.push(id); }
+  st.euro = { ucl: mkGroups(st, EURO_NAMES.ucl, ucl, r, ucl.length > 32 ? 8 : 4, 'ucl'), usl: mkGroups(st, EURO_NAMES.usl, usl, r, usl.length > 32 ? 8 : 4, 'usl') };
   if (ultra.length >= 4) st.euro.ulg = mkUltra(EURO_NAMES.ulg, ultra, r);
   const un = unovaTeams(st);
   if (un.length >= 8) st.euro.unl = mkGroups(st, EURO_NAMES.unl, un, r, un.length > 32 ? 8 : 4, 'unl');

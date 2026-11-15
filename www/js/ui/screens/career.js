@@ -464,8 +464,8 @@ screen('ctable', {
       const tbl = (rows, hi) => `<table class="tbl"><tr><th>#</th><th class="tl">Klub</th><th>M</th><th>B</th><th>Pkt</th></tr>${rows.map((r, i) => `<tr class="${r.id === pc.club ? 'me' : ''} ${hi && i < hi ? 'q' : ''}"><td>${i + 1}</td><td class="tl">${nm(r.id)}</td><td>${r.p}</td><td>${r.gf}:${r.ga}</td><td><b>${r.pts}</b></td></tr>`).join('')}</table>`;
       if (!world) body += chips('ctab.e', keys.map((x) => [x, C.EURO_NAMES[x]]), k).replace('class="chips"', 'class="chips wrap"');
       const info = {
-        ucl: 'Liga Mistrzów: najlepsze kluby z miejsc 1–3 w najwyższych ligach.',
-        usl: 'Super Liga: najlepsze kluby z miejsc 4–8 w najwyższych ligach.',
+        ucl: 'Liga Mistrzów: kluby z miejsc 1–3 w najwyższych ligach Europy. Ligi są ustawione według siły i kolejno dostają miejsca, aż do 128 klubów.',
+        usl: 'Super Liga: kluby z miejsc 4–8 w najwyższych ligach Europy. Ligi są ustawione według siły i kolejno dostają miejsca, aż do 128 klubów. Z każdej z ok. 25 najmocniejszych lig awansuje całe miejsce 4–8.',
         unl: `Unova League, kategoria Świat: kluby z całego świata, które w poprzednim sezonie zdobyły puchar swojego kraju. Grają wszyscy zdobywcy pucharów, po jednym klubie z każdego kraju świata. Przy ponad 32 klubach jest 8 grup, a do fazy pucharowej od 1/8 finału awansują po 2 najlepsze kluby z każdej grupy. W pierwszym sezonie kariery grają najmocniejsze kluby poszczególnych krajów.`,
         ulg: 'Ultra Liga: najwyższe wyróżnienie. Gra w niej 10 klubów: po 5 najlepszych z fazy pucharowej Ligi Mistrzów i Super Ligi z poprzedniego sezonu. Każdy z każdym, wygrywa pierwsze miejsce w tabeli.',
       }[k];
