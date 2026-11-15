@@ -16,8 +16,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // stały klucz podpisu: każda nowa wersja APK instaluje się jako aktualizacja (zapisy gier zostają)
+    signingConfigs {
+        stale {
+            storeFile file('selekcjoner.keystore')
+            storePassword 'selekcjoner123'
+            keyAlias 'selekcjoner'
+            keyPassword 'selekcjoner123'
+        }
+    }
     buildTypes {
+        debug {
+            signingConfig signingConfigs.stale
+        }
         release {
+            signingConfig signingConfigs.stale
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
