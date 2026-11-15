@@ -950,6 +950,18 @@ export class LiveMatch extends Match {
       if (dist > 1.45 + rp) continue;
       const ins = this.instr(d).tk;
       const rate = TK_RATE[ins] * (d.mode === 'press' ? 1 : 0.6);
+      // tryb zawodnika: atak od tyłu albo z boku to faul (wślizg w ten sposób: żółta kartka), więc rywale zwykle czekają
+      if (this.ctrl) {
+        const side = this.approachSide(o, d);
+        if (side > 0) {
+          if (Math.random() < 1 - Math.exp(-rate * h * 0.1 * (0.6 + 0.8 * this.E(d, 'agg') / 100))) {
+            const slide = Math.random() < 0.35;
+            this.foul(d, o, side === 2, ins, slide ? 'yellow' : null);
+            return;
+          }
+          continue;
+        }
+      }
       if (Math.random() < 1 - Math.exp(-rate * h)) { this.duel(d, o, false); if (b.owner !== o) return; }
       else if (dist < 1.2 + rp && Math.random() < h * (0.1 + 0.08 * ins) * (1.3 - this.E(d, 'tk') / 100) * (0.6 + 0.8 * this.E(d, 'agg') / 100)) {
         const back = Math.abs(Math.atan2(d.y - o.y, d.x - o.x) - o.face);
@@ -1043,9 +1055,19 @@ export class LiveMatch extends Match {
     return true;
   }
 
+  /** Skąd atakujący podchodzi do zawodnika z piłką: 0 z przodu, 1 z boku, 2 od tyłu (względem kierunku, w którym patrzy). */
+  approachSide(carrier, att) {
+    let df = Math.abs(Math.atan2(att.y - carrier.y, att.x - carrier.x) - carrier.face);
+    if (df > Math.PI) df = 2 * Math.PI - df;
+    return df <= 1.2 ? 0 : df <= 2.3 ? 1 : 2;
+  }
+
   /** Odbiór gracza: czyste zabranie piłki bez faulu. Moje Odbiór i Ustawianie się kontra jego Drybling i Technika:
    *  lepszy wygrywa (z małym losowym rozrzutem). Udany: rywal stoi w miejscu przez sekundę. */
   ctrlTackle(a, o) {
+    // odbiór od tyłu albo z boku to zawsze faul
+    const side = this.approachSide(o, a);
+    if (side > 0) { a.tackleCd = 1; this.foul(a, o, side === 2, 1); return; }
     const mine = 0.75 * this.E(a, 'tk') + 0.15 * this.E(a, 'psn') + 0.1 * this.E(a, 'st');
     const his = 0.75 * this.E(o, 'dr') + 0.15 * this.E(o, 'te') + 0.1 * this.E(o, 'bal');
     const dps = this.ps(a);
@@ -1071,6 +1093,9 @@ export class LiveMatch extends Match {
     const dir = this.ctrlDir(a);
     a.slideCd = 5;
     if (o && o.side !== a.side && !o.gk && D2(a, o) < 3.2 + this.reachPlus(a, o)) {
+      // wślizg od tyłu albo z boku: faul i żółta kartka
+      const side = this.approachSide(o, a);
+      if (side > 0) { this.foul(a, o, side === 2, 2, 'yellow'); return; }
       const dps = this.ps(a);
       dps.tka = (dps.tka || 0) + 1; dps.tk++;
       this.rate(a, 0.06); this.rate(o, -0.03);
@@ -2081,7 +2106,7 @@ export class LiveMatch extends Match {
   // =====================================================================
   // faule, kartki, kontuzje
   // =====================================================================
-  foul(d, a, fromBehind, aggr) {
+  foul(d, a, fromBehind, aggr, minCard = null) {
     const s = a.side;
     const D = this.sides[d.side];
     D.fouls++;
@@ -2109,6 +2134,7 @@ export class LiveMatch extends Match {
     else if (lastMan && inBox) card = 'yellow';
     else if (sev > 1.12 && Math.random() < 0.18) card = 'red';
     else if (sev > 0.8 && Math.random() < 0.5) card = 'yellow';
+    if (!card && minCard) card = minCard;
     if (Math.random() < 0.004 + 0.02 * Math.max(0, sev - 0.6)) this.injure(a, true);
     this.emit('foul', { d, a, inBox, sev });
     if (card) this.card(d, card);

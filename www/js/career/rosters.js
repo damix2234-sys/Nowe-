@@ -1,7 +1,7 @@
 // Tryb zawodnika: stałe składy wszystkich klubów, statystyki zawodników w sezonie, relacje z kolegami z drużyny,
 // wyścigi o nagrody w ligach i światowy ranking piłkarzy. Funkcje dostają stan kariery (st) jako parametr.
 import { mkRng, rint, gauss, pick, clamp } from '../core/util.js';
-import { NAT, NATIONS } from '../data/nations.js';
+import { NAT, NATIONS, LEAGUES } from '../data/nations.js';
 import { genName } from '../engine/db.js';
 import { POS_GROUP, ovr } from '../engine/player.js';
 
@@ -32,18 +32,35 @@ function newPlayer(st, cid, pos, o, age, r) {
 
 /** Tworzy składy wszystkich klubów (nowa kariera albo zapis sprzed 0.9.9). */
 export function ensureRosters(st) {
-  if (st.pl && st.ros) return;
-  st.pl = {}; st.ros = {}; st.plSeq = 1000; st.rel = st.rel || {};
-  for (const c of st.clubs) {
-    const r = mkRng(c.id * 7919 + st.year * 31 + 5);
-    const ids = [];
-    // jedenastka na poziomie klubu, ławka nieco słabsza
-    const bench = ['GK', 'CB', pick(EXTRA[0], r), 'CM', pick(EXTRA[1], r), pick(EXTRA[2], r), 'CF'];
-    XI.forEach((pos) => ids.push(newPlayer(st, c.id, pos, c.lv + gauss(r) * 3.2, rint(19, 33, r), r).id));
-    bench.forEach((pos) => ids.push(newPlayer(st, c.id, pos, c.lv - 4 + gauss(r) * 3.2, rint(18, 32, r), r).id));
-    st.ros[c.id] = ids;
-  }
+  if (!st.pl || !st.ros) { st.pl = {}; st.ros = {}; st.plSeq = 1000; }
+  st.rel = st.rel || {};
+  seasonRosters(st);
 }
+
+/** Kadra jednego klubu (tworzona, gdy jest potrzebna: wejście na stronę klubu, mecz, transfer). */
+export function ensureClub(st, cid) {
+  if (!st.pl || cid == null || !st.clubs[cid] || st.ros[cid]) return;
+  const c = st.clubs[cid];
+  const r = mkRng(c.id * 7919 + st.year * 31 + 5);
+  const ids = [];
+  // jedenastka na poziomie klubu, ławka nieco słabsza
+  const bench = ['GK', 'CB', pick(EXTRA[0], r), 'CM', pick(EXTRA[1], r), pick(EXTRA[2], r), 'CF'];
+  XI.forEach((pos) => ids.push(newPlayer(st, c.id, pos, c.lv + gauss(r) * 3.2, rint(19, 33, r), r).id));
+  bench.forEach((pos) => ids.push(newPlayer(st, c.id, pos, c.lv - 4 + gauss(r) * 3.2, rint(18, 32, r), r).id));
+  st.ros[c.id] = ids;
+}
+
+/** Kadry tworzone od razu: najwyższe ligi dużych krajów, wszystkie kluby z kraju zawodnika, jego klub i kluby
+ *  z pucharów europejskich i Unova League. Pozostałe kluby dostają kadrę, gdy jest potrzebna (oszczędność pamięci). */
+export function seasonRosters(st) {
+  if (!st.pl) return;
+  const myNat = st.club != null && st.clubs[st.club] ? st.clubs[st.club].nat : st.me.nat;
+  const cups = new Set(Object.values(st.euro || {}).flatMap((E) => E.teams || []));
+  for (const c of st.clubs) if ((c.div === 1 && LEAGUES[c.nat]) || c.nat === st.me.nat || c.nat === myNat || c.id === st.club || cups.has(c.id)) ensureClub(st, c.id);
+}
+
+/** Kadry wszystkich klubów ligi (gdy gracz otwiera jej wyścig o nagrody). */
+export function ensureLeague(st, L) { for (const id of L.teams) ensureClub(st, id); }
 
 export const rosterOf = (st, cid) => (st.ros[cid] || []).map((id) => st.pl[id]).filter(Boolean);
 
@@ -118,7 +135,7 @@ export function teamMatchStats(st, cid, gf, ga, opts = {}) {
     let r;
     if (opts.live && opts.live[p.id].r != null) r = opts.live[p.id].r;
     else r = 6.55 + res + x.g * 0.85 + x.a * 0.5 + (def ? (ga === 0 ? 0.45 : -0.12 * Math.min(ga, 4)) : 0) + (p.o - lv) * 0.035 + gauss() * 0.42;
-    s.rs += clamp(Math.round(r * 10) / 10, 4, 10);
+    s.rs = Math.round((s.rs + clamp(r, 4, 10)) * 10) / 10;
   }
   return xi;
 }
@@ -146,7 +163,6 @@ export function rosterSeasonEnd(st) {
   const note = (cid, p) => { (moves[cid] = moves[cid] || []).push(p); };
   for (const p of Object.values(st.pl)) {
     p.t.ap += p.s.ap; p.t.g += p.s.g; p.t.a += p.s.a;
-    p.last = { ...p.s };
     p.s = emptyS();
     p.age++;
     const grow = p.age <= 21 ? 2.4 : p.age <= 24 ? 1.3 : p.age <= 28 ? 0.3 : p.age <= 31 ? -0.8 : -2.2;
@@ -155,7 +171,8 @@ export function rosterSeasonEnd(st) {
   }
   // emerytury i nowi zawodnicy na ich miejsce
   for (const c of st.clubs) {
-    const ids = st.ros[c.id] || [];
+    if (!st.ros[c.id]) continue;
+    const ids = st.ros[c.id];
     st.ros[c.id] = ids.filter((id) => {
       const p = st.pl[id];
       if (p.age >= 32 && Math.random() < (p.age - 31) * 0.18) { delete st.pl[id]; delete st.rel[id]; return false; }
@@ -167,7 +184,7 @@ export function rosterSeasonEnd(st) {
   for (const p of all) {
     const from = st.clubs[p.c];
     if (!from || p.o < from.lv + 3 || Math.random() > 0.35) continue;
-    const to = st.clubs.filter((c) => c.lv > from.lv + 2 && c.lv <= p.o + 3 && (st.ros[c.id] || []).length < 22);
+    const to = st.clubs.filter((c) => st.ros[c.id] && c.lv > from.lv + 2 && c.lv <= p.o + 3 && st.ros[c.id].length < 22);
     if (!to.length) continue;
     const dst = pick(to);
     st.ros[from.id] = st.ros[from.id].filter((x) => x !== p.id);
@@ -178,6 +195,7 @@ export function rosterSeasonEnd(st) {
   }
   // uzupełnienie składów do 18 i normalizacja do siły klubu
   for (const c of st.clubs) {
+    if (!st.ros[c.id]) continue;
     const r = Math.random;
     const ros = rosterOf(st, c.id);
     // zbyt duża kadra: odchodzą najsłabsi (do niższych lig, poza grę)
@@ -299,7 +317,7 @@ export function clubInfo(st, cid) {
   const hist = st.hist && st.hist[cid] ? st.hist[cid] : null;
   const old = { league: Math.max(0, Math.round((c.lv - 74) / 2.2 + r() * 3 - 1)), cup: Math.max(0, Math.round((c.lv - 70) / 2.5 + r() * 3 - 1)), euro: Math.max(0, Math.round((c.lv - 84) / 2 + r() * 1.5 - 0.6)) };
   return { founded, cap, coach: `${coach.fn} ${coach.ln}`, stadium, nick, titles: {
-    league: old.league + (hist ? hist.league || 0 : 0), cup: old.cup + (hist ? hist.cup || 0 : 0), euro: old.euro + (hist ? hist.euro || 0 : 0),
+    league: old.league + (hist ? hist.league || 0 : 0), cup: old.cup + (hist ? hist.cup || 0 : 0), euro: old.euro + (hist ? hist.euro || 0 : 0), world: hist ? hist.world || 0 : 0,
   } };
 }
 

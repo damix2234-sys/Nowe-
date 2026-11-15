@@ -135,7 +135,7 @@ screen('chome', {
     const fxs = C.weekMatches();
     const summer = pc.phase === 'summer';
     let next = '';
-    if (fxs.length) next = fxs.map((fx) => `<div class="row"><span class="tag">${fx.comp === 'league' ? 'Liga' : fx.comp === 'cup' ? 'Puchar' : fx.comp === 'ucl' ? 'LM' : fx.comp === 'usl' ? 'SL' : fx.comp === 'ulg' ? 'UL' : fx.comp === 'tour' ? 'Turniej' : 'Kadra'}</span><div class="main"><div class="t1 wrap">${fxLine(fx)}</div><div class="t2">${esc(fx.title)}</div></div></div>`).join('');
+    if (fxs.length) next = fxs.map((fx) => `<div class="row"><span class="tag">${fx.comp === 'league' ? 'Liga' : fx.comp === 'cup' ? 'Puchar' : fx.comp === 'ucl' ? 'LM' : fx.comp === 'usl' ? 'SL' : fx.comp === 'ulg' ? 'UL' : fx.comp === 'unl' ? 'Świat' : fx.comp === 'tour' ? 'Turniej' : 'Kadra'}</span><div class="main"><div class="t1 wrap">${fxLine(fx)}</div><div class="t2">${esc(fx.title)}</div></div></div>`).join('');
     else next = `<div class="small muted">${summer ? (pc.tour && !pc.tour.done && pc.tour.called ? 'Turniej trwa.' : 'Przerwa letnia. Kliknij Dalej, aby rozpocząć nowy sezon.') : C.isIntlWeek() ? 'Przerwa na mecze reprezentacji. Nie masz powołania.' : 'W tym tygodniu nie masz meczu.'}</div>`;
     const recent = pc.log.slice(0, 5).map((l) => `<div class="row"><div class="main"><div class="t1 wrap">${esc(l.line)}</div><div class="t2">${l.r != null ? `ocena ${l.r.toFixed(1)}${l.g ? ` · ⚽ ${l.g}` : ''}${l.a ? ` · 🅰️ ${l.a}` : ''}` : 'nie grał'}</div></div><b>${esc(l.res)}</b></div>`).join('');
     const unread = pc.msgs.filter((m) => !m.read).slice(0, 2);
@@ -215,7 +215,7 @@ screen('cmatch', {
       <div class="card"><div class="card-h"><h3>Relacja</h3><span class="small muted">${esc(M.title)}</span></div><div id="cm-log" class="cm-log">${logHTML()}</div></div>`;
     const foot = fin ? `<button class="btn block" data-a="cmx.next">${MI + 1 < MQ.length ? 'Następny mecz' : 'Zakończ tydzień'} ${icon('right')}</button>`
       : `<button class="btn ghost" data-a="cmx.sim">Symuluj do końca</button><button class="btn" data-a="cmx.play">${icon('play')} Graj</button>`;
-    return { title: M.comp === 'league' ? 'Mecz ligowy' : M.comp === 'cup' ? 'Mecz pucharowy' : M.comp === 'ucl' ? 'Liga Mistrzów' : M.comp === 'usl' ? 'Super Liga' : M.comp === 'ulg' ? 'Ultra Liga' : 'Reprezentacja', sub: M.line, body, foot, back: false, cls: '' };
+    return { title: M.comp === 'league' ? 'Mecz ligowy' : M.comp === 'cup' ? 'Mecz pucharowy' : M.comp === 'ucl' ? 'Liga Mistrzów' : M.comp === 'usl' ? 'Super Liga' : M.comp === 'ulg' ? 'Ultra Liga' : M.comp === 'unl' ? 'Unova League' : 'Reprezentacja', sub: M.line, body, foot, back: false, cls: '' };
   },
   leave() { stopTimer(); },
 });
@@ -448,24 +448,30 @@ screen('ctable', {
   render() {
     const pc = PC();
     const L = C.myLeague();
-    let body = seg('ctab.t', [['table', 'Tabela'], ['fx', 'Terminarz'], ['cup', 'Puchar'], ['euro', 'Europa'], ['aw', 'Nagrody']], ctab.t).replace('class="seg"', 'class="seg seg-wrap"');
+    let body = seg('ctab.t', [['table', 'Tabela'], ['fx', 'Terminarz'], ['cup', 'Puchar'], ['euro', 'Europa'], ['world', 'Świat'], ['aw', 'Nagrody']], ctab.t).replace('class="seg"', 'class="seg seg-wrap"');
     if (ctab.t === 'aw') { body += awardsTab(); return { title: 'Rozgrywki', sub: 'Wyścig o nagrody', body, cls: 'nofoot' }; }
-    if (ctab.t === 'euro' && pc.euro) {
-      const mine = C.myEuro();
-      const keys = ['ucl', 'usl', ...(pc.euro.ulg ? ['ulg'] : [])];
-      const k = keys.includes(ctab.e) ? ctab.e : mine || 'ucl';
+    if (ctab.t === 'world' && !(pc.euro && pc.euro.unl)) {
+      body += `<div class="card"><h3>🌍 Unova League</h3><p class="small mt">Kategoria Świat: liga dla klubów, które zdobyły puchar swojego kraju. Ruszy od następnego sezonu.</p></div>`;
+      return { title: 'Rozgrywki', sub: 'Świat', body, cls: 'nofoot' };
+    }
+    if ((ctab.t === 'euro' || ctab.t === 'world') && pc.euro) {
+      const world = ctab.t === 'world';
+      const mine = world ? C.myWorld() : C.myEuro();
+      const keys = world ? ['unl'] : ['ucl', 'usl', ...(pc.euro.ulg ? ['ulg'] : [])];
+      const k = world ? 'unl' : keys.includes(ctab.e) ? ctab.e : mine || 'ucl';
       const E = pc.euro[k];
       const nm = (id) => `<span class="tap" data-a="ck.open" data-k="${id}">${flag(pc.clubs[id].nat)} ${esc(pc.clubs[id].n)}</span>`;
       const tbl = (rows, hi) => `<table class="tbl"><tr><th>#</th><th class="tl">Klub</th><th>M</th><th>B</th><th>Pkt</th></tr>${rows.map((r, i) => `<tr class="${r.id === pc.club ? 'me' : ''} ${hi && i < hi ? 'q' : ''}"><td>${i + 1}</td><td class="tl">${nm(r.id)}</td><td>${r.p}</td><td>${r.gf}:${r.ga}</td><td><b>${r.pts}</b></td></tr>`).join('')}</table>`;
-      body += chips('ctab.e', keys.map((x) => [x, C.EURO_NAMES[x]]), k).replace('class="chips"', 'class="chips wrap"');
+      if (!world) body += chips('ctab.e', keys.map((x) => [x, C.EURO_NAMES[x]]), k).replace('class="chips"', 'class="chips wrap"');
       const info = {
         ucl: 'Liga Mistrzów: najlepsze kluby z miejsc 1–3 w najwyższych ligach.',
         usl: 'Super Liga: najlepsze kluby z miejsc 4–8 w najwyższych ligach.',
+        unl: `Unova League, kategoria Świat: kluby z całego świata, które w poprzednim sezonie zdobyły puchar swojego kraju. Gra ${C.UNOVA_SIZE} najmocniejszych zdobywców pucharów, a każdy kontynent ma co najmniej 2 miejsca. W pierwszym sezonie kariery grają najmocniejsze kluby poszczególnych krajów.`,
         ulg: 'Ultra Liga: najwyższe wyróżnienie. Gra w niej 10 klubów: po 5 najlepszych z fazy pucharowej Ligi Mistrzów i Super Ligi z poprzedniego sezonu. Każdy z każdym, wygrywa pierwsze miejsce w tabeli.',
       }[k];
       body += `<div class="card"><div class="facts"><div class="fact"><div class="k">Kluby</div><div class="v">${E.teams.length}</div></div><div class="fact"><div class="k">Etap</div><div class="v small">${E.kind === 'league' ? `kolejka ${Math.min(E.round + 1, E.fx.length)} z ${E.fx.length}` : E.stage === 'G' ? `faza grupowa, kolejka ${Math.min(E.round + 1, E.G)} z ${E.G}` : E.stage === 'KO' ? C.koStageName(E) : 'zakończone'}</div></div></div>
         <p class="small mt">${info}${E.kind === 'groups' ? ` ${E.teams.length} klubów w 4 grupach. W grupie każdy gra z każdym, a 2 najlepsze kluby z każdej grupy przechodzą do fazy pucharowej: ćwierćfinał, półfinał i finał o trofeum.` : ''}</p>
-        <p class="small muted">${mine === k ? 'Twój klub gra w tych rozgrywkach.' : mine ? `Twój klub gra w tym sezonie w rozgrywkach: ${C.EURO_NAMES[mine]}.` : 'Twój klub nie gra w tym sezonie w pucharach europejskich.'}</p></div>`;
+        <p class="small muted">${mine === k ? 'Twój klub gra w tych rozgrywkach.' : mine ? `Twój klub gra w tym sezonie w rozgrywkach: ${C.EURO_NAMES[mine]}.` : (world ? 'Twój klub nie gra w tym sezonie w Unova League. Zdobądź puchar kraju, aby zagrać w następnym sezonie.' : 'Twój klub nie gra w tym sezonie w pucharach europejskich.')}</p></div>`;
       if (E.kind === 'league') {
         body += `<div class="card tight">${tbl(C.sortedTable(E), 0)}</div>`;
       } else {
@@ -476,20 +482,32 @@ screen('ctable', {
         }
         body += E.groups.map((g, gi) => `<div class="card tight"><div class="card-h" style="padding:10px 12px 0"><h3>Grupa ${C.GROUP_NAMES[gi]}</h3></div>${tbl(C.groupTable(E, gi), 2)}</div>`).join('');
       }
-      body += `<p class="small muted center">Mecze europejskie w tygodniach: ${C.EURO_WEEKS.map((w) => w + 1).join(', ')}.</p>`;
+      body += `<p class="small muted center">Mecze ${world ? 'Unova League' : 'europejskie'} w tygodniach: ${C.EURO_WEEKS.map((w) => w + 1).join(', ')}.</p>`;
       return { title: 'Rozgrywki', sub: E.name, body, cls: 'nofoot' };
     }
     if (ctab.t === 'table') {
-      const t = C.sortedTable(L);
+      const LT = pc.leagues[ctab.tl] || L;
+      const t = C.sortedTable(LT);
+      body += leagueSelect('ctab.tl', LT);
       body += `<div class="card tight"><table class="tbl"><tr><th>#</th><th class="tl">Klub</th><th>M</th><th>B</th><th>Pkt</th></tr>${t.map((r, i) => `<tr class="${r.id === pc.club ? 'me' : ''}"><td>${i + 1}</td><td class="tl tap" data-a="ck.open" data-k="${r.id}">${esc(pc.clubs[r.id].n)}</td><td>${r.p}</td><td>${r.gf}:${r.ga}</td><td><b>${r.pts}</b></td></tr>`).join('')}</table></div>
         <p class="small muted">Dotknij klubu, aby zobaczyć informacje i skład.</p>
-        <p class="small muted">${L.div === 2 ? 'Dwie najlepsze drużyny awansują do najwyższej ligi.' : L.nat === pc.me.nat && pc.leagues[`${L.nat}-2`] ? 'Dwie ostatnie drużyny spadają do II ligi.' : 'Mistrz zdobywa trofeum.'}</p>`;
+        <p class="small muted">${LT.div === 1 ? 'Mistrz zdobywa trofeum. Dwa ostatnie kluby spadają do II ligi.' : LT.div === 2 ? 'Dwa najlepsze kluby awansują do najwyższej ligi, dwa ostatnie spadają do III ligi.' : 'Dwa najlepsze kluby awansują do II ligi.'}</p>`;
+      return { title: 'Rozgrywki', sub: C.leagueName(LT), body, cls: 'nofoot' };
     } else if (ctab.t === 'fx') {
       body += `<div class="card tight"><div class="list">${L.fx.map((rd, i) => { const m = rd.find((x) => x.h === pc.club || x.a === pc.club); if (!m) return ''; return `<div class="row ${i === L.round ? 'me' : ''}"><span class="tag">${i + 1}</span><div class="main"><div class="t1 wrap">${esc(pc.clubs[m.h].n)} vs ${esc(pc.clubs[m.a].n)}</div></div><b>${m.r ? `${m.r[0]}:${m.r[1]}` : '–'}</b></div>`.replace('–', 'vs'); }).join('')}</div></div>`;
     } else {
-      const c = pc.cup;
-      body += `<div class="card"><h3>Puchar ${esc(NAT[c.nat].name)}</h3><p class="small">${c.done ? `Zwycięzca: <b>${esc(pc.clubs[c.winner].n)}</b>` : `Etap: ${C.cupRoundName()} · w grze ${c.alive.length} drużyn`}</p>
-        <p class="small muted">${c.alive.includes(pc.club) || c.winner === pc.club ? 'Twój klub jest wciąż w grze.' : pc.clubs[pc.club].nat === c.nat ? 'Twój klub odpadł z pucharu albo w nim nie gra.' : 'Grasz w lidze zagranicznej, puchar kraju Cię nie dotyczy.'}</p></div>`;
+      const myNat = pc.clubs[pc.club].nat;
+      const cups = C.allCups(pc);
+      const cn = cups.some((x) => x.nat === ctab.cn) ? ctab.cn : (C.cupOf(myNat, pc) ? myNat : cups[0] && cups[0].nat);
+      const c = C.cupOf(cn, pc);
+      if (cups.length > 1) body += `<div class="card"><label class="small muted">Kraj</label><select class="input" data-change="ctab.cn">${cups.map((x) => NAT[x.nat]).sort((a, b) => (a.id === myNat ? -1 : b.id === myNat ? 1 : a.name.localeCompare(b.name, 'pl'))).map((n) => `<option value="${n.id}" ${n.id === cn ? 'selected' : ''}>${n.flag} ${esc(n.name)}</option>`).join('')}</select>
+        <p class="small muted mt">Każdy kraj ma swój puchar: 16 klubów ze wszystkich trzech lig, mecze do jednego zwycięstwa, przy remisie rzuty karne. Zdobywcy pucharów grają w następnym sezonie w Unova League.</p></div>`;
+      if (c) {
+        const nm = (id) => `<span class="tap" data-a="ck.open" data-k="${id}">${esc(pc.clubs[id].n)}</span>`;
+        body += `<div class="card"><h3>Puchar ${esc(NAT[c.nat].name)}</h3><p class="small">${c.done ? `🏆 Zwycięzca: <b>${nm(c.winner)}</b>` : `Etap: ${C.cupRoundName(c)} · w grze ${c.alive.length} drużyn`}</p>
+          <p class="small muted">${c.nat !== myNat ? 'Twój klub gra w pucharze innego kraju.' : c.alive.includes(pc.club) || c.winner === pc.club ? 'Twój klub jest wciąż w grze.' : 'Twój klub odpadł z pucharu.'}</p></div>`;
+        if (!c.done) body += `<div class="card tight"><div class="card-h" style="padding:10px 12px 0"><h3>W grze</h3></div><div class="list">${c.alive.map((id) => `<div class="row ${id === pc.club ? 'me' : ''}"><div class="main"><div class="t1">${nm(id)}</div><div class="t2">${esc(C.leagueName(leagueOf(id) || { nat: c.nat, div: pc.clubs[id].div }))}</div></div>${rating(pc.clubs[id].lv)}</div>`).join('')}</div></div>`;
+      }
     }
     return { title: 'Rozgrywki', sub: C.leagueName(L), body, cls: 'nofoot' };
   },
@@ -498,15 +516,23 @@ screen('ctable', {
 // ---------------- nagrody w lidze ----------------
 const leagueOf = (cid) => Object.values(PC().leagues).find((L) => L.teams.includes(cid));
 const avgR = (s) => (s && s.ap ? s.rs / s.ap : 0);
+function leagueSelect(action, cur) {
+  const pc = PC(), my = C.myLeague();
+  const list = Object.values(pc.leagues).sort((a, b) => (a === my ? -1 : b === my ? 1 : NAT[a.nat].name.localeCompare(NAT[b.nat].name, 'pl') || a.div - b.div));
+  return `<div class="card"><label class="small muted">Liga</label><select class="input" data-change="${action}">${list.map((x) => `<option value="${x.key}" ${x === cur ? 'selected' : ''}>${NAT[x.nat].flag} ${esc(C.leagueName(x))}</option>`).join('')}</select></div>`;
+}
 function awardsTab() {
   const pc = PC();
   const leagues = Object.values(pc.leagues);
   const my = C.myLeague();
   const L = pc.leagues[ctab.lg] || my;
+  // kadry klubów tej ligi: statystyki zbierane od teraz, jeśli wcześniej ligi nie było w bazie zawodników
+  const fresh = L.teams.some((id) => !pc.ros[id]);
+  R.ensureLeague(pc, L);
   const opts = leagues.slice().sort((a, b) => (a === my ? -1 : b === my ? 1 : C.leagueName(a).localeCompare(C.leagueName(b), 'pl')))
     .map((x) => `<option value="${x.key}" ${x === L ? 'selected' : ''}>${esc(C.leagueName(x))}</option>`).join('');
   let h = `<div class="card"><label class="small muted">Liga</label><select class="input" data-change="ctab.lg">${opts}</select>
-    <p class="small muted mt">Wyścig o nagrody indywidualne. Liczby aktualizują się co tydzień, po każdej kolejce. Po ostatniej kolejce pierwsze miejsce w każdej kategorii zdobywa nagrodę. Kategorie z oceną wymagają rozegrania co najmniej połowy meczów ligi.</p></div>`;
+    <p class="small muted mt">Wyścig o nagrody indywidualne. Liczby aktualizują się co tydzień, po każdej kolejce. Po ostatniej kolejce pierwsze miejsce w każdej kategorii zdobywa nagrodę. Kategorie z oceną wymagają rozegrania co najmniej połowy meczów ligi.</p>${fresh ? '<p class="small mt">Zawodnicy tej ligi dopiero trafili do bazy, więc ich statystyki liczą się od teraz.</p>' : ''}</div>`;
   for (const A of R.AWARDS) {
     const list = R.awardRace(pc, L, A, 5);
     h += `<div class="card tight"><div class="card-h" style="padding:10px 12px 0"><h3>${A.ic} ${esc(A.n)}</h3></div><div class="list">${list.length ? list.map((p, i) => `<div class="row ${p.me ? 'me' : ''} tap" data-a="${p.me ? 'crail.go' : 'cpl.open'}" data-k="${p.me ? 'cdev' : p.id}"><span class="tag">${i + 1}</span>${posBadge(p.pos)}<div class="main"><div class="t1">${esc(p.fn)} ${esc(p.ln)}${p.me ? ' · Ty' : ''}</div><div class="t2 wrap">${esc(pc.clubs[p.c] ? pc.clubs[p.c].n : '')} · ${p.s.ap} meczów</div></div><b>${esc(A.fmt(p))}</b></div>`).join('') : '<p class="small muted" style="padding:8px 12px">Brak kandydatów. Za mało rozegranych meczów.</p>'}</div></div>`;
@@ -530,11 +556,13 @@ function clubFormLine(cid) {
 }
 function clubRankList() {
   const pc = PC();
+  const lg = {};
+  for (const L of Object.values(pc.leagues)) for (const id of L.teams) lg[id] = L;
   return pc.clubs.map((c) => {
-    const L = leagueOf(c.id), t = L && L.table ? L.table[c.id] : null;
+    const L = lg[c.id], t = L && L.table ? L.table[c.id] : null;
     const ppg = t && t.p ? t.pts / t.p : 1.4;
     const eu = pc.euro ? ['ulg', 'ucl', 'usl'].find((k) => pc.euro[k] && pc.euro[k].teams.includes(c.id)) : null;
-    const sc = Math.round(c.lv * 10 + (ppg - 1.4) * 12 + (c.div === 2 ? -40 : 0) + (eu === 'ulg' ? 15 : eu === 'ucl' ? 8 : eu === 'usl' ? 4 : 0));
+    const sc = Math.round(c.lv * 10 + (ppg - 1.4) * 12 + (c.div === 2 ? -40 : c.div === 3 ? -80 : 0) + (pc.euro && pc.euro.unl && pc.euro.unl.teams.includes(c.id) ? 6 : 0) + (eu === 'ulg' ? 15 : eu === 'ucl' ? 8 : eu === 'usl' ? 4 : 0));
     return { c, L, sc, eu };
   }).sort((a, b) => b.sc - a.sc);
 }
@@ -551,6 +579,7 @@ screen('cklub', {
     const pc = PC();
     const cid = params && params.id != null ? +params.id : pc.club;
     const c = pc.clubs[cid];
+    R.ensureClub(pc, cid);
     const mine = cid === pc.club;
     const L = leagueOf(cid);
     const tab = L && L.table ? C.sortedTable(L) : [];
@@ -576,7 +605,9 @@ screen('cklub', {
       const alive = E.kind === 'league' || E.stage === 'G' || (E.ko && E.ko.ties.some((t) => t.h === cid || t.a === cid));
       euTxt = `${C.EURO_NAMES[eu]}: ${E.winner === cid ? 'zwycięzca' : E.kind === 'league' ? `${C.sortedTable(E).findIndex((x) => x.id === cid) + 1}. miejsce` : E.stage === 'G' ? `grupa ${C.GROUP_NAMES[E.groups.findIndex((g) => g.includes(cid))]}` : alive ? C.koStageName(E) : 'odpadł'}`;
     }
-    const cup = pc.cup && pc.cup.nat === c.nat ? (pc.cup.winner === cid ? 'zwycięzca' : pc.cup.alive.includes(cid) && !pc.cup.done ? `w grze, ${C.cupRoundName()}` : 'odpadł albo nie grał') : null;
+    const cupO = C.cupOf(c.nat, pc);
+    const cup = cupO ? (cupO.winner === cid ? 'zwycięzca' : cupO.alive.includes(cid) && !cupO.done ? `w grze, ${C.cupRoundName(cupO)}` : 'odpadł albo nie grał') : null;
+    const unl = pc.euro && pc.euro.unl && pc.euro.unl.teams.includes(cid) ? pc.euro.unl : null;
     const myRel = mine ? ros.filter((p) => !p.me).map((p) => pc.rel[p.id] || 0) : [];
     const relAvg = myRel.length ? myRel.reduce((a, b) => a + b, 0) / myRel.length : 0;
     const F = (k, v) => `<div class="fact"><div class="k">${k}</div><div class="v small">${v}</div></div>`;
@@ -598,7 +629,7 @@ screen('cklub', {
       ${F('Liga', L ? esc(C.leagueName(L)) : 'brak')}${F('Miejsce', pos ? `${pos}. z ${tab.length}` : 'brak')}
       ${F('Punkty', row ? `${row.pts} w ${row.p} meczach` : '0')}${F('Bilans', row ? `${row.w} W · ${row.d} R · ${row.l} P` : 'brak')}
       ${F('Bramki', row ? `${row.gf}:${row.ga}` : '0:0')}${F('Forma', clubFormLine(cid))}
-      ${F('Puchary europejskie', esc(euTxt))}${cup ? F(`Puchar ${esc(NAT[c.nat].name)}`, esc(cup)) : ''}
+      ${F('Puchary europejskie', esc(euTxt))}${cup ? F(`Puchar ${esc(NAT[c.nat].name)}`, esc(cup)) : ''}${F('Unova League', unl ? (unl.winner === cid ? 'zwycięzca' : 'gra w tym sezonie') : 'nie gra w tym sezonie')}
       ${F('Ranking klubów', `${rk}. miejsce na świecie`)}${F('Punkty rankingu', rank[rk - 1] ? rank[rk - 1].sc : 0)}</div></div>
       <div class="card"><div class="card-h"><h3>Klub</h3></div><div class="facts">
       ${F('Siła drużyny', Math.round(c.lv))}${F('Przydomek', esc(info.nick))}
@@ -606,7 +637,7 @@ screen('cklub', {
       ${F('Pojemność', `${info.cap.toLocaleString('pl-PL')} miejsc`)}${F('Trener', esc(info.coach))}
       ${F('Kapitan', capt ? `${esc(capt.fn)} ${esc(capt.ln)}` : 'brak')}${F('Barwy', `<span class="kit-sw" style="background:${c1}"></span><span class="kit-sw" style="background:${c2}"></span>`)}
       ${F('Mistrzostwa kraju', info.titles.league)}${F('Puchary kraju', info.titles.cup)}
-      ${F('Puchary europejskie', info.titles.euro)}${F('Poziom ligi', c.div === 1 ? 'najwyższa liga' : 'II liga')}</div></div>
+      ${F('Puchary europejskie', info.titles.euro)}${F('Unova League', info.titles.world)}${F('Poziom ligi', c.div === 1 ? 'najwyższa liga' : c.div === 2 ? 'II liga' : 'III liga')}</div></div>
       <div class="card"><div class="card-h"><h3>Kadra</h3></div><div class="facts">
       ${F('Zawodnicy', ros.length)}${F('Średni wiek', avgAge.toFixed(1))}
       ${F('Obcokrajowcy', foreign)}${F('Wartość kadry', R.fmtMoney(value))}
@@ -641,8 +672,10 @@ screen('crank', {
     const pc = PC();
     let body = seg('crk.t', [['clubs', 'Kluby'], ['players', 'Zawodnicy'], ['aw', 'Nagrody']], crk.t);
     if (crk.t === 'clubs') {
-      const list = clubRankList();
-      body += `<div class="card"><p class="small muted">Ranking wszystkich klubów w bazie: siła drużyny, wyniki w tym sezonie i gra w pucharach europejskich. Dotknij klubu, aby zobaczyć informacje i skład.</p></div>
+      const all = clubRankList();
+      const myI = all.findIndex((x) => x.c.id === pc.club);
+      const list = all.slice(0, 200);
+      body += `<div class="card"><p class="small muted">Ranking wszystkich ${all.length} klubów w bazie: siła drużyny, poziom ligi, wyniki w tym sezonie i gra w pucharach. Poniżej pierwsza dwusetka. Dotknij klubu, aby zobaczyć informacje i skład.</p>${myI >= 0 ? `<p class="mt">Twój klub: <b>${myI + 1}.</b> miejsce · ${all[myI].sc} pkt</p>` : ''}</div>
         <div class="card tight"><table class="tbl"><tr><th>#</th><th class="tl">Klub</th><th>Siła</th><th>Pkt</th></tr>${list.map((x, i) => `<tr class="${x.c.id === pc.club ? 'me' : ''} tap" data-a="ck.open" data-k="${x.c.id}"><td>${i + 1}</td><td class="tl">${flag(x.c.nat)} ${esc(x.c.n)}<div class="small muted">${x.L ? esc(C.leagueName(x.L)) : ''}${x.eu ? ` · ${C.EURO_NAMES[x.eu]}` : ''}</div></td><td>${Math.round(x.c.lv)}</td><td><b>${x.sc}</b></td></tr>`).join('')}</table></div>`;
     } else if (crk.t === 'players') {
       const all = R.globalRanking(pc, 4000);
@@ -856,6 +889,8 @@ actions({
   'ctab.t': (d) => { ctab.t = d.k; rerender(); },
   'ctab.e': (d) => { ctab.e = d.k; rerender(); },
   'ctab.lg': (d, el) => { ctab.lg = el.value; rerender(); },
+  'ctab.tl': (d, el) => { ctab.tl = el.value; rerender(); },
+  'ctab.cn': (d, el) => { ctab.cn = el.value; rerender(); },
   'ck.open': (d) => { closeOverlay(); ck.t = 'info'; go('cklub', { id: +d.k }); },
   'ck.t': (d) => { ck.t = d.k; rerender(); },
   'cpl.open': (d) => playerModal(+d.k),

@@ -7,7 +7,7 @@ import { FORMATIONS, defaultTactics, defaultSetPieces } from '../engine/tactics.
 import { AI_TRAIN } from '../engine/training.js';
 import { LiveMatch } from '../engine/sim.js';
 import { PC, finishMatch } from './engine.js';
-import { rosterOf } from './rosters.js';
+import { rosterOf, ensureClub } from './rosters.js';
 import { POS_GROUP } from '../engine/player.js';
 
 export const USER_PID = 1;
@@ -35,6 +35,7 @@ function squad(key, natId, str, base, f, r0) {
 
 /** Skład klubu z jego stałej kadry: ci sami zawodnicy (imiona, pozycje, umiejętności) co na ekranie Klub. */
 function clubSquad(cid, f) {
+  ensureClub(PC, cid);
   const ros = rosterOf(PC, cid).slice().sort((a, b) => b.o - a.o);
   if (ros.length < 11) return null;
   const tmp = { players: {}, nextPid: 0 };

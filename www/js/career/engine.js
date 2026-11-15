@@ -5,7 +5,7 @@ import { NATIONS, NAT, LEAGUES } from '../data/nations.js';
 import { makePlayer, genName, clubNameFor } from '../engine/db.js';
 import { ovr, posRating, POS_W, ATTR_NAMES, FORM_MUL, applyDelta, GK_ATTRS } from '../engine/player.js';
 import { SCEN, POS_SCEN } from './scenarios.js';
-import { ensureRosters, teamMatchStats, relAfterMatch, rosterSeasonEnd, signPlayers, AWARDS, awardRace, globalRanking, globalAwardFor, addHist, ME, rosterOf } from './rosters.js';
+import { ensureRosters, ensureClub, seasonRosters, teamMatchStats, relAfterMatch, rosterSeasonEnd, signPlayers, AWARDS, awardRace, globalRanking, globalAwardFor, addHist, ME, rosterOf } from './rosters.js';
 
 export let PC = null;
 export function setCareer(pc) { PC = pc; if (pc) migrateCareer(pc); }
@@ -32,7 +32,7 @@ export const CUP_WEEKS = [5, 10, 16, 23];
 export const WINTER_WINDOW = 14;
 // tygodnie meczów europejskich: 7 kolejek fazy grupowej, potem ćwierćfinał, półfinał i finał (Ultra Liga: 9 kolejek)
 export const EURO_WEEKS = [1, 2, 4, 6, 8, 12, 13, 15, 17, 20];
-export const EURO_NAMES = { ulg: 'Ultra Liga', ucl: 'Liga Mistrzów', usl: 'Super Liga' };
+export const EURO_NAMES = { ulg: 'Ultra Liga', ucl: 'Liga Mistrzów', usl: 'Super Liga', unl: 'Unova League' };
 export const EURO_SIZE = 32;
 export const KO_NAMES = ['ćwierćfinał', 'półfinał', 'finał'];
 export const GROUP_NAMES = ['A', 'B', 'C', 'D'];
@@ -55,35 +55,44 @@ export const TRAIN_FOCUS = {
 // ---------------------------------------------------------------------
 // tworzenie świata kariery
 // ---------------------------------------------------------------------
-function buildWorld(st, r) {
-  const clubs = [];
-  const used = new Set();
-  const leagues = {};
-  const add = (n, nat, lv, div) => { const c = { id: clubs.length, n, nat, lv: Math.round(lv * 10) / 10, div }; clubs.push(c); return c.id; };
-  const natList = [...new Set([...Object.keys(LEAGUES), st.me.nat])];
-  for (const nid of natList) {
-    const nat = NAT[nid];
-    const lg = LEAGUES[nid];
-    const cities = (lg ? lg.cities : nat.cities).slice();
-    const top = lg ? (lg.tier === 1 ? 88 : lg.tier === 2 ? 79 : 73) : nat.str - 4;
-    const divs = nid === st.me.nat ? 2 : 1;
-    for (let d = 1; d <= divs; d++) {
-      const ids = [];
-      for (let i = 0; i < 12; i++) {
-        const city = cities[(i + (d - 1) * 5) % cities.length];
-        const lv = d === 1 ? top - i * (lg ? 1.5 : 1.3) + gauss(r) : top - 12 - i * 1.2 + gauss(r);
-        ids.push(add(clubNameFor(nid, city, r, used), nid, clamp(lv, 38, 92), d));
-      }
-      leagues[`${nid}-${d}`] = { key: `${nid}-${d}`, nat: nid, div: d, teams: ids };
-    }
+/** Liczba klubów w lidze kraju: duże ligi i kraj zawodnika po 12, pozostałe kraje po 8. */
+const leagueSize = (st, nid) => (LEAGUES[nid] || nid === st.me.nat ? 12 : 8);
+export const DIVS = 3;
+
+function addLeague(st, nid, d, r, used) {
+  const nat = NAT[nid], lg = LEAGUES[nid];
+  const size = leagueSize(st, nid);
+  const cities = (lg ? lg.cities : nat.cities).slice();
+  const top = lg ? (lg.tier === 1 ? 88 : lg.tier === 2 ? 79 : 73) : nat.str - 4;
+  const ids = [];
+  for (let i = 0; i < size; i++) {
+    const city = cities[(i + (d - 1) * 5) % cities.length];
+    const step = size === 12 ? 1.3 : 1.7;
+    const lv = d === 1 ? top - i * (lg ? 1.5 : step) + gauss(r) : top - (d === 2 ? 12 : 23) - i * (d === 2 ? 1.2 : 1.1) + gauss(r);
+    const c = { id: st.clubs.length, n: clubNameFor(nid, city, r, used), nat: nid, lv: Math.round(clamp(lv, 30, 92) * 10) / 10, div: d };
+    st.clubs.push(c);
+    ids.push(c.id);
   }
-  st.clubs = clubs;
-  st.leagues = leagues;
+  st.leagues[`${nid}-${d}`] = { key: `${nid}-${d}`, nat: nid, div: d, teams: ids };
+}
+
+/** Świat kariery: każdy kraj ma 3 ligi i puchar kraju. */
+function buildWorld(st, r) {
+  st.clubs = [];
+  st.leagues = {};
+  expandWorld(st, r);
+}
+
+/** Dodaje brakujące kraje i ligi (nowa kariera albo zapis sprzed 1.0, rozbudowa przed nowym sezonem). */
+function expandWorld(st, r = Math.random) {
+  const used = new Set(st.clubs.map((c) => c.n));
+  for (const n of NATIONS) for (let d = 1; d <= DIVS; d++) if (!st.leagues[`${n.id}-${d}`]) addLeague(st, n.id, d, r, used);
+  st.worldV = 2;
 }
 
 export function leagueName(L) {
   const n = NAT[L.nat].name;
-  return L.div === 1 ? `Liga ${n}` : `${n}: II liga`;
+  return L.div === 1 ? `Liga ${n}` : `${n}: ${L.div === 2 ? 'II' : 'III'} liga`;
 }
 
 function roundRobin(ids, r) {
@@ -146,6 +155,21 @@ function buildEuro(st, useTables) {
   const usl = c2.concat(c1).filter((id) => !inU.has(id) && !inL.has(id)).sort(byLv).slice(0, EURO_SIZE);
   st.euro = { ucl: mkGroups(st, EURO_NAMES.ucl, ucl, r), usl: mkGroups(st, EURO_NAMES.usl, usl, r) };
   if (ultra.length >= 4) st.euro.ulg = mkUltra(EURO_NAMES.ulg, ultra, r);
+  const un = unovaTeams(st);
+  if (un.length >= 8) st.euro.unl = mkGroups(st, EURO_NAMES.unl, un, r);
+}
+
+/** Unova League (kategoria Świat): zdobywcy pucharów krajowych z poprzedniego sezonu z całego świata.
+ *  Gra 32 najmocniejszych, ale każdy kontynent ma co najmniej 2 miejsca. W pierwszym sezonie: najmocniejszy klub każdego kraju. */
+export const UNOVA_SIZE = 32;
+function unovaTeams(st) {
+  let cands = Object.values(st.cupWinners || {}).filter((id) => st.clubs[id]);
+  if (cands.length < 8) cands = NATIONS.map((n) => st.leagues[`${n.id}-1`]).filter(Boolean).map((L) => L.teams.slice().sort((a, b) => st.clubs[b].lv - st.clubs[a].lv)[0]);
+  cands = [...new Set(cands)].sort((a, b) => st.clubs[b].lv - st.clubs[a].lv);
+  const out = [];
+  for (const conf of ['EU', 'SA', 'NA', 'AF', 'AS', 'OC']) out.push(...cands.filter((id) => NAT[st.clubs[id].nat].conf === conf).slice(0, 2));
+  for (const id of cands) { if (out.length >= UNOVA_SIZE) break; if (!out.includes(id)) out.push(id); }
+  return out.slice(0, UNOVA_SIZE);
 }
 
 function koResult(st, t) {
@@ -194,18 +218,32 @@ export function euroRound(st, E, i) {
 
 function newSeason(st) {
   const r = Math.random;
+  if (st.worldV !== 2) expandWorld(st, r);
   // kwalifikacja do pucharów europejskich według poprzedniego sezonu (pierwszy sezon: siła klubów)
   buildEuro(st, true);
+  if (st.pl) seasonRosters(st);
   for (const L of Object.values(st.leagues)) {
     L.fx = roundRobin(L.teams, r);
     L.table = Object.fromEntries(L.teams.map((id) => [id, { p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 }]));
     L.round = 0;
     L.scorers = {};
   }
-  // puchar kraju zawodnika: 16 drużyn z obu lig
-  const nat = st.me.nat;
-  const teams = [...st.leagues[`${nat}-1`].teams, ...st.leagues[`${nat}-2`].teams.slice().sort((a, b) => st.clubs[b].lv - st.clubs[a].lv).slice(0, 4)];
-  st.cup = { nat, round: 0, alive: teams.sort(() => r() - 0.5), ties: [], done: false, winner: null };
+  // puchar kraju w każdym kraju: 16 drużyn ze wszystkich trzech lig
+  st.cups = {};
+  delete st.cup;
+  const myNat = st.club != null ? st.clubs[st.club].nat : null;
+  for (const n of NATIONS) {
+    const L1 = st.leagues[`${n.id}-1`], L2 = st.leagues[`${n.id}-2`], L3 = st.leagues[`${n.id}-3`];
+    if (!L1) continue;
+    const lower = 16 - L1.teams.length;
+    const byLv = (a, b) => st.clubs[b].lv - st.clubs[a].lv;
+    const t2 = L2 ? L2.teams.slice().sort(byLv).slice(0, Math.ceil(lower / 2)) : [];
+    const t3 = L3 ? L3.teams.slice().sort(() => r() - 0.5).slice(0, lower - t2.length) : [];
+    const teams = [...L1.teams, ...t2, ...t3];
+    // klub zawodnika zawsze gra w pucharze swojego kraju
+    if (n.id === myNat && !teams.includes(st.club)) teams[teams.length - 1] = st.club;
+    st.cups[n.id] = { nat: n.id, round: 0, alive: teams.sort(() => r() - 0.5), ties: [], done: false, winner: null };
+  }
   st.week = 0;
   st.phase = 'season';
   st.ss = { apps: 0, starts: 0, goals: 0, assists: 0, rsum: 0, mom: 0, yc: 0, rc: 0, cupApps: 0, euroApps: 0, natApps: 0, natGoals: 0, cleanSheets: 0, min: 0 };
@@ -214,7 +252,7 @@ function newSeason(st) {
 }
 
 export function startClubs(st) {
-  return Object.values(st.leagues).filter((L) => L.nat === st.me.nat && L.div === 2)
+  return Object.values(st.leagues).filter((L) => L.nat === st.me.nat && L.div === DIVS)
     .flatMap((L) => L.teams).map((id) => st.clubs[id]).sort((a, b) => a.lv - b.lv).slice(0, 8);
 }
 
@@ -310,6 +348,8 @@ export function myEuro() {
   for (const k of ['ulg', 'ucl', 'usl']) if (PC.euro[k] && PC.euro[k].teams.includes(PC.club)) return k;
   return null;
 }
+/** Czy klub zawodnika gra w tym sezonie w Unova League ('unl' albo null). */
+export function myWorld() { return PC.euro && PC.euro.unl && PC.euro.unl.teams.includes(PC.club) ? 'unl' : null; }
 
 /** Czy zawodnik jest powołany do reprezentacji (przy obecnej ocenie). */
 export function natCallup() {
@@ -340,17 +380,18 @@ export function weekMatches() {
     if (t && !t.done && t.next) out.push(t.next);
     return out;
   }
-  const eu = myEuro();
-  if (eu && EURO_WEEKS.includes(w)) {
+  for (const eu of [myEuro(), myWorld()]) {
+    if (!eu || !EURO_WEEKS.includes(w)) continue;
     const i = EURO_WEEKS.indexOf(w), E = PC.euro[eu];
     const mine = (x) => x.h === PC.club || x.a === PC.club;
     if (E.kind === 'league') { const m = E.fx[i] && E.fx[i].find(mine); if (m) out.push({ comp: eu, title: `${E.name}, kolejka ${i + 1}`, h: m.h, a: m.a, fx: m }); }
     else if (i < E.G) { const m = E.gfx[i] && E.gfx[i].find(mine); if (m) out.push({ comp: eu, title: `${E.name}, grupa ${GROUP_NAMES[E.groups.findIndex((g) => g.includes(PC.club))]}, kolejka ${i + 1}`, h: m.h, a: m.a, fx: m }); }
     else if (E.stage === 'KO' && i - E.G === E.ko.round) { const t = E.ko.ties.find((x) => mine(x) && x.w == null); if (t) out.push({ comp: eu, title: `${E.name}: ${koStageName(E)}`, h: t.h, a: t.a, tie: t, knock: true, euroTie: true }); }
   }
-  if (CUP_WEEKS.includes(w) && PC.cup && !PC.cup.done) {
-    const tie = cupTieFor(PC.club);
-    if (tie) out.push({ comp: 'cup', title: `Puchar ${NAT[PC.cup.nat].name}: ${cupRoundName()}`, h: tie.h, a: tie.a, tie, knock: true });
+  const cup = myCup();
+  if (CUP_WEEKS.includes(w) && cup && !cup.done) {
+    const tie = cupTieFor(cup, PC.club);
+    if (tie) out.push({ comp: 'cup', title: `Puchar ${NAT[cup.nat].name}: ${cupRoundName(cup)}`, h: tie.h, a: tie.a, tie, knock: true });
   }
   if (isIntlWeek(w)) {
     const role = natCallup();
@@ -589,7 +630,7 @@ export function finishMatch(M) {
   } else M.tp = 0;
   // zapis wyniku w rozgrywkach
   if (M.comp === 'league') { const f = M.fx.fx; f.r = [hg, ag]; applyResult(myLeague(), f); }
-  if (M.comp === 'ucl' || M.comp === 'usl' || M.comp === 'ulg') {
+  if (M.comp === 'ucl' || M.comp === 'usl' || M.comp === 'ulg' || M.comp === 'unl') {
     if (M.fx.euroTie) { const t = M.fx.tie; t.r = [hg, ag]; t.pens = pens; t.w = won ? PC.club : (M.home ? M.fx.a : M.fx.h); }
     else { const f = M.fx.fx; f.r = [hg, ag]; applyResult(PC.euro[M.comp], f); }
     if (played) PC.ss.euroApps++;
@@ -598,6 +639,7 @@ export function finishMatch(M) {
   if (M.comp === 'tour') tourAfterMatch(M, won, gu === gt && !pens);
   // statystyki kolegów i rywali, relacje z kolegami z boiska
   if (M.comp !== 'tour' && M.comp !== 'intl' && PC.pl) {
+    ensureClub(PC, PC.club); ensureClub(PC, M.themKey);
     const mates = teamMatchStats(PC, PC.club, gu, gt, { meIn: played, mePos: p.pos, skipG: played ? M.my.g : 0, skipA: played ? M.my.a : 0, live: M.liveUs });
     teamMatchStats(PC, M.themKey, gt, gu, { live: M.liveThem });
     if (played) relAfterMatch(PC, mates, M.relExtra || {});
@@ -611,10 +653,14 @@ export function finishMatch(M) {
 // puchar
 // ---------------------------------------------------------------------
 const CUP_ROUNDS = ['1/8 finału', 'ćwierćfinał', 'półfinał', 'finał'];
-export const cupRoundName = () => CUP_ROUNDS[PC.cup.round] || '';
-function cupTieFor(id) {
-  const c = PC.cup;
-  if (!c.alive.includes(id)) return null;
+/** Wszystkie puchary krajowe (zapisy sprzed 1.0: jeden puchar kraju zawodnika do końca sezonu). */
+export const allCups = (st = PC) => (st.cups ? Object.values(st.cups) : st.cup ? [st.cup] : []);
+export const cupOf = (nat, st = PC) => (st.cups ? st.cups[nat] : st.cup && st.cup.nat === nat ? st.cup : null) || null;
+/** Puchar kraju, w którym gra klub zawodnika. */
+export const myCup = () => cupOf(myClub().nat);
+export const cupRoundName = (c = myCup()) => (c ? CUP_ROUNDS[c.round] || '' : '');
+function cupTieFor(c, id) {
+  if (!c || !c.alive.includes(id)) return null;
   if (!c.ties.length) {
     const a = c.alive.slice().sort(() => Math.random() - 0.5);
     c.ties = [];
@@ -623,24 +669,26 @@ function cupTieFor(id) {
   return c.ties.find((t) => t.h === id || t.a === id) || null;
 }
 function cupWeek() {
-  const c = PC.cup;
-  if (!c || c.done) return;
-  if (!c.ties.length) cupTieFor(c.alive[0]);
-  for (const t of c.ties) {
-    if (t.w != null) continue;
-    const r = simScore(PC.clubs[t.h].lv, PC.clubs[t.a].lv, true);
-    t.r = r;
-    simStats(PC, t.h, t.a, r);
-    if (r[0] === r[1]) { const hw = Math.random() < 0.5; t.pens = hw ? [5, 3] : [3, 5]; t.w = hw ? t.h : t.a; } else t.w = r[0] > r[1] ? t.h : t.a;
-  }
-  c.alive = c.ties.map((t) => t.w);
-  c.ties = [];
-  c.round++;
-  if (c.alive.length === 1) {
-    c.done = true; c.winner = c.alive[0];
-    if (c.winner === PC.club && PC.ss.cupApps) { trophy(`Puchar ${NAT[c.nat].name}`, 'cup'); msg('Puchar zdobyty!', `${myClub().n} wygrywa Puchar ${NAT[c.nat].name}! To Twoje trofeum.`); }
-  } else if (!c.alive.includes(PC.club) && c.round > 0 && c._out !== true && c.alive.length) {
-    c._out = true;
+  for (const c of allCups()) {
+    if (c.done) continue;
+    if (!c.ties.length) cupTieFor(c, c.alive[0]);
+    for (const t of c.ties) {
+      if (t.w != null) continue;
+      const r = simScore(PC.clubs[t.h].lv, PC.clubs[t.a].lv, true);
+      t.r = r;
+      simStats(PC, t.h, t.a, r);
+      if (r[0] === r[1]) { const hw = Math.random() < 0.5; t.pens = hw ? [5, 3] : [3, 5]; t.w = hw ? t.h : t.a; } else t.w = r[0] > r[1] ? t.h : t.a;
+    }
+    c.alive = c.ties.map((t) => t.w);
+    c.ties = [];
+    c.round++;
+    if (c.alive.length === 1) {
+      c.done = true; c.winner = c.alive[0];
+      // zdobywcy pucharów grają w następnym sezonie w Unova League
+      PC.cupWinners = PC.cupWinners || {};
+      PC.cupWinners[c.nat] = c.winner;
+      if (c.winner === PC.club && PC.ss.cupApps) { trophy(`Puchar ${NAT[c.nat].name}`, 'cup'); msg('Puchar zdobyty!', `${myClub().n} wygrywa Puchar ${NAT[c.nat].name}! To Twoje trofeum. W następnym sezonie zagrasz w Unova League.`); }
+    }
   }
 }
 
@@ -784,6 +832,7 @@ export function acceptOffer(i) {
   const from = myClub().n;
   PC.club = o.club;
   PC.wage = o.wage;
+  ensureClub(PC, PC.club);
   PC.contract = PC.year + o.years;
   PC.offers = [];
   // zawodnik przechodzi do nowej ligi; puchar tylko w kraju startowym
@@ -807,7 +856,7 @@ function endSeason() {
   const avg = ss.apps ? ss.rsum / ss.apps : 0;
   const tr = [];
   if (pos === 1 && ss.apps >= 5) { trophy(`Mistrzostwo: ${leagueName(L)}`, 'league'); tr.push('mistrzostwo ligi'); }
-  if (PC.cup && PC.cup.winner === PC.club && ss.cupApps) tr.push('puchar kraju');
+  if (allCups().some((c) => c.winner === PC.club) && ss.cupApps) tr.push('puchar kraju');
   // nagrody indywidualne: wyścigi o nagrody w każdej lidze (dla wszystkich zawodników) i światowy ranking
   const aw = [];
   const seasonAw = { year: PC.year, leagues: {}, world: [] };
@@ -831,10 +880,10 @@ function endSeason() {
   });
   PC.awHist = PC.awHist || [];
   PC.awHist.unshift(seasonAw);
-  if (PC.awHist.length > 10) PC.awHist.length = 10;
+  if (PC.awHist.length > 3) PC.awHist.length = 3;
   // trofea klubów w historii
   for (const LL of Object.values(PC.leagues)) if (LL.div === 1) { const ch = sortedTable(LL)[0]; if (ch && ch.p > 0) addHist(PC, ch.id, 'league'); }
-  if (PC.cup && PC.cup.winner != null) addHist(PC, PC.cup.winner, 'cup');
+  for (const c of allCups()) if (c.winner != null) addHist(PC, c.winner, 'cup');
   const o = ovr(p);
   for (const a of aw) PC.awards.push({ name: a, year: PC.year });
   // puchary europejskie
@@ -846,7 +895,7 @@ function endSeason() {
       if (E.winner == null) continue;
       const pos = E.kind === 'league' ? sortedTable(E).findIndex((x) => x.id === PC.club) + 1 : E.rank.indexOf(PC.club) + 1;
       euroLines.push(`${E.name}: wygrywa ${PC.clubs[E.winner].n}${E.teams.includes(PC.club) ? (pos > 0 ? `, ${myClub().n} na ${pos}. miejscu` : `, ${myClub().n} odpada w fazie grupowej`) : ''}`);
-      addHist(PC, E.winner, 'euro');
+      addHist(PC, E.winner, k === 'unl' ? 'world' : 'euro');
       if (E.winner === PC.club && ss.euroApps >= 2) { trophy(E.name, k); tr.push(E.name); }
     }
     // Ultra Liga w następnym sezonie: po 5 najlepszych klubów z faz pucharowych Ligi Mistrzów i Super Ligi
@@ -856,20 +905,23 @@ function endSeason() {
   }
   PC.seasons.push({ year: PC.year, club: myClub().n, league: leagueName(L), pos, apps: ss.apps, goals: ss.goals, assists: ss.assists, avg: Math.round(avg * 100) / 100, nat: ss.natApps, natG: ss.natGoals, ovr: Math.round(o), tr, aw });
   msg(`Koniec sezonu ${PC.year}/${String((PC.year + 1) % 100).padStart(2, '0')}`, `${myClub().n} kończy sezon na ${pos}. miejscu. Twój bilans: ${ss.apps} ${plural(ss.apps, 'mecz', 'mecze', 'meczów')}, ${ss.goals} ${plural(ss.goals, 'gol', 'gole', 'goli')}, ${ss.assists} ${plural(ss.assists, 'asysta', 'asysty', 'asyst')}, średnia ocena ${avg ? avg.toFixed(2) : 'brak'}.` + (tr.length ? `\n\nTrofea: ${tr.join(', ')}.` : '') + (aw.length ? `\n\nNagrody indywidualne: ${aw.join(', ')}.` : ''));
-  // awanse i spadki w kraju zawodnika
-  const n = PC.me.nat;
-  const L1 = PC.leagues[`${n}-1`], L2 = PC.leagues[`${n}-2`];
-  if (L1 && L2) {
-    const t1 = sortedTable(L1), t2 = sortedTable(L2);
-    const down = t1.slice(-2).map((t) => t.id), up = t2.slice(0, 2).map((t) => t.id);
-    L1.teams = L1.teams.filter((id) => !down.includes(id)).concat(up);
-    L2.teams = L2.teams.filter((id) => !up.includes(id)).concat(down);
-    for (const id of up) { PC.clubs[id].div = 1; PC.clubs[id].lv = Math.max(PC.clubs[id].lv, PC.clubs[L1.teams[L1.teams.length - 3]].lv - 1); }
-    for (const id of down) PC.clubs[id].div = 2;
-    if (up.includes(PC.club)) { trophy(`Awans do ${leagueName(L1)}`, 'promo'); msg('Awans!', `${myClub().n} awansuje do najwyższej ligi!`); }
-    if (down.includes(PC.club)) msg('Spadek', `${myClub().n} spada do niższej ligi.`);
+  // awanse i spadki we wszystkich krajach: po 2 kluby między I i II oraz II i III ligą
+  for (const nt of NATIONS) {
+    for (let d = 1; d < DIVS; d++) {
+      const A = PC.leagues[`${nt.id}-${d}`], B = PC.leagues[`${nt.id}-${d + 1}`];
+      if (!A || !B || !A.table || !B.table) continue;
+      const ta = sortedTable(A), tb = sortedTable(B);
+      const down = ta.slice(-2).map((t) => t.id), up = tb.slice(0, 2).map((t) => t.id);
+      A.teams = A.teams.filter((id) => !down.includes(id)).concat(up);
+      B.teams = B.teams.filter((id) => !up.includes(id)).concat(down);
+      const ref = PC.clubs[A.teams[Math.max(0, A.teams.length - 3)]].lv;
+      for (const id of up) { PC.clubs[id].div = d; PC.clubs[id].lv = Math.max(PC.clubs[id].lv, ref - 1); }
+      for (const id of down) PC.clubs[id].div = d + 1;
+      if (up.includes(PC.club)) { trophy(`Awans do ${leagueName(A)}`, 'promo'); msg('Awans!', `${myClub().n} awansuje do ligi: ${leagueName(A)}!`); }
+      if (down.includes(PC.club)) msg('Spadek', `${myClub().n} spada do ligi: ${leagueName(B)}.`);
+    }
   }
-  if (euroLines.length) msg('Puchary europejskie', euroLines.join('\n'));
+  if (euroLines.length) msg('Puchary europejskie i Unova League', euroLines.join('\n'));
   clubChanges(false);
   PC.phase = 'summer';
   PC.week = 0;
