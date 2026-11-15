@@ -245,7 +245,7 @@ const SECTIONS = [
       <li><b>Bez piłki:</b> Odbiór przy rywalu z piłką, Zawołaj, czyli prośba do partnera o podanie, i Wślizg.</li>
       <li>Wszystko zależy od statystyk: celność podań od Podań i Techniki, strzał od Wykończenia albo Strzałów z dystansu w starciu z Refleksem bramkarza, drybling od Dryblingu w starciu z Odbiorem obrońcy. Obrońcy mogą zablokować strzał, a bramkarz z lepszymi statystykami obroni więcej.</li>
       <li>Na komputerze: strzałki albo WASD, J podanie, K strzał, L drybling, I długie.</li>
-      <li>Tempo meczu zmienisz przyciskiem Tempo, a Kamera przełącza widok bliski i całe boisko. Symuluj dogrywa resztę meczu, a Twój zawodnik gra wtedy sam.</li>
+      <li>Tempo meczu zmienisz przyciskiem Tempo. Przycisk z lupą przełącza kamerę: całe boisko albo jeden z pięciu poziomów przybliżenia, a gra zapamiętuje Twój wybór. Symuluj dogrywa resztę meczu, a Twój zawodnik gra wtedy sam.</li>
       <li>Rezerwowy wchodzi z ławki w trakcie meczu. Gdy nie ma Cię w kadrze meczowej, mecz rozgrywa się bez Ciebie.</li>
     </ul>
     <h4>Szybki mecz z decyzjami</h4>

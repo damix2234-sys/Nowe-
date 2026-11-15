@@ -166,7 +166,8 @@ export class Pitch2D {
   camera(dt, snap = false) {
     if (!this.W) return;
     const mode = this.cam.mode === 'auto' ? (this.fits ? 'full' : 'follow') : this.cam.mode;
-    const kT = mode === 'full' ? this.kFull : mode === 'near' ? this.kWide * 1.45 : this.kWide;
+    // zoom: przybliżenie względem widoku całego boiska (tryb zawodnika, kilka poziomów)
+    const kT = mode === 'zoom' ? this.kFull * (this.cam.z || 1) : mode === 'full' ? this.kFull : mode === 'near' ? this.kWide * 1.45 : this.kWide;
     this.kTarget = kT;
     const f = snap ? 1 : Math.min(1, dt * 3.5);
     this.cam.k += (kT - this.cam.k) * f;
@@ -174,9 +175,9 @@ export class Pitch2D {
     let tx = b.x + b.vx * 0.35, ty = b.y + b.vy * 0.35;
     // tryb zawodnika: kamera między piłką a sterowaną postacią
     const cp = this.sim.ctrl;
-    if (cp && cp.state !== 'gone') { tx = lerp(tx, cp.x, 0.45); ty = lerp(ty, cp.y, 0.45); }
+    if (cp && cp.state !== 'gone') { const w = mode === 'zoom' ? clamp(0.3 + (this.cam.z || 1) * 0.17, 0.45, 0.92) : 0.45; tx = lerp(tx, cp.x, w); ty = lerp(ty, cp.y, w); }
     const visH = (this.rot ? this.W : this.H) / this.cam.k, visW = (this.rot ? this.H : this.W) / this.cam.k;
-    let cy = mode === 'full' ? PL / 2 : ty;
+    let cy = mode === 'full' || (mode === 'zoom' && (this.cam.z || 1) <= 1) ? PL / 2 : ty;
     const lo = -4.2 + visH / 2, hi = PL + 4.2 - visH / 2;
     cy = lo > hi ? PL / 2 : clamp(cy, lo, hi);
     let cx = PW / 2;

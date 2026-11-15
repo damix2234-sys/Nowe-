@@ -221,6 +221,8 @@ screen('cmatch', {
 // ---------------- mecz 2D ze sterowaniem ----------------
 let L = null; // { M, sim, side, pitch, rate, ended }
 const RATES = [1, 1.4, 2];
+// poziomy przybliżenia kamery: mnożnik względem widoku całego boiska i nazwa na przycisku
+const ZOOMS = [[1, 'Całe boisko'], [1.45, 'Zoom 1'], [1.9, 'Zoom 2'], [2.45, 'Zoom 3'], [3.1, 'Zoom 4'], [3.9, 'Zoom 5']];
 function liveStart() {
   stopLive();
   M = C.setupMatch(MQ[MI]);
@@ -362,7 +364,7 @@ screen('clive', {
           <button class="lv-b lv-lob" data-lv="lob" id="lv-b-lob">Długie</button>
         </div>
       </div>
-      <div class="lv-bar"><button class="btn ghost small" data-a="lv.pause" id="lv-pause">${icon('pause')} Pauza</button><button class="btn ghost small" data-a="lv.rate" id="lv-rate">Tempo ${L.rate}×</button><button class="btn ghost small" data-a="lv.cam">Kamera</button><button class="btn ghost small" data-a="lv.sim">Symuluj</button></div></div>`;
+      <div class="lv-bar"><button class="btn ghost small" data-a="lv.pause" id="lv-pause">${icon('pause')} Pauza</button><button class="btn ghost small" data-a="lv.rate" id="lv-rate">Tempo ${L.rate}×</button><button class="btn ghost small" data-a="lv.cam" id="lv-cam">${icon('search')} ${ZOOMS[clamp(getSettings().liveZoom ?? 2, 0, ZOOMS.length - 1)][1]}</button><button class="btn ghost small" data-a="lv.sim">Symuluj</button></div></div>`;
     return { title: M.title, sub: M.line, body, back: false, cls: 'nofoot live-view', noHeader: true, appCls: 'live-app' };
   },
   mount(root) {
@@ -373,7 +375,9 @@ screen('clive', {
       L.pitch = new Pitch2D(cv, L.sim, { frame: liveFrame });
       L.pitch.rot = rotFor(L.sim);
       L.pitch.setRate(L.rate);
-      L.pitch.cam.mode = L.pitch.rot ? 'full' : 'near';
+      L.pitch.cam.mode = 'zoom';
+      L.zoomIdx = clamp(getSettings().liveZoom ?? 2, 0, ZOOMS.length - 1);
+      L.pitch.cam.z = ZOOMS[L.zoomIdx][0];
       clubKits(L);
     }
     else L.pitch.attach(cv);
@@ -616,7 +620,13 @@ actions({
     if (L.paused) L.pitch.pause(); else L.pitch.play();
     const b = document.getElementById('lv-pause'); if (b) b.innerHTML = L.paused ? `${icon('play')} Graj` : `${icon('pause')} Pauza`;
   },
-  'lv.cam': () => { if (!L || !L.pitch) return; const c = L.pitch.cam; c.mode = c.mode === 'near' ? 'full' : 'near'; },
+  'lv.cam': () => {
+    if (!L || !L.pitch) return;
+    L.zoomIdx = ((L.zoomIdx ?? 2) + 1) % ZOOMS.length;
+    L.pitch.cam.mode = 'zoom'; L.pitch.cam.z = ZOOMS[L.zoomIdx][0];
+    const st = getSettings(); st.liveZoom = L.zoomIdx; setSettings(st);
+    const b = document.getElementById('lv-cam'); if (b) b.innerHTML = `${icon('search')} ${ZOOMS[L.zoomIdx][1]}`;
+  },
   'lv.rate': () => {
     if (!L || !L.pitch) return;
     L.rateIdx = (L.rateIdx + 1) % RATES.length; L.rate = RATES[L.rateIdx]; L.pitch.setRate(L.rate);

@@ -68,7 +68,7 @@ function renderInner(P, c, W, H, rot) {
   const cx = P.cam.x ?? PW / 2, cy = P.cam.y;
   const X = (x) => W / 2 + (x - cx) * k;
   const Y = (y) => H / 2 - (y - cy) * k;
-  const V = { c, k, X, Y, W, H, R: clamp(1.45 * k, 5.5, 14) };
+  const V = { c, k, X, Y, W, H, R: clamp(1.45 * k, 5.5, 22) };
 
   // statyczne tło (murawa, linie, bramki) rysowane raz do osobnego płótna i kopiowane
   c.fillStyle = '#1d6a37';
