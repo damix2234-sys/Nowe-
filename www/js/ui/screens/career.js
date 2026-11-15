@@ -297,7 +297,7 @@ screen('cnat', {
       <div class="facts mt"><div class="fact"><div class="k">Występy</div><div class="v">${p.caps}</div></div><div class="fact"><div class="k">Gole</div><div class="v">${pc.car.natGoals}</div></div>
       <div class="fact"><div class="k">Twoja ocena</div><div class="v">${Math.round(ovr(p))}</div></div><div class="fact"><div class="k">Status</div><div class="v small">${call === 'start' ? 'podstawowy' : call === 'sub' ? 'powoływany' : 'poza kadrą'}</div></div></div>
       <p class="small mt">${call ? 'Selekcjoner powołuje Cię na mecze reprezentacji. Zgrupowania są w tygodniach przerw na kadrę.' : `Aby dostać powołanie, potrzebujesz oceny około <b>${need}</b>. Graj dobrze w klubie i rozwijaj się.`}</p>
-      <p class="small muted">Co dwa lata latem odbywa się wielki turniej: mistrzostwa świata albo mistrzostwa kontynentu.</p></div>${tour}`;
+      <p class="small muted">Mistrzostwa Świata są co 4 lata, w 2030 i 2034. Mistrzostwa kontynentu też co 4 lata, w 2028 i 2032. Wielki turniej jest więc co 2 lata, na przemian.</p></div>${tour}`;
     return { title: 'Kadra narodowa', sub: n.name, body, cls: 'nofoot' };
   },
 });

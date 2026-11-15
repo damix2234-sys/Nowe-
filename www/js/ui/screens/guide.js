@@ -245,7 +245,7 @@ const SECTIONS = [
     <ul>
       <li>Status w klubie zależy od Twojej oceny w porównaniu z siłą klubu: od młodzieżowca do gwiazdy zespołu.</li>
       <li>Zimą i latem są okna transferowe. Oferty zależą od oceny i formy, a lista transferowa daje więcej ofert.</li>
-      <li>Gdy Twoja ocena zbliży się do siły reprezentacji, dostaniesz powołanie. Co dwa lata latem gra się wielki turniej.</li>
+      <li>Gdy Twoja ocena zbliży się do siły reprezentacji, dostaniesz powołanie. Mistrzostwa Świata są co 4 lata: 2030, 2034. Mistrzostwa kontynentu też co 4 lata, ale przesunięte o 2 lata: 2028, 2032. Dlatego wielki turniej jest co 2 lata na przemian.</li>
       <li>Trofea: mistrzostwo ligi, puchar kraju, awans, turnieje reprezentacji. Nagrody: król strzelców, piłkarz sezonu, młodzieżowiec roku, Złota Piłka.</li>
       <li>Od 33 lat możesz zakończyć karierę, w wieku 40 lat kończysz ją na pewno.</li>
     </ul>` },
