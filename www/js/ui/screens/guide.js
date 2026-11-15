@@ -238,6 +238,8 @@ const SECTIONS = [
     <ul>
       <li>Przycisk <b>Graj na boisku</b> uruchamia mecz 2D. Twój zawodnik ma żółty pierścień i strzałkę nad głową, a kamera podąża za nim.</li>
       <li><b>Drążek</b>: dotknij lewej połowy ekranu, a drążek pojawi się pod palcem. Lekkie wychylenie to bieg, pełne to sprint. Twoją postacią sterujesz tylko Ty: gdy puścisz drążek, stoi w miejscu, a z piłką nic nie zrobi bez Twojego polecenia.</li>
+      <li><b>Zderzenia:</b> nie przebiegniesz przez innego zawodnika, ani rywala, ani kolegi. Zatrzymujesz się na nim albo się przepychacie: mniej cofa się ten, kto ma więcej Siły i Równowagi. Przez rywala przejdziesz tylko udanym dryblingiem.</li>
+      <li><b>Piłka:</b> podanie od partnera i wolna piłka trzymają się Twojej nogi i nie przelatują przez Ciebie. Partnerzy podają w nogi albo tam, dokąd biegniesz. Przejęcie podania rywala zależy od Przewidywania i ustawienia.</li>
       <li>Stałe fragmenty, czyli rożne, wolne, karne i auty, wykonują koledzy z drużyny. Twoja postać nie jest przy nich przestawiana, sam wybierasz, gdzie stanąć.</li>
       <li><b>Z piłką:</b> Strzał, Podanie do partnera w kierunku drążka, Drybling, czyli próba minięcia najbliższego rywala w tę stronę, i Długie, czyli dośrodkowanie ze skrzydła albo długie podanie.</li>
       <li><b>Bez piłki:</b> Odbiór przy rywalu z piłką, Zawołaj, czyli prośba do partnera o podanie, i Wślizg.</li>

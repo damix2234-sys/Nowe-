@@ -1,6 +1,6 @@
 {
   "name": "selekcjoner",
-  "version": "0.9.5",
+  "version": "0.9.6",
   "private": true,
   "type": "module",
   "description": "Selekcjoner – menedżer reprezentacji narodowej (gra mobilna)",

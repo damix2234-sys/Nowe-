@@ -824,6 +824,34 @@ export class LiveMatch extends Match {
         }
       }
     }
+    if (this.ctrl) this.ctrlCollide(all);
+  }
+
+  /** Twarde zderzenia sterowanej postaci (tryb zawodnika): nie da się przez nikogo przebiec ani przejść przez nią.
+   *  Kto mocniej wpada i ma więcej Siły i Równowagi, ten mniej się cofa. Wyjątek: drybling, w którym właśnie mija się rywala. */
+  ctrlCollide(all) {
+    const c = this.ctrl;
+    if (!c || (c.state !== 'play' && c.state !== 'stumble')) return;
+    const R = 0.95;
+    const body = (x) => 0.6 * this.E(x, 'st') + 0.4 * this.E(x, 'bal');
+    for (const o of all) {
+      if (o === c) continue;
+      if (o.beatT > 0 || c.beatT > 0) continue;
+      const a1 = c.act, a2 = o.act;
+      if ((a1 && a1.k === 'takeon' && a1.vs === o) || (a2 && a2.k === 'takeon' && a2.vs === c)) continue;
+      const dx = o.x - c.x, dy = o.y - c.y, d = hyp(dx, dy);
+      if (d >= R || d < 0.001) continue;
+      const ux = dx / d, uy = dy / d, over = R - d;
+      const bc = body(c), bo = body(o);
+      const wc = o.gk ? 0.85 : bo / (bc + bo), wo = 1 - wc;
+      c.x -= ux * over * wc; c.y -= uy * over * wc;
+      o.x += ux * over * wo; o.y += uy * over * wo;
+      // prędkość w stronę przeszkody znika: zawodnik zatrzymuje się na rywalu albo koledze zamiast przez niego przenikać
+      const vc = c.vx * ux + c.vy * uy;
+      if (vc > 0) { c.vx -= ux * vc; c.vy -= uy * vc; }
+      const vo = o.vx * ux + o.vy * uy;
+      if (vo < 0) { o.vx -= ux * vo; o.vy -= uy * vo; }
+    }
   }
 
   refStep(h) {
@@ -1309,6 +1337,12 @@ export class LiveMatch extends Match {
 
   passTo(a, m, R, kind) {
     const s = a.side, b = this.ball;
+    // podanie do sterowanej postaci: w nogi albo tam, dokąd gracz naprawdę biegnie (nie w miejsce, w które „powinien” wybiec)
+    if (m && m === this.ctrl) {
+      const dd = hyp(m.x - b.x, m.y - b.y), tt = clamp(dd / 16, 0.15, 1.6);
+      R = { x: clamp(m.x + m.vx * tt, 1, PW - 1), y: clamp(m.y + m.vy * tt, 1, PL - 1) };
+      if (kind === 'through') kind = dd < 32 ? 'ground' : 'air';
+    }
     const d = D2(a, R);
     const pres = this.pressure(a);
     const skill = a.gk ? (kind === 'air' ? this.E(a, 'kic') : 0.6 * this.E(a, 'thr') + 0.4 * this.E(a, 'ps')) : kind === 'air' ? 0.5 * this.E(a, 'ps') + 0.2 * this.E(a, 'cr') + 0.15 * this.E(a, 'te') + 0.15 * this.E(a, 'vis') : kind === 'through' ? 0.55 * this.E(a, 'ps') + 0.25 * this.E(a, 'vis') + 0.2 * this.E(a, 'te') : 0.7 * this.E(a, 'ps') + 0.3 * this.E(a, 'te');
@@ -1747,14 +1781,19 @@ export class LiveMatch extends Match {
   /** Kontakt z piłką: przyjęcie, przechwyt, pojedynek w powietrzu, chwyt bramkarza. */
   controlCheck() {
     const b = this.ball;
+    const pb = this._pb;
+    this._pb = { x: b.x, y: b.y };
     if (b.z > 3.1) return;
     const cands = [];
     for (const a of this.allAgents()) {
       if (a.state !== 'play' && a.state !== 'dive' && a.state !== 'jump') continue;
       if (a.noTouch > 0) continue;
       const hand = a.gk && this.inOwnBox(a);
-      const reach = hand ? 1.25 : 0.9;
-      const d = hyp(a.x - b.x, a.y - b.y);
+      const lpp = this.lastPass, oppPass = lpp && lpp.side !== a.side && this.t - lpp.t < 4;
+      const reach = hand ? 1.25 : a === this.ctrl && !oppPass ? 1.1 : 0.9;
+      let d = hyp(a.x - b.x, a.y - b.y);
+      // sterowana postać: sprawdzamy cały tor piłki od poprzedniego kroku, żeby szybka piłka nie przeleciała „przez” nią
+      if (a === this.ctrl && !oppPass && pb && hyp(pb.x - b.x, pb.y - b.y) < 4) d = Math.min(d, segDist(a.x, a.y, pb.x, pb.y, b.x, b.y).d);
       if (d > reach) continue;
       if (b.z > (hand ? 2.75 : 2.45)) continue;
       cands.push({ a, d });
@@ -1792,6 +1831,8 @@ export class LiveMatch extends Match {
       if (opp) pc *= 0.72 + 0.28 * this.E(a, 'ant') / 100;
       pc -= Math.max(0, 6.3 - a.rating) * 0.03;
       pc = clamp(pc, 0.3, 0.995);
+      // sterowana postać: podanie od partnera i wolna piłka „przyklejają się” do nogi (tylko bardzo mocna piłka może odskoczyć)
+      if (a === this.ctrl && !opp) pc = Math.max(pc, clamp(0.985 - Math.max(0, vrel - 24) * 0.03, 0.75, 0.99));
     }
     if (Math.random() < pc) {
       this.gainBall(a, intended ? 'pass' : lp && lp.side !== a.side && this.t - lp.t < 4 ? 'intercept' : 'loose');
