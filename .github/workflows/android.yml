@@ -40,6 +40,15 @@ jobs:
       - name: Test meczu na żywo (bez teleportów, stałe fragmenty tylko po wyjściu piłki)
         run: node tools/view-test.mjs 4
 
+      - name: Test trybu zawodnika (kariera na autopilocie)
+        run: node tools/career-test.mjs CF 3
+
+      - name: Numer wersji (nazwa z package.json, numer kompilacji z GitHub)
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          sed -i "s/versionCode [0-9]*/versionCode ${GITHUB_RUN_NUMBER}/; s/versionName \"[^\"]*\"/versionName \"${VER}\"/" android/app/build.gradle
+          grep -n "versionCode\|versionName" android/app/build.gradle
+
       - name: Synchronizacja Capacitor
         run: npx cap sync android
 

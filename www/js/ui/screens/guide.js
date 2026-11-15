@@ -220,6 +220,36 @@ const SECTIONS = [
       <li><b>Ranking</b> rośnie po wygranych z silnymi rywalami. Wyższy ranking to łatwiejsze losowania i lepsze oferty pracy.</li>
     </ul>` },
 
+  { id: 'career', ic: '🧑', t: 'Tryb zawodnika', b: () => `
+    <p>Drugi tryb gry: tworzysz własnego piłkarza i prowadzisz jego karierę. Wejdziesz do niego z menu głównego przyciskiem <b>Tryb zawodnika</b>.</p>
+    <h4>Start</h4>
+    <ul>
+      <li>Wybierasz imię, nazwisko, narodowość, pozycję, numer, lepszą nogę i wygląd.</li>
+      <li>Zaczynasz jako 17-latek w jednym z początkujących klubów drugiej ligi Twojego kraju.</li>
+    </ul>
+    <h4>Tydzień</h4>
+    <ul>
+      <li>Raz w tygodniu możesz pójść na <b>trening</b>: wybierasz grupę umiejętności, dostajesz punkty rozwoju i lekko poprawiasz jeden atrybut.</li>
+      <li>Punkty rozwoju dostajesz też za każdy mecz, więcej za dobrą ocenę, gole i asysty.</li>
+      <li>W zakładce <b>Rozwój</b> wydajesz punkty na dowolne atrybuty. Im wyższy atrybut, tym drożej, a powyżej potencjału kilka razy drożej.</li>
+      <li><b>Dalej</b> rozgrywa mecze tygodnia: ligę, puchar albo mecze reprezentacji.</li>
+    </ul>
+    <h4>Mecz</h4>
+    <ul>
+      <li>W kluczowych sytuacjach mecz się zatrzymuje i wybierasz, co robisz: strzał, drybling, podanie, dośrodkowanie, odbiór, wślizg, parada i inne, zależnie od pozycji.</li>
+      <li>Przy każdej opcji widać szansę powodzenia. Liczy się porównanie Twoich atrybutów z siłą rywala, forma i świeżość.</li>
+      <li>Udany drybling może dać kolejną decyzję, na przykład sam na sam z bramkarzem.</li>
+      <li>W obronie zły wybór może skończyć się golem dla rywali albo kartką.</li>
+    </ul>
+    <h4>Kariera</h4>
+    <ul>
+      <li>Status w klubie zależy od Twojej oceny w porównaniu z siłą klubu: od młodzieżowca do gwiazdy zespołu.</li>
+      <li>Zimą i latem są okna transferowe. Oferty zależą od oceny i formy, a lista transferowa daje więcej ofert.</li>
+      <li>Gdy Twoja ocena zbliży się do siły reprezentacji, dostaniesz powołanie. Co dwa lata latem gra się wielki turniej.</li>
+      <li>Trofea: mistrzostwo ligi, puchar kraju, awans, turnieje reprezentacji. Nagrody: król strzelców, piłkarz sezonu, młodzieżowiec roku, Złota Piłka.</li>
+      <li>Od 33 lat możesz zakończyć karierę, w wieku 40 lat kończysz ją na pewno.</li>
+    </ul>` },
+
   { id: 'tips', ic: '💡', t: 'Złote rady', b: () => `
     <ul>
       <li>Forma i świeżość są równie ważne jak OVR.</li>

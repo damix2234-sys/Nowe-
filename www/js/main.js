@@ -11,6 +11,7 @@ import './ui/screens/press.js';
 import './ui/screens/world.js';
 import './ui/screens/office.js';
 import './ui/screens/guide.js';
+import './ui/screens/career.js';
 
 function historyBack() {
   // przeglądarka / PWA: przechwycenie przycisku „wstecz” (nie w osadzonej ramce)

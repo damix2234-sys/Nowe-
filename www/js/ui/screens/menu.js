@@ -7,7 +7,7 @@ import { loadGame, autosave } from '../session.js';
 import { fmtDateLong, fmtDate } from '../../core/util.js';
 import { nextEvent } from '../flow.js';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.9.0';
 
 export const LOGO = '<img class="logo-img" src="img/logo.png" alt="Selekcjoner" draggable="false">';
 
@@ -31,6 +31,7 @@ screen('menu', {
           ${G ? `<button class="btn" data-a="menu.resume">${icon('play')}<span class="continue-card">Wróć do gry<small>${G.user.nat ? esc(NAT[G.user.nat].name) : 'Bez pracy'} · ${fmtDate(G.day)}</small></span></button>` : ''}
           ${!G && auto ? `<button class="btn" data-a="menu.continue">${icon('play')}<span class="continue-card">Kontynuuj<small>${autoNat ? NAT[autoNat].flag + ' ' + esc(NAT[autoNat].name) : ''} · ${fmtDate(auto.day)}</small></span></button>` : ''}
           <button class="btn ${G || auto ? 'ghost' : ''}" data-a="menu.new">${icon('ball')}Nowa gra</button>
+          <button class="btn ghost" data-a="go" data-k="cstart">${icon('user')}Tryb zawodnika</button>
           <button class="btn ghost" data-a="menu.load">${icon('save')}Wczytaj grę</button>
           <button class="btn ghost" data-a="menu.editor">${icon('pencil')}Edytor zawodników</button>
           <button class="btn ghost" data-a="menu.ach">${icon('star')}Osiągnięcia</button>

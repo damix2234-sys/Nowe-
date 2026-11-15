@@ -1,8 +1,8 @@
 // Proceduralne awatary (płaskie portrety) generowane z ziarna, własna oprawa graficzna gry.
 import { mkRng } from '../core/util.js';
 
-const SKIN = ['#F6D5B8', '#EEC39F', '#E2AF86', '#CF9A6E', '#B47D52', '#94613D', '#74472A', '#5A3620'];
-const HAIR = ['#21160F', '#3B2618', '#5E3B22', '#8A5A30', '#B9874D', '#DDB66A', '#151515', '#7E2F1A'];
+export const SKIN = ['#F6D5B8', '#EEC39F', '#E2AF86', '#CF9A6E', '#B47D52', '#94613D', '#74472A', '#5A3620'];
+export const HAIR = ['#21160F', '#3B2618', '#5E3B22', '#8A5A30', '#B9874D', '#DDB66A', '#151515', '#7E2F1A'];
 const GREY = ['#9A9A9A', '#BDBDBD', '#D8D8D8'];
 const BG = ['#1F3B33', '#24324A', '#3A2A44', '#43331F', '#1E3C48', '#2E3A1F', '#40252A', '#253E2E'];
 const SHIRT = ['#C6F432', '#3D7BFF', '#FF5D5D', '#F5B83D', '#2DD4BF', '#E8EEF0', '#7C5CFF', '#1F2937', '#FF8A3D'];
@@ -12,12 +12,16 @@ export function avatar(seed, opts = {}) {
   const pick = (a) => a[Math.floor(r() * a.length)];
   const skin = opts.skin || pick(SKIN);
   const old = opts.old ?? r() < 0.15;
-  const hair = old ? pick(GREY) : pick(HAIR);
-  const bg = pick(BG);
+  let hair = old ? pick(GREY) : pick(HAIR);
+  if (opts.hairColor != null) hair = HAIR[opts.hairColor] || hair;
+  const bg = opts.bg || pick(BG);
   const shirt = opts.shirt || pick(SHIRT);
-  const style = opts.bald ? 3 : Math.floor(r() * 7);
-  const beard = r() < (opts.beard ?? 0.28);
-  const glasses = r() < (opts.glasses ?? 0.18);
+  let style = opts.bald ? 3 : Math.floor(r() * 7);
+  if (opts.hairStyle != null) style = opts.hairStyle;
+  let beard = r() < (opts.beard ?? 0.28);
+  if (opts.beardOn != null) beard = opts.beardOn;
+  let glasses = r() < (opts.glasses ?? 0.18);
+  if (opts.glassesOn != null) glasses = opts.glassesOn;
   const smile = r() < 0.6;
   const rx = 20 + r() * 4, ry = 24 + r() * 3;
   const cy = 46;

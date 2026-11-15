@@ -368,3 +368,17 @@ export function makeAcademyKid(world, natId, age, r = Math.random) {
   kidBody(p);
   return p;
 }
+
+/** Nazwa klubu w stylu danego kraju (tryb zawodnika: niższe ligi). */
+export function clubNameFor(natId, city, r = Math.random, used = null) {
+  const nat = NAT[natId];
+  const lg = LEAGUES[natId];
+  const pats = (lg && CLUB_PAT[lg.style]) || CLUB_PAT[POOL_STYLE[mainPool(nat)]] || CLUB_PAT.gen;
+  for (let t = 0; t < 12; t++) {
+    const n = pick(pats, r).replace('{c}', city);
+    if (!used || !used.has(n)) { if (used) used.add(n); return n; }
+  }
+  const n = `${pick(pats, r).replace('{c}', city)} ${['II', 'Juniors', '1920', '1945'][rint(0, 3, r)]}`;
+  if (used) used.add(n);
+  return n;
+}

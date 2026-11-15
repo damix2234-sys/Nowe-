@@ -686,3 +686,34 @@ main.view.match-view { padding-top: 8px; }
 .guide-body td, .guide-body th { padding: 5px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
 .guide-body th { color: var(--text2); font-weight: 700; }
 .lu-p .form, .row .form { display: inline-grid; place-items: center; min-width: 24px; height: 24px; margin: 0 4px; border-radius: 7px; background: rgba(255, 255, 255, 0.06); font-size: 14px; flex: none; }
+
+/* tryb zawodnika */
+.cn-prev { display: flex; align-items: center; gap: 14px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 4px; }
+.swatches .swc { width: 32px; height: 32px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); }
+.swatches .swc.on { border-color: #fff; box-shadow: 0 0 0 3px rgba(176, 108, 255, 0.6); }
+.chips.wrap { flex-wrap: wrap; overflow: visible; }
+.cm-top { padding: 12px; }
+.cm-score { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; text-align: center; }
+.cm-score .t { font-weight: 800; font-size: 13.5px; line-height: 1.2; }
+.cm-score .s { font-size: 34px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.cm-min { text-align: center; color: var(--text2); font-size: 13px; margin-top: 4px; }
+.cm-log { display: flex; flex-direction: column; gap: 6px; max-height: 52vh; overflow-y: auto; }
+.cm-line { font-size: 13.5px; line-height: 1.35; padding: 6px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.03); }
+.cm-line .m { display: inline-block; min-width: 28px; color: var(--muted); font-weight: 800; }
+.cm-line.goal { background: rgba(77, 255, 136, 0.12); font-weight: 800; }
+.cm-line.goalA { background: rgba(255, 107, 94, 0.12); }
+.cm-line.ok { border-left: 3px solid #4dff88; }
+.cm-line.bad { border-left: 3px solid #ff6b5e; }
+.cm-line.card { background: rgba(242, 216, 74, 0.12); }
+.cm-sit { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+.cm-sit .ic { font-size: 34px; line-height: 1; }
+.cm-sit p { margin: 0; font-size: 15px; line-height: 1.45; }
+.ans .cm-ch { float: right; font-weight: 900; font-size: 15px; }
+.cm-res { text-align: center; padding: 8px 4px 14px; }
+.cm-res.ok .big { color: #4dff88; } .cm-res.bad .big { color: #ff6b5e; }
+.attr2.dev { padding-right: 4px; }
+.dev-plus { flex: none; min-width: 40px; height: 30px; border-radius: 9px; border: 1px solid rgba(190, 130, 255, 0.6); background: linear-gradient(180deg, #8a46ff, #5a1fd0); color: #fff; font-weight: 900; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; gap: 2px; }
+.dev-plus small { font-size: 10px; opacity: 0.85; font-weight: 700; }
+.dev-plus:disabled { opacity: 0.3; filter: grayscale(0.6); }
+.row.unread .t1 { font-weight: 850; }
