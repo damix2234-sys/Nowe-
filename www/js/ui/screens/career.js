@@ -133,7 +133,7 @@ screen('chome', {
     const fxs = C.weekMatches();
     const summer = pc.phase === 'summer';
     let next = '';
-    if (fxs.length) next = fxs.map((fx) => `<div class="row"><span class="tag">${fx.comp === 'league' ? 'Liga' : fx.comp === 'cup' ? 'Puchar' : fx.comp === 'ucl' ? 'LM' : fx.comp === 'usl' ? 'SL' : fx.comp === 'tour' ? 'Turniej' : 'Kadra'}</span><div class="main"><div class="t1 wrap">${fxLine(fx)}</div><div class="t2">${esc(fx.title)}</div></div></div>`).join('');
+    if (fxs.length) next = fxs.map((fx) => `<div class="row"><span class="tag">${fx.comp === 'league' ? 'Liga' : fx.comp === 'cup' ? 'Puchar' : fx.comp === 'ucl' ? 'LM' : fx.comp === 'usl' ? 'SL' : fx.comp === 'ulg' ? 'UL' : fx.comp === 'tour' ? 'Turniej' : 'Kadra'}</span><div class="main"><div class="t1 wrap">${fxLine(fx)}</div><div class="t2">${esc(fx.title)}</div></div></div>`).join('');
     else next = `<div class="small muted">${summer ? (pc.tour && !pc.tour.done && pc.tour.called ? 'Turniej trwa.' : 'Przerwa letnia. Kliknij Dalej, aby rozpocząć nowy sezon.') : C.isIntlWeek() ? 'Przerwa na mecze reprezentacji. Nie masz powołania.' : 'W tym tygodniu nie masz meczu.'}</div>`;
     const recent = pc.log.slice(0, 5).map((l) => `<div class="row"><div class="main"><div class="t1 wrap">${esc(l.line)}</div><div class="t2">${l.r != null ? `ocena ${l.r.toFixed(1)}${l.g ? ` · ⚽ ${l.g}` : ''}${l.a ? ` · 🅰️ ${l.a}` : ''}` : 'nie grał'}</div></div><b>${esc(l.res)}</b></div>`).join('');
     const unread = pc.msgs.filter((m) => !m.read).slice(0, 2);
@@ -213,7 +213,7 @@ screen('cmatch', {
       <div class="card"><div class="card-h"><h3>Relacja</h3><span class="small muted">${esc(M.title)}</span></div><div id="cm-log" class="cm-log">${logHTML()}</div></div>`;
     const foot = fin ? `<button class="btn block" data-a="cmx.next">${MI + 1 < MQ.length ? 'Następny mecz' : 'Zakończ tydzień'} ${icon('right')}</button>`
       : `<button class="btn ghost" data-a="cmx.sim">Symuluj do końca</button><button class="btn" data-a="cmx.play">${icon('play')} Graj</button>`;
-    return { title: M.comp === 'league' ? 'Mecz ligowy' : M.comp === 'cup' ? 'Mecz pucharowy' : M.comp === 'ucl' ? 'Liga Mistrzów' : M.comp === 'usl' ? 'Super Liga' : 'Reprezentacja', sub: M.line, body, foot, back: false, cls: '' };
+    return { title: M.comp === 'league' ? 'Mecz ligowy' : M.comp === 'cup' ? 'Mecz pucharowy' : M.comp === 'ucl' ? 'Liga Mistrzów' : M.comp === 'usl' ? 'Super Liga' : M.comp === 'ulg' ? 'Ultra Liga' : 'Reprezentacja', sub: M.line, body, foot, back: false, cls: '' };
   },
   leave() { stopTimer(); },
 });
@@ -375,6 +375,7 @@ screen('clive', {
       L.pitch = new Pitch2D(cv, L.sim, { frame: liveFrame });
       L.pitch.rot = rotFor(L.sim);
       L.pitch.setRate(L.rate);
+      L.pitch.bodyR = L.sim.bodyR;
       L.pitch.cam.mode = 'zoom';
       L.zoomIdx = clamp(getSettings().liveZoom ?? 2, 0, ZOOMS.length - 1);
       L.pitch.cam.z = ZOOMS[L.zoomIdx][0];
@@ -437,15 +438,31 @@ screen('ctable', {
     let body = seg('ctab.t', [['table', 'Tabela'], ['fx', 'Terminarz'], ['cup', 'Puchar'], ['euro', 'Europa']], ctab.t);
     if (ctab.t === 'euro' && pc.euro) {
       const mine = C.myEuro();
-      const k = ctab.e || mine || 'ucl';
+      const keys = ['ucl', 'usl', ...(pc.euro.ulg ? ['ulg'] : [])];
+      const k = keys.includes(ctab.e) ? ctab.e : mine || 'ucl';
       const E = pc.euro[k];
-      const t = C.sortedTable(E);
-      const idx = t.findIndex((r) => r.id === pc.club);
-      const rows = t.map((r, i) => ({ r, i })).filter(({ i }) => i < 16 || i === idx);
-      body += chips('ctab.e', [['ucl', 'Liga Mistrzów'], ['usl', 'Super Liga']], k);
-      body += `<p class="small muted">${k === 'ucl' ? 'Liga Mistrzów: kluby z miejsc 1–3 w najwyższych ligach.' : 'Super Liga: kluby z miejsc 4–8 w najwyższych ligach.'} Każdy klub gra 8 meczów z różnymi rywalami, wygrywa zwycięzca tabeli. ${mine === k ? 'Twój klub gra w tych rozgrywkach.' : mine ? '' : 'Twój klub nie gra w tym sezonie w pucharach europejskich.'}</p>
-        <div class="card tight"><table class="tbl"><tr><th>#</th><th class="tl">Klub</th><th>M</th><th>B</th><th>Pkt</th></tr>${rows.map(({ r, i }) => `<tr class="${r.id === pc.club ? 'me' : ''}"><td>${i + 1}</td><td class="tl">${flag(pc.clubs[r.id].nat)} ${esc(pc.clubs[r.id].n)}</td><td>${r.p}</td><td>${r.gf}:${r.ga}</td><td><b>${r.pts}</b></td></tr>`).join('')}</table></div>
-        <p class="small muted center">Kolejki w tygodniach: ${C.EURO_WEEKS.map((w) => w + 1).join(', ')}. Rozegrano ${E.round} z ${E.fx.length}.</p>`;
+      const nm = (id) => `${flag(pc.clubs[id].nat)} ${esc(pc.clubs[id].n)}`;
+      const tbl = (rows, hi) => `<table class="tbl"><tr><th>#</th><th class="tl">Klub</th><th>M</th><th>B</th><th>Pkt</th></tr>${rows.map((r, i) => `<tr class="${r.id === pc.club ? 'me' : ''} ${hi && i < hi ? 'q' : ''}"><td>${i + 1}</td><td class="tl">${nm(r.id)}</td><td>${r.p}</td><td>${r.gf}:${r.ga}</td><td><b>${r.pts}</b></td></tr>`).join('')}</table>`;
+      body += chips('ctab.e', keys.map((x) => [x, C.EURO_NAMES[x]]), k).replace('class="chips"', 'class="chips wrap"');
+      const info = {
+        ucl: 'Liga Mistrzów: najlepsze kluby z miejsc 1–3 w najwyższych ligach.',
+        usl: 'Super Liga: najlepsze kluby z miejsc 4–8 w najwyższych ligach.',
+        ulg: 'Ultra Liga: najwyższe wyróżnienie. Gra w niej 10 klubów: po 5 najlepszych z fazy pucharowej Ligi Mistrzów i Super Ligi z poprzedniego sezonu. Każdy z każdym, wygrywa pierwsze miejsce w tabeli.',
+      }[k];
+      body += `<div class="card"><div class="facts"><div class="fact"><div class="k">Kluby</div><div class="v">${E.teams.length}</div></div><div class="fact"><div class="k">Etap</div><div class="v small">${E.kind === 'league' ? `kolejka ${Math.min(E.round + 1, E.fx.length)} z ${E.fx.length}` : E.stage === 'G' ? `faza grupowa, kolejka ${Math.min(E.round + 1, E.G)} z ${E.G}` : E.stage === 'KO' ? C.koStageName(E) : 'zakończone'}</div></div></div>
+        <p class="small mt">${info}${E.kind === 'groups' ? ` ${E.teams.length} klubów w 4 grupach. W grupie każdy gra z każdym, a 2 najlepsze kluby z każdej grupy przechodzą do fazy pucharowej: ćwierćfinał, półfinał i finał o trofeum.` : ''}</p>
+        <p class="small muted">${mine === k ? 'Twój klub gra w tych rozgrywkach.' : mine ? `Twój klub gra w tym sezonie w rozgrywkach: ${C.EURO_NAMES[mine]}.` : 'Twój klub nie gra w tym sezonie w pucharach europejskich.'}</p></div>`;
+      if (E.kind === 'league') {
+        body += `<div class="card tight">${tbl(C.sortedTable(E), 0)}</div>`;
+      } else {
+        if (E.ko || E.winner != null) {
+          const ties = E.ko ? E.ko.ties : [];
+          body += `<div class="card"><div class="card-h"><h3>Faza pucharowa</h3><span class="tag">${E.winner != null ? 'zakończona' : C.koStageName(E)}</span></div>
+            ${E.winner != null ? `<p>🏆 Zwycięzca: <b>${nm(E.winner)}</b></p>` : ties.map((t) => `<div class="row"><div class="main"><div class="t1 wrap">${nm(t.h)} vs ${nm(t.a)}</div></div><b>${t.r ? `${t.r[0]}:${t.r[1]}${t.pens ? ` k. ${t.pens[0]}:${t.pens[1]}` : ''}` : ''}</b></div>`).join('')}</div>`;
+        }
+        body += E.groups.map((g, gi) => `<div class="card tight"><div class="card-h" style="padding:10px 12px 0"><h3>Grupa ${C.GROUP_NAMES[gi]}</h3></div>${tbl(C.groupTable(E, gi), 2)}</div>`).join('');
+      }
+      body += `<p class="small muted center">Mecze europejskie w tygodniach: ${C.EURO_WEEKS.map((w) => w + 1).join(', ')}.</p>`;
       return { title: 'Rozgrywki', sub: E.name, body, cls: 'nofoot' };
     }
     if (ctab.t === 'table') {

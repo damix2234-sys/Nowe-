@@ -829,16 +829,19 @@ export class LiveMatch extends Match {
 
   /** Twarde zderzenia sterowanej postaci (tryb zawodnika): nie da się przez nikogo przebiec ani przejść przez nią.
    *  Kto mocniej wpada i ma więcej Siły i Równowagi, ten mniej się cofa. Wyjątek: drybling, w którym właśnie mija się rywala. */
+  /** Odległość środków przy styku sterowanej postaci z innym zawodnikiem (krawędzie się stykają). */
+  contactD() { return 2 * (this.bodyR || 0.475); }
+  /** Dodatkowy zasięg odbioru/faulu/dryblingu, gdy w pojedynku bierze udział sterowana postać (ciała się nie przenikają). */
+  reachPlus(x, y) { return this.ctrl && (x === this.ctrl || y === this.ctrl) ? Math.max(0, this.contactD() - 0.95) : 0; }
+
   ctrlCollide(all) {
     const c = this.ctrl;
     if (!c || (c.state !== 'play' && c.state !== 'stumble')) return;
-    const R = 0.95;
+    const R = this.contactD();
     const body = (x) => 0.6 * this.E(x, 'st') + 0.4 * this.E(x, 'bal');
     for (const o of all) {
       if (o === c) continue;
       if (o.beatT > 0 || c.beatT > 0) continue;
-      const a1 = c.act, a2 = o.act;
-      if ((a1 && a1.k === 'takeon' && a1.vs === o) || (a2 && a2.k === 'takeon' && a2.vs === c)) continue;
       const dx = o.x - c.x, dy = o.y - c.y, d = hyp(dx, dy);
       if (d >= R || d < 0.001) continue;
       const ux = dx / d, uy = dy / d, over = R - d;
@@ -929,11 +932,12 @@ export class LiveMatch extends Match {
     for (const d of this.active(1 - o.side)) {
       if (d.state !== 'play' || d.gk || d.beatT > 0 || d.tackleCd > 0) continue;
       const dist = D2(d, o);
-      if (dist > 1.45) continue;
+      const rp = this.reachPlus(d, o);
+      if (dist > 1.45 + rp) continue;
       const ins = this.instr(d).tk;
       const rate = TK_RATE[ins] * (d.mode === 'press' ? 1 : 0.6);
       if (Math.random() < 1 - Math.exp(-rate * h)) { this.duel(d, o, false); if (b.owner !== o) return; }
-      else if (dist < 1.2 && Math.random() < h * (0.1 + 0.08 * ins) * (1.3 - this.E(d, 'tk') / 100) * (0.6 + 0.8 * this.E(d, 'agg') / 100)) {
+      else if (dist < 1.2 + rp && Math.random() < h * (0.1 + 0.08 * ins) * (1.3 - this.E(d, 'tk') / 100) * (0.6 + 0.8 * this.E(d, 'agg') / 100)) {
         const back = Math.abs(Math.atan2(d.y - o.y, d.x - o.x) - o.face);
         this.foul(d, o, (back > Math.PI ? 2 * Math.PI - back : back) > 2.4, ins);
         return;
@@ -946,7 +950,7 @@ export class LiveMatch extends Match {
     if (act && act.k === 'takeon') {
       const t = act.vs;
       if (!t || t.state !== 'play') o.decT = 0;
-      else if (D2(o, t) < 1.7) { this.duel(t, o, true); return; }
+      else if (D2(o, t) < 1.7 + this.reachPlus(o, t)) { this.duel(t, o, true); return; }
       if (this.t > act.until) o.decT = 0;
     } else if (act && (act.k === 'carry' || act.k === 'hold')) {
       if (this.t > act.until || (this.pressure(o) > 0.55 && act.k === 'carry' && Math.random() < h * 3)) o.decT = Math.min(o.decT, 0);
@@ -1027,7 +1031,7 @@ export class LiveMatch extends Match {
     inp.cmd = null;
     if (!a || a.state !== 'play') return;
     const b = this.ball, o = b.owner;
-    if ((cmd === 'dribble' || cmd === 'tackle') && o && o.side !== a.side && a.tackleCd <= 0 && D2(a, o) < 2.1) { this.duel(a, o, false); return; }
+    if ((cmd === 'dribble' || cmd === 'tackle') && o && o.side !== a.side && a.tackleCd <= 0 && D2(a, o) < 2.1 + this.reachPlus(a, o)) { this.duel(a, o, false); return; }
     if (cmd === 'pass' && o && o.side === a.side && o !== a) {
       const kind = D2(o, a) < 30 ? (this.ry(a.side, a.y) > this.ry(a.side, o.y) + 4 ? 'through' : 'ground') : 'air';
       const ev = this.evalPass(o, a, kind, this.pressure(o), 1, this.lossCost(o.side, o.y));

@@ -238,7 +238,7 @@ const SECTIONS = [
     <ul>
       <li>Przycisk <b>Graj na boisku</b> uruchamia mecz 2D. Twój zawodnik ma żółty pierścień i strzałkę nad głową, a kamera podąża za nim.</li>
       <li><b>Drążek</b>: dotknij lewej połowy ekranu, a drążek pojawi się pod palcem. Lekkie wychylenie to bieg, pełne to sprint. Twoją postacią sterujesz tylko Ty: gdy puścisz drążek, stoi w miejscu, a z piłką nic nie zrobi bez Twojego polecenia.</li>
-      <li><b>Zderzenia:</b> nie przebiegniesz przez innego zawodnika, ani rywala, ani kolegi. Zatrzymujesz się na nim albo się przepychacie: mniej cofa się ten, kto ma więcej Siły i Równowagi. Przez rywala przejdziesz tylko udanym dryblingiem.</li>
+      <li><b>Zderzenia:</b> zawodnicy stykają się krawędziami i nie wchodzą na siebie: przepychacie się bokami, a mniej cofa się ten, kto ma więcej Siły i Równowagi. Przez rywala przejdziesz tylko udanym dryblingiem. Nieudany drybling kończy się odbiorem piłki albo faulem.</li>
       <li><b>Piłka:</b> podanie od partnera i wolna piłka trzymają się Twojej nogi i nie przelatują przez Ciebie. Partnerzy podają w nogi albo tam, dokąd biegniesz. Przejęcie podania rywala zależy od Przewidywania i ustawienia.</li>
       <li>Stałe fragmenty, czyli rożne, wolne, karne i auty, wykonują koledzy z drużyny. Twoja postać nie jest przy nich przestawiana, sam wybierasz, gdzie stanąć.</li>
       <li><b>Z piłką:</b> Strzał, Podanie do partnera w kierunku drążka, Drybling, czyli próba minięcia najbliższego rywala w tę stronę, i Długie, czyli dośrodkowanie ze skrzydła albo długie podanie.</li>
@@ -260,7 +260,8 @@ const SECTIONS = [
       <li>Status w klubie zależy od Twojej oceny w porównaniu z siłą klubu: od młodzieżowca do gwiazdy zespołu.</li>
       <li>Zimą i latem są okna transferowe. Oferty zależą od oceny i formy, a lista transferowa daje więcej ofert.</li>
       <li>Gdy Twoja ocena zbliży się do siły reprezentacji, dostaniesz powołanie. Mistrzostwa Świata są co 4 lata: 2030, 2034. Mistrzostwa kontynentu też co 4 lata, ale przesunięte o 2 lata: 2028, 2032. Dlatego wielki turniej jest co 2 lata na przemian.</li>
-      <li><b>Puchary europejskie:</b> kluby z miejsc 1–3 w najwyższych ligach grają w następnym sezonie w Lidze Mistrzów, a z miejsc 4–8 w Super Lidze. Każdy klub gra 8 meczów z różnymi rywalami, wygrywa zwycięzca tabeli. W pierwszym sezonie o udziale decyduje siła klubów.</li>
+      <li><b>Liga Mistrzów</b> (32 najlepsze kluby z miejsc 1–3 w najwyższych ligach) i <b>Super Liga</b> (32 najlepsze kluby z miejsc 4–8): 4 grupy po 8 klubów, w grupie każdy z każdym. Dwa najlepsze kluby z każdej grupy grają w fazie pucharowej: ćwierćfinał, półfinał i finał o trofeum. Przy remisie w fazie pucharowej decydują rzuty karne.</li>
+      <li><b>Ultra Liga</b>: najwyższe wyróżnienie, tylko 10 klubów. Grają w niej po 5 najlepszych klubów z fazy pucharowej Ligi Mistrzów i Super Ligi z poprzedniego sezonu, czyli zwycięzca, finalista, półfinaliści i najlepszy z ćwierćfinalistów. Liga każdy z każdym, wygrywa pierwsze miejsce. Kluby z Ultra Ligi nie grają w tym sezonie w Lidze Mistrzów ani w Super Lidze.</li>
       <li><b>Kluby się zmieniają:</b> latem i zimą sprowadzają nowych zawodników, a dobre wyniki wzmacniają drużynę. Składy rywali są nowe w każdym sezonie.</li>
       <li>Trofea: mistrzostwo ligi, puchar kraju, awans, turnieje reprezentacji. Nagrody: król strzelców, piłkarz sezonu, młodzieżowiec roku, Złota Piłka.</li>
       <li>Od 33 lat możesz zakończyć karierę, w wieku 40 lat kończysz ją na pewno.</li>

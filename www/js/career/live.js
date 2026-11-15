@@ -9,6 +9,7 @@ import { LiveMatch } from '../engine/sim.js';
 import { PC, finishMatch } from './engine.js';
 
 export const USER_PID = 1;
+export const BODY_R = 1.0;
 const BENCH_POS = ['GK', 'CB', 'LB', 'DM', 'CM', 'LW', 'CF'];
 
 function formationFor(pos) {
@@ -66,6 +67,8 @@ export function createLive(M) {
   const sim = new LiveMatch(home, away, { neutral: M.comp === 'tour' });
   sim.userSide = userSide;
   sim.ctrlPid = USER_PID;
+  sim.bodyR = BODY_R; // promień sylwetki: zderzenia przy styku krawędzi
+
   sim.ctrl = sim.agentOf(userSide, USER_PID);
   return { sim, userSide };
 }
