@@ -5,7 +5,7 @@ import { NATIONS, NAT, LEAGUES } from '../data/nations.js';
 import { makePlayer, genName, clubNameFor } from '../engine/db.js';
 import { ovr, posRating, POS_W, ATTR_NAMES, FORM_MUL, applyDelta, GK_ATTRS } from '../engine/player.js';
 import { SCEN, POS_SCEN } from './scenarios.js';
-import { ensureRosters, ensureClub, seasonRosters, teamMatchStats, relAfterMatch, rosterSeasonEnd, signPlayers, AWARDS, awardRace, globalRanking, globalAwardFor, addHist, ME, rosterOf } from './rosters.js';
+import { ensureRosters, ensureClub, seasonRosters, teamMatchStats, relAfterMatch, rosterSeasonEnd, signPlayers, AWARDS, awardRace, awardComps, compPlayers, globalRanking, globalAwardFor, addHist, ME, rosterOf } from './rosters.js';
 
 export let PC = null;
 export function setCareer(pc) { PC = pc; if (pc) migrateCareer(pc); }
@@ -21,8 +21,11 @@ function migrateCareer(st) {
   const nonEu = st.euro && st.euro.ucl && st.euro.ucl.teams && [st.euro.ucl, st.euro.usl].some((E) => E && E.teams.some((id) => st.clubs[id] && NAT[st.clubs[id].nat].conf !== 'EU'));
   if (st.leagues && st.clubs && (!st.euro || !st.euro.ucl || !st.euro.ucl.kind || nonEu)) {
     buildEuro(st, false);
-    const done = st.phase === 'season' ? EURO_WEEKS.filter((w) => w < st.week).length : EURO_WEEKS.length;
-    for (let i = 0; i < done; i++) for (const E of Object.values(st.euro)) euroRound(st, E, i);
+    for (const E of Object.values(st.euro)) {
+      const W = weeksOf(E);
+      const done = st.phase === 'season' ? W.filter((w) => w < st.week).length : W.length;
+      for (let i = 0; i < done; i++) euroRound(st, E, i);
+    }
   }
 }
 
@@ -35,8 +38,12 @@ export const EURO_WEEKS = [1, 2, 4, 6, 8, 12, 13, 15, 17, 20];
 export const EURO_NAMES = { ulg: 'Ultra Liga', ucl: 'Liga Mistrzów', usl: 'Super Liga', unl: 'Unova League' };
 export const EURO_SIZE = 32;
 export const KO_NAMES = ['ćwierćfinał', 'półfinał', 'finał'];
-export const GROUP_NAMES = ['A', 'B', 'C', 'D'];
-export const koStageName = (E) => ({ 4: 'ćwierćfinał', 2: 'półfinał', 1: 'finał' })[E.ko ? E.ko.ties.length : 0] || 'faza pucharowa';
+export const GROUP_NAMES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+export const koStageName = (E) => ({ 8: '1/8 finału', 4: 'ćwierćfinał', 2: 'półfinał', 1: 'finał' })[E.ko ? E.ko.ties.length : 0] || 'faza pucharowa';
+/** Tygodnie meczów rozgrywek (starsze zapisy: wspólny kalendarz pucharów europejskich). */
+export const weeksOf = (E) => (E && E.weeks) || EURO_WEEKS;
+/** Klucz rozgrywek (ucl, usl, ulg, unl) także dla starszych zapisów. */
+const keyOf = (E) => E.key || Object.keys(EURO_NAMES).find((k) => EURO_NAMES[k] === E.name) || 'ucl';
 const MONTHS = ['sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień', 'styczeń', 'luty', 'marzec', 'kwiecień', 'maj'];
 const sig = (x) => 1 / (1 + Math.exp(-x));
 const fname = (p) => `${p.fn} ${p.ln}`;
@@ -55,25 +62,24 @@ export const TRAIN_FOCUS = {
 // ---------------------------------------------------------------------
 // tworzenie świata kariery
 // ---------------------------------------------------------------------
-/** Liczba klubów w lidze kraju: duże ligi i kraj zawodnika po 12, pozostałe kraje po 8. */
-const leagueSize = (st, nid) => (LEAGUES[nid] || nid === st.me.nat ? 12 : 8);
+/** Każdy kraj ma 3 ligi po 12 klubów. */
+export const LEAGUE_SIZE = 12;
 export const DIVS = 3;
 
+/** Tworzy ligę kraju albo uzupełnia istniejącą do 12 klubów. */
 function addLeague(st, nid, d, r, used) {
   const nat = NAT[nid], lg = LEAGUES[nid];
-  const size = leagueSize(st, nid);
   const cities = (lg ? lg.cities : nat.cities).slice();
   const top = lg ? (lg.tier === 1 ? 88 : lg.tier === 2 ? 79 : 73) : nat.str - 4;
-  const ids = [];
-  for (let i = 0; i < size; i++) {
+  const key = `${nid}-${d}`;
+  const L = st.leagues[key] || (st.leagues[key] = { key, nat: nid, div: d, teams: [] });
+  for (let i = L.teams.length; i < LEAGUE_SIZE; i++) {
     const city = cities[(i + (d - 1) * 5) % cities.length];
-    const step = size === 12 ? 1.3 : 1.7;
-    const lv = d === 1 ? top - i * (lg ? 1.5 : step) + gauss(r) : top - (d === 2 ? 12 : 23) - i * (d === 2 ? 1.2 : 1.1) + gauss(r);
+    const lv = d === 1 ? top - i * (lg ? 1.5 : 1.3) + gauss(r) : top - (d === 2 ? 12 : 23) - i * (d === 2 ? 1.2 : 1.1) + gauss(r);
     const c = { id: st.clubs.length, n: clubNameFor(nid, city, r, used), nat: nid, lv: Math.round(clamp(lv, 30, 92) * 10) / 10, div: d };
     st.clubs.push(c);
-    ids.push(c.id);
+    L.teams.push(c.id);
   }
-  st.leagues[`${nid}-${d}`] = { key: `${nid}-${d}`, nat: nid, div: d, teams: ids };
 }
 
 /** Świat kariery: każdy kraj ma 3 ligi i puchar kraju. */
@@ -83,11 +89,11 @@ function buildWorld(st, r) {
   expandWorld(st, r);
 }
 
-/** Dodaje brakujące kraje i ligi (nowa kariera albo zapis sprzed 1.0, rozbudowa przed nowym sezonem). */
+/** Dodaje brakujące kraje i ligi oraz uzupełnia ligi do 12 klubów (nowa kariera albo starszy zapis przed nowym sezonem). */
 function expandWorld(st, r = Math.random) {
   const used = new Set(st.clubs.map((c) => c.n));
-  for (const n of NATIONS) for (let d = 1; d <= DIVS; d++) if (!st.leagues[`${n.id}-${d}`]) addLeague(st, n.id, d, r, used);
-  st.worldV = 2;
+  for (const n of NATIONS) for (let d = 1; d <= DIVS; d++) { const L = st.leagues[`${n.id}-${d}`]; if (!L || L.teams.length < LEAGUE_SIZE) addLeague(st, n.id, d, r, used); }
+  st.worldV = 3;
 }
 
 export function leagueName(L) {
@@ -112,21 +118,32 @@ function roundRobin(ids, r) {
 
 const emptyRow = () => ({ p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 });
 
-/** Liga Mistrzów / Super Liga: 4 grupy (rozstawienie według siły), w grupie każdy z każdym, 2 najlepsze do ćwierćfinału. */
-function mkGroups(st, name, teams, r) {
+/** Liga Mistrzów / Super Liga / Unova League: grupy (rozstawienie według siły), w grupie każdy z każdym,
+ *  2 najlepsze kluby z każdej grupy do fazy pucharowej. */
+function mkGroups(st, name, teams, r, ng = 4, key = null, weeks = EURO_WEEKS) {
   const sorted = teams.slice().sort((a, b) => st.clubs[b].lv - st.clubs[a].lv);
-  const groups = [[], [], [], []];
-  sorted.forEach((id, i) => { const row = Math.floor(i / 4); groups[row % 2 ? 3 - (i % 4) : i % 4].push(id); });
+  const groups = Array.from({ length: ng }, () => []);
+  sorted.forEach((id, i) => { const row = Math.floor(i / ng); groups[row % 2 ? ng - 1 - (i % ng) : i % ng].push(id); });
   const per = groups.map((g) => (g.length < 2 ? [] : roundRobin(g.length % 2 ? [...g, -1] : g, r).slice(0, g.length % 2 ? g.length : g.length - 1).map((rd) => rd.filter((m) => m.h >= 0 && m.a >= 0))));
   const G = Math.max(0, ...per.map((x) => x.length));
   const gfx = Array.from({ length: G }, (_, i) => per.flatMap((x) => x[i] || []));
-  return { kind: 'groups', name, teams: teams.slice(), groups, gfx, G, table: Object.fromEntries(teams.map((id) => [id, emptyRow()])), ko: null, stage: 'G', winner: null, rank: [] };
+  const E = { kind: 'groups', key, name, teams: teams.slice(), groups, gfx, G, table: Object.fromEntries(teams.map((id) => [id, emptyRow()])), ko: null, stage: 'G', winner: null, rank: [] };
+  // tygodnie meczów: kolejki grupowe i rundy pucharowe (Unova League ma ich więcej)
+  const ko = Math.ceil(Math.log2(2 * ng));
+  E.weeks = weeks.length >= G + ko ? weeks.slice(0, G + ko) : spreadWeeks(G + ko);
+  return E;
+}
+
+/** n tygodni meczowych rozłożonych równo w sezonie. */
+function spreadWeeks(n) {
+  const last = SEASON_WEEKS - 2;
+  return Array.from({ length: n }, (_, i) => Math.round((i * last) / Math.max(1, n - 1)));
 }
 
 /** Ultra Liga: 10 najlepszych klubów z faz pucharowych, liga każdy z każdym, wygrywa pierwsze miejsce. */
 function mkUltra(name, teams, r) {
   const fx = roundRobin(teams.length % 2 ? [...teams, -1] : teams, r).slice(0, teams.length % 2 ? teams.length : teams.length - 1).map((rd) => rd.filter((m) => m.h >= 0 && m.a >= 0));
-  return { kind: 'league', name, teams: teams.slice(), fx, table: Object.fromEntries(teams.map((id) => [id, emptyRow()])), round: 0, winner: null, stage: 'L' };
+  return { kind: 'league', key: 'ulg', weeks: EURO_WEEKS.slice(0, fx.length), name, teams: teams.slice(), fx, table: Object.fromEntries(teams.map((id) => [id, emptyRow()])), round: 0, winner: null, stage: 'L' };
 }
 
 /** Kluby w grupie posortowane jak w tabeli. */
@@ -153,30 +170,25 @@ function buildEuro(st, useTables) {
   if (ucl.length < EURO_SIZE) ucl.push(...c2.filter((id) => !inU.has(id)).slice().sort(byLv).slice(0, EURO_SIZE - ucl.length));
   const inL = new Set(ucl);
   const usl = c2.concat(c1).filter((id) => !inU.has(id) && !inL.has(id)).sort(byLv).slice(0, EURO_SIZE);
-  st.euro = { ucl: mkGroups(st, EURO_NAMES.ucl, ucl, r), usl: mkGroups(st, EURO_NAMES.usl, usl, r) };
+  st.euro = { ucl: mkGroups(st, EURO_NAMES.ucl, ucl, r, 4, 'ucl'), usl: mkGroups(st, EURO_NAMES.usl, usl, r, 4, 'usl') };
   if (ultra.length >= 4) st.euro.ulg = mkUltra(EURO_NAMES.ulg, ultra, r);
   const un = unovaTeams(st);
-  if (un.length >= 8) st.euro.unl = mkGroups(st, EURO_NAMES.unl, un, r);
+  if (un.length >= 8) st.euro.unl = mkGroups(st, EURO_NAMES.unl, un, r, un.length > 32 ? 8 : 4, 'unl');
 }
 
-/** Unova League (kategoria Świat): zdobywcy pucharów krajowych z poprzedniego sezonu z całego świata.
- *  Gra 32 najmocniejszych, ale każdy kontynent ma co najmniej 2 miejsca. W pierwszym sezonie: najmocniejszy klub każdego kraju. */
-export const UNOVA_SIZE = 32;
+/** Unova League (kategoria Świat): wszyscy zdobywcy pucharów krajowych z poprzedniego sezonu, z każdego kraju świata.
+ *  W pierwszym sezonie kariery (brak zdobywców): najmocniejszy klub każdego kraju. */
 function unovaTeams(st) {
   let cands = Object.values(st.cupWinners || {}).filter((id) => st.clubs[id]);
   if (cands.length < 8) cands = NATIONS.map((n) => st.leagues[`${n.id}-1`]).filter(Boolean).map((L) => L.teams.slice().sort((a, b) => st.clubs[b].lv - st.clubs[a].lv)[0]);
-  cands = [...new Set(cands)].sort((a, b) => st.clubs[b].lv - st.clubs[a].lv);
-  const out = [];
-  for (const conf of ['EU', 'SA', 'NA', 'AF', 'AS', 'OC']) out.push(...cands.filter((id) => NAT[st.clubs[id].nat].conf === conf).slice(0, 2));
-  for (const id of cands) { if (out.length >= UNOVA_SIZE) break; if (!out.includes(id)) out.push(id); }
-  return out.slice(0, UNOVA_SIZE);
+  return [...new Set(cands)];
 }
 
-function koResult(st, t) {
+function koResult(st, t, key) {
   if (t.w != null) return;
   const r = simScore(st.clubs[t.h].lv, st.clubs[t.a].lv, true);
   t.r = r;
-  simStats(st, t.h, t.a, r);
+  simStats(st, t.h, t.a, r, key);
   if (r[0] === r[1]) { const hw = Math.random() < 0.5 + (st.clubs[t.h].lv - st.clubs[t.a].lv) / 60; t.pens = hw ? [5, 4] : [3, 4]; t.w = hw ? t.h : t.a; }
   else t.w = r[0] > r[1] ? t.h : t.a;
 }
@@ -185,23 +197,26 @@ function koResult(st, t) {
 export function euroRound(st, E, i) {
   if (!E) return;
   if (E.kind === 'league') {
-    for (const m of E.fx[i] || []) { if (m.r) continue; m.r = simScore(st.clubs[m.h].lv, st.clubs[m.a].lv, true); applyResult(E, m); simStats(st, m.h, m.a, m.r); }
+    for (const m of E.fx[i] || []) { if (m.r) continue; m.r = simScore(st.clubs[m.h].lv, st.clubs[m.a].lv, true); applyResult(E, m); simStats(st, m.h, m.a, m.r, keyOf(E)); }
     E.round = Math.max(E.round, i + 1);
     return;
   }
   if (i < E.G) {
-    for (const m of E.gfx[i] || []) { if (m.r) continue; m.r = simScore(st.clubs[m.h].lv, st.clubs[m.a].lv, true); applyResult(E, m); simStats(st, m.h, m.a, m.r); }
+    for (const m of E.gfx[i] || []) { if (m.r) continue; m.r = simScore(st.clubs[m.h].lv, st.clubs[m.a].lv, true); applyResult(E, m); simStats(st, m.h, m.a, m.r, keyOf(E)); }
     E.round = i + 1;
     if (i === E.G - 1) {
-      const T = [0, 1, 2, 3].map((g) => groupTable(E, g).map((x) => x.id));
+      const T = E.groups.map((_, g) => groupTable(E, g).map((x) => x.id));
       const pair = (a, b) => (a != null && b != null ? { h: a, a: b, r: null, w: null } : null);
-      E.ko = { round: 0, ties: [pair(T[0][0], T[1][1]), pair(T[1][0], T[0][1]), pair(T[2][0], T[3][1]), pair(T[3][0], T[2][1])].filter(Boolean), out: [] };
+      const ties = [];
+      // zwycięzca grupy gra z drugim zespołem sąsiedniej grupy: A1–B2, B1–A2, C1–D2, D1–C2 itd.
+      for (let g = 0; g + 1 < T.length; g += 2) ties.push(pair(T[g][0], T[g + 1][1]), pair(T[g + 1][0], T[g][1]));
+      E.ko = { round: 0, ties: ties.filter(Boolean), out: [] };
       E.stage = 'KO';
     }
     return;
   }
   if (!E.ko || E.stage !== 'KO' || i - E.G !== E.ko.round) return;
-  for (const t of E.ko.ties) koResult(st, t);
+  for (const t of E.ko.ties) koResult(st, t, keyOf(E));
   const win = E.ko.ties.map((t) => t.w);
   const lose = E.ko.ties.map((t) => (t.w === t.h ? t.a : t.h));
   const gp = (id) => E.table[id].pts * 100 + (E.table[id].gf - E.table[id].ga);
@@ -218,7 +233,7 @@ export function euroRound(st, E, i) {
 
 function newSeason(st) {
   const r = Math.random;
-  if (st.worldV !== 2) expandWorld(st, r);
+  if (st.worldV !== 3) expandWorld(st, r);
   // kwalifikacja do pucharów europejskich według poprzedniego sezonu (pierwszy sezon: siła klubów)
   buildEuro(st, true);
   if (st.pl) seasonRosters(st);
@@ -242,7 +257,7 @@ function newSeason(st) {
     const teams = [...L1.teams, ...t2, ...t3];
     // klub zawodnika zawsze gra w pucharze swojego kraju
     if (n.id === myNat && !teams.includes(st.club)) teams[teams.length - 1] = st.club;
-    st.cups[n.id] = { nat: n.id, round: 0, alive: teams.sort(() => r() - 0.5), ties: [], done: false, winner: null };
+    st.cups[n.id] = { nat: n.id, round: 0, teams: teams.slice(), alive: teams.sort(() => r() - 0.5), ties: [], done: false, winner: null };
   }
   st.week = 0;
   st.phase = 'season';
@@ -315,8 +330,8 @@ export function simScore(sh, sa, home = true) {
   const lh = (home ? 1.45 : 1.2) * Math.exp((sh - sa) / 17), la = (home ? 1.12 : 1.2) * Math.exp((sa - sh) / 17);
   return [poisson(lh), poisson(la)];
 }
-/** Statystyki zawodników obu klubów w meczu symulowanym. */
-function simStats(st, h, a, r) { teamMatchStats(st, h, r[0], r[1]); teamMatchStats(st, a, r[1], r[0]); }
+/** Statystyki zawodników obu klubów w meczu symulowanym (key: rozgrywki, 'lg' liga, 'cup' puchar kraju, 'ucl' itd.). */
+function simStats(st, h, a, r, key = 'lg') { teamMatchStats(st, h, r[0], r[1], { key }); teamMatchStats(st, a, r[1], r[0], { key }); }
 
 function applyResult(L, m) {
   const [hg, ag] = m.r, H = L.table[m.h], A = L.table[m.a];
@@ -381,8 +396,8 @@ export function weekMatches() {
     return out;
   }
   for (const eu of [myEuro(), myWorld()]) {
-    if (!eu || !EURO_WEEKS.includes(w)) continue;
-    const i = EURO_WEEKS.indexOf(w), E = PC.euro[eu];
+    if (!eu || !weeksOf(PC.euro[eu]).includes(w)) continue;
+    const E = PC.euro[eu], i = weeksOf(E).indexOf(w);
     const mine = (x) => x.h === PC.club || x.a === PC.club;
     if (E.kind === 'league') { const m = E.fx[i] && E.fx[i].find(mine); if (m) out.push({ comp: eu, title: `${E.name}, kolejka ${i + 1}`, h: m.h, a: m.a, fx: m }); }
     else if (i < E.G) { const m = E.gfx[i] && E.gfx[i].find(mine); if (m) out.push({ comp: eu, title: `${E.name}, grupa ${GROUP_NAMES[E.groups.findIndex((g) => g.includes(PC.club))]}, kolejka ${i + 1}`, h: m.h, a: m.a, fx: m }); }
@@ -617,6 +632,14 @@ export function finishMatch(M) {
     else { ss.apps++; if (M.role === 'start') ss.starts++; ss.goals += M.my.g; ss.assists += M.my.a; ss.rsum += M.rating; ss.min += mins; if (M.comp === 'cup') ss.cupApps++; }
     car.apps++; car.goals += M.my.g; car.assists += M.my.a; car.rsum += M.rating; ss.yc += M.my.yc; ss.rc += M.my.rc; car.yc += M.my.yc; car.rc += M.my.rc;
     if (M.rating >= 8.0) { car.mom++; ss.mom++; }
+    // statystyki zawodnika osobno dla każdych rozgrywek klubowych (nagrody indywidualne w lidze, pucharach, Unova League)
+    if (M.comp !== 'intl' && M.comp !== 'tour') {
+      const key = M.comp === 'league' ? 'lg' : M.comp;
+      ss.comp = ss.comp || {};
+      const c = (ss.comp[key] = ss.comp[key] || { ap: 0, g: 0, a: 0, cs: 0, rs: 0 });
+      c.ap++; c.g += M.my.g; c.a += M.my.a; c.rs = Math.round((c.rs + M.rating) * 10) / 10;
+      if (gt === 0 && (p.pos === 'GK' || ['CB', 'LB', 'RB'].includes(p.pos))) c.cs++;
+    }
     // punkty treningowe za mecz
     const tp = Math.max(1, Math.round(1 + (M.rating - 6.3) * 1.5 + Math.min(2, M.my.g + M.my.a * 0.5) + (M.role === 'start' ? 1 : 0)));
     PC.tp += tp; M.tp = tp;
@@ -640,8 +663,9 @@ export function finishMatch(M) {
   // statystyki kolegów i rywali, relacje z kolegami z boiska
   if (M.comp !== 'tour' && M.comp !== 'intl' && PC.pl) {
     ensureClub(PC, PC.club); ensureClub(PC, M.themKey);
-    const mates = teamMatchStats(PC, PC.club, gu, gt, { meIn: played, mePos: p.pos, skipG: played ? M.my.g : 0, skipA: played ? M.my.a : 0, live: M.liveUs });
-    teamMatchStats(PC, M.themKey, gt, gu, { live: M.liveThem });
+    const key = M.comp === 'league' ? 'lg' : M.comp;
+    const mates = teamMatchStats(PC, PC.club, gu, gt, { key, meIn: played, mePos: p.pos, skipG: played ? M.my.g : 0, skipA: played ? M.my.a : 0, live: M.liveUs });
+    teamMatchStats(PC, M.themKey, gt, gu, { key, live: M.liveThem });
     if (played) relAfterMatch(PC, mates, M.relExtra || {});
   }
   PC.log.unshift({ y: PC.year, w: PC.week, line: M.line, res: `${hg}:${ag}${pens ? ` k. ${pens[0]}:${pens[1]}` : ''}`, comp: M.comp, r: played ? M.rating : null, g: M.my.g, a: M.my.a });
@@ -676,7 +700,7 @@ function cupWeek() {
       if (t.w != null) continue;
       const r = simScore(PC.clubs[t.h].lv, PC.clubs[t.a].lv, true);
       t.r = r;
-      simStats(PC, t.h, t.a, r);
+      simStats(PC, t.h, t.a, r, 'cup');
       if (r[0] === r[1]) { const hw = Math.random() < 0.5; t.pens = hw ? [5, 3] : [3, 5]; t.w = hw ? t.h : t.a; } else t.w = r[0] > r[1] ? t.h : t.a;
     }
     c.alive = c.ties.map((t) => t.w);
@@ -718,10 +742,7 @@ export function endWeek() {
     }
   }
   if (CUP_WEEKS.includes(w)) cupWeek();
-  if (PC.euro && EURO_WEEKS.includes(w)) {
-    const i = EURO_WEEKS.indexOf(w);
-    for (const E of Object.values(PC.euro)) euroRound(PC, E, i);
-  }
+  if (PC.euro) for (const E of Object.values(PC.euro)) { const W = weeksOf(E); if (W.includes(w)) euroRound(PC, E, W.indexOf(w)); }
   if (w === WINTER_WINDOW) clubChanges(true);
   // regeneracja, kontuzje, forma
   if (p.inj > 0) p.inj--;
@@ -857,19 +878,23 @@ function endSeason() {
   const tr = [];
   if (pos === 1 && ss.apps >= 5) { trophy(`Mistrzostwo: ${leagueName(L)}`, 'league'); tr.push('mistrzostwo ligi'); }
   if (allCups().some((c) => c.winner === PC.club) && ss.cupApps) tr.push('puchar kraju');
-  // nagrody indywidualne: wyścigi o nagrody w każdej lidze (dla wszystkich zawodników) i światowy ranking
+  // dokończenie pucharów przed przyznaniem nagród
+  if (PC.euro) for (const E of Object.values(PC.euro)) for (let i = 0; i < weeksOf(E).length && E.stage !== 'done'; i++) euroRound(PC, E, i);
+  // nagrody indywidualne w każdych rozgrywkach: ligi, puchary europejskie, Unova League, puchary krajowe; światowy ranking
   const aw = [];
   const seasonAw = { year: PC.year, leagues: {}, world: [] };
-  for (const LL of Object.values(PC.leagues)) {
+  for (const comp of awardComps(PC, { league: leagueName })) {
     const row = {};
+    const players = compPlayers(PC, comp.teams, comp.key);
     for (const A of AWARDS) {
-      const w = awardRace(PC, LL, A, 1)[0];
+      const w = awardRace(PC, comp, A, 1, players)[0];
       if (!w) continue;
       row[A.k] = { id: w.id, n: `${w.fn} ${w.ln}`, c: w.c, v: A.fmt(w) };
-      const name = `${A.n}: ${leagueName(LL)}`;
-      if (w.me) aw.push(name); else (w.aw = w.aw || []).push({ y: PC.year, n: name });
+      const name = `${A.n}: ${comp.name}`;
+      if (w.me) aw.push(name);
+      else if (PC.pl[w.id]) (PC.pl[w.id].aw = PC.pl[w.id].aw || []).push({ y: PC.year, n: name });
     }
-    seasonAw.leagues[LL.key] = row;
+    seasonAw.leagues[comp.id] = row;
   }
   globalRanking(PC, 100).forEach((x, i) => {
     const name = globalAwardFor(i + 1);
@@ -880,7 +905,7 @@ function endSeason() {
   });
   PC.awHist = PC.awHist || [];
   PC.awHist.unshift(seasonAw);
-  if (PC.awHist.length > 3) PC.awHist.length = 3;
+  if (PC.awHist.length > 5) PC.awHist.length = 5;
   // trofea klubów w historii
   for (const LL of Object.values(PC.leagues)) if (LL.div === 1) { const ch = sortedTable(LL)[0]; if (ch && ch.p > 0) addHist(PC, ch.id, 'league'); }
   for (const c of allCups()) if (c.winner != null) addHist(PC, c.winner, 'cup');
@@ -890,7 +915,7 @@ function endSeason() {
   const euroLines = [];
   if (PC.euro) {
     for (const [k, E] of Object.entries(PC.euro)) {
-      for (let i = 0; i < EURO_WEEKS.length && E.stage !== 'done'; i++) euroRound(PC, E, i);
+      for (let i = 0; i < weeksOf(E).length && E.stage !== 'done'; i++) euroRound(PC, E, i);
       if (E.kind === 'league') { E.winner = sortedTable(E)[0].id; }
       if (E.winner == null) continue;
       const pos = E.kind === 'league' ? sortedTable(E).findIndex((x) => x.id === PC.club) + 1 : E.rank.indexOf(PC.club) + 1;

@@ -1,7 +1,7 @@
 // Tryb zawodnika: stałe składy wszystkich klubów, statystyki zawodników w sezonie, relacje z kolegami z drużyny,
 // wyścigi o nagrody w ligach i światowy ranking piłkarzy. Funkcje dostają stan kariery (st) jako parametr.
 import { mkRng, rint, gauss, pick, clamp } from '../core/util.js';
-import { NAT, NATIONS, LEAGUES } from '../data/nations.js';
+import { NAT, NATIONS } from '../data/nations.js';
 import { genName } from '../engine/db.js';
 import { POS_GROUP, ovr } from '../engine/player.js';
 
@@ -16,6 +16,14 @@ const EU_NATS = NATIONS.filter((n) => n.conf === 'EU').map((n) => n.id);
 export const ME = 'me';
 
 const emptyS = () => ({ ap: 0, g: 0, a: 0, cs: 0, rs: 0 });
+/** Statystyki zawodnika w rozgrywkach: 'lg' liga (p.s), 'cup' puchar kraju, 'ucl', 'usl', 'ulg', 'unl' (p.sc). */
+export const statsOf = (p, key = 'lg') => (key === 'lg' ? p.s : (p.sc && p.sc[key]) || emptyS());
+/** Wszystkie mecze sezonu: liga i puchary razem. */
+export function totalStats(p) {
+  const t = { ...p.s };
+  for (const x of Object.values(p.sc || {})) { t.ap += x.ap; t.g += x.g; t.a += x.a; t.cs += x.cs; t.rs += x.rs; }
+  return t;
+}
 
 function newPlayer(st, cid, pos, o, age, r) {
   const c = st.clubs[cid];
@@ -50,17 +58,11 @@ export function ensureClub(st, cid) {
   st.ros[c.id] = ids;
 }
 
-/** Kadry tworzone od razu: najwyższe ligi dużych krajów, wszystkie kluby z kraju zawodnika, jego klub i kluby
- *  z pucharów europejskich i Unova League. Pozostałe kluby dostają kadrę, gdy jest potrzebna (oszczędność pamięci). */
+/** Pełne kadry wszystkich klubów na świecie (także nowych klubów po rozbudowie świata). */
 export function seasonRosters(st) {
   if (!st.pl) return;
-  const myNat = st.club != null && st.clubs[st.club] ? st.clubs[st.club].nat : st.me.nat;
-  const cups = new Set(Object.values(st.euro || {}).flatMap((E) => E.teams || []));
-  for (const c of st.clubs) if ((c.div === 1 && LEAGUES[c.nat]) || c.nat === st.me.nat || c.nat === myNat || c.id === st.club || cups.has(c.id)) ensureClub(st, c.id);
+  for (const c of st.clubs) ensureClub(st, c.id);
 }
-
-/** Kadry wszystkich klubów ligi (gdy gracz otwiera jej wyścig o nagrody). */
-export function ensureLeague(st, L) { for (const id of L.teams) ensureClub(st, id); }
 
 export const rosterOf = (st, cid) => (st.ros[cid] || []).map((id) => st.pl[id]).filter(Boolean);
 
@@ -127,8 +129,11 @@ export function teamMatchStats(st, cid, gf, ga, opts = {}) {
     }
   }
   const res = gf > ga ? 0.35 : gf < ga ? -0.35 : 0;
+  const key = opts.key || 'lg';
   for (const p of xi) {
-    const s = p.s, x = rec[p.id];
+    let s = p.s;
+    if (key !== 'lg') { p.sc = p.sc || {}; s = p.sc[key] = p.sc[key] || emptyS(); }
+    const x = rec[p.id];
     s.ap++; s.g += x.g; s.a += x.a;
     const def = p.pos === 'GK' || POS_GROUP[p.pos] === 'D';
     if (ga === 0 && def) s.cs++;
@@ -162,7 +167,9 @@ export function rosterSeasonEnd(st) {
   const moves = {};
   const note = (cid, p) => { (moves[cid] = moves[cid] || []).push(p); };
   for (const p of Object.values(st.pl)) {
-    p.t.ap += p.s.ap; p.t.g += p.s.g; p.t.a += p.s.a;
+    const tt = totalStats(p);
+    p.t.ap += tt.ap; p.t.g += tt.g; p.t.a += tt.a;
+    delete p.sc;
     p.s = emptyS();
     p.age++;
     const grow = p.age <= 21 ? 2.4 : p.age <= 24 ? 1.3 : p.age <= 28 ? 0.3 : p.age <= 31 ? -0.8 : -2.2;
@@ -232,21 +239,30 @@ export function normalizeClub(st, cid) {
 // ---------------------------------------------------------------------
 const avg = (s) => (s.ap ? s.rs / s.ap : 0);
 
-/** Wiersz zawodnika gracza w rankingach (statystyki z kariery). */
-export function meRow(st) {
+/** Wiersz zawodnika gracza w rankingach. key: rozgrywki ('lg', 'cup', 'ucl'...) albo 'all' (cały sezon). */
+export function meRow(st, key = 'all') {
   const p = st.me, ss = st.ss || {};
-  const ap = ss.apps || 0;
-  return {
-    id: ME, me: true, fn: p.fn, ln: p.ln, pos: p.pos, age: p.age, o: Math.round(ovr(p)), nat: p.nat, c: st.club,
-    s: { ap, g: ss.goals || 0, a: ss.assists || 0, cs: ss.cleanSheets || 0, rs: ss.rsum || 0 },
-  };
+  const all = { ap: ss.apps || 0, g: ss.goals || 0, a: ss.assists || 0, cs: ss.cleanSheets || 0, rs: ss.rsum || 0 };
+  // zapisy sprzed 1.0.1 nie mają statystyk osobno dla rozgrywek: liga = cały sezon
+  const s = key === 'all' ? all : ss.comp ? { ...emptyS(), ...(ss.comp[key] || {}) } : key === 'lg' ? all : emptyS();
+  return { id: ME, me: true, fn: p.fn, ln: p.ln, pos: p.pos, age: p.age, o: Math.round(ovr(p)), nat: p.nat, c: st.club, s };
 }
 
-/** Zawodnicy ligi (z zawodnikiem gracza, jeśli w niej gra). */
-export function leaguePlayers(st, L) {
+/** Zawodnicy rozgrywek ze statystykami z tych rozgrywek (z zawodnikiem gracza, jeśli jego klub w nich gra). */
+export function compPlayers(st, teams, key) {
   const out = [];
-  for (const cid of L.teams) out.push(...rosterOf(st, cid));
-  if (L.teams.includes(st.club)) out.push(meRow(st));
+  for (const cid of teams) for (const p of rosterOf(st, cid)) out.push({ id: p.id, fn: p.fn, ln: p.ln, pos: p.pos, age: p.age, o: p.o, nat: p.nat, c: p.c, s: statsOf(p, key) });
+  if (teams.includes(st.club)) out.push(meRow(st, key));
+  return out;
+}
+
+/** Wszystkie rozgrywki z nagrodami indywidualnymi: ligi, puchary europejskie, Unova League i puchary krajowe. */
+export function awardComps(st, names) {
+  const out = [];
+  for (const L of Object.values(st.leagues)) out.push({ id: `L:${L.key}`, name: names.league(L), teams: L.teams, key: 'lg', nat: L.nat, kind: 'league' });
+  for (const [k, E] of Object.entries(st.euro || {})) out.push({ id: `E:${k}`, name: E.name, teams: E.teams, key: k, kind: k === 'unl' ? 'world' : 'euro' });
+  const cups = st.cups ? Object.values(st.cups) : st.cup ? [st.cup] : [];
+  for (const c of cups) out.push({ id: `C:${c.nat}`, name: `Puchar ${NAT[c.nat].name}`, teams: c.teams || [...new Set([...(st.leagues[`${c.nat}-1`] || { teams: [] }).teams, ...c.alive])], key: 'cup', nat: c.nat, kind: 'cup' });
   return out;
 }
 
@@ -261,17 +277,19 @@ export const AWARDS = [
   { k: 'yng', n: 'Młodzieżowiec sezonu', ic: '🌱', val: (p) => avg(p.s) + (p.s.g + p.s.a * 0.6) * 0.012, fmt: (p) => `ocena ${avg(p.s).toFixed(2)}`, ok: (p, n) => p.age <= 21 && p.s.ap >= n * 0.4 },
 ];
 
-/** Wyścig o nagrodę w lidze: posortowana lista (kolejka = liczba rozegranych kolejek). */
-export function awardRace(st, L, aw, n = 10) {
-  const played = Math.max(1, L.round || 0);
-  const list = leaguePlayers(st, L).filter((p) => aw.ok(p, played) && (aw.val(p) > 0));
+/** Wyścig o nagrodę w rozgrywkach comp (z awardComps): posortowana lista. Próg meczów liczony od zawodnika
+ *  z największą liczbą występów w tych rozgrywkach. players: gotowa lista z compPlayers (opcjonalnie). */
+export function awardRace(st, comp, aw, n = 10, players = null) {
+  const all = players || compPlayers(st, comp.teams, comp.key);
+  const played = Math.max(1, ...all.map((p) => p.s.ap));
+  const list = all.filter((p) => aw.ok(p, played) && (aw.val(p) > 0));
   list.sort((a, b) => aw.val(b) - aw.val(a) || (aw.tie ? aw.tie(b) - aw.tie(a) : 0));
   return list.slice(0, n);
 }
 
 /** Punkty w światowym rankingu piłkarzy: umiejętności i forma w sezonie (oceny, gole, asysty, czyste konta). */
 export function rankScore(st, p) {
-  const s = p.s, a = avg(s);
+  const s = p.me ? p.s : totalStats(p), a = avg(s);
   const lv = st.clubs[p.c] ? st.clubs[p.c].lv : 60;
   // forma w sezonie liczy się w pełni po ok. 8 meczach; gole i asysty dają dodatkowe punkty
   const perf = s.ap ? (a - 6.6) * 8 + s.g * 0.35 + s.a * 0.25 + (p.pos === 'GK' ? s.cs * 0.3 : 0) : 0;
@@ -279,7 +297,7 @@ export function rankScore(st, p) {
 }
 
 export function globalRanking(st, n = 100) {
-  const all = Object.values(st.pl).concat([meRow(st)]);
+  const all = Object.values(st.pl).concat([meRow(st, 'all')]);
   // wstępne odsianie: tylko najlepsi (oszczędność przy kilku tysiącach zawodników)
   const pre = all.filter((p) => p.me || p.o >= 70);
   return pre.map((p) => ({ p, sc: rankScore(st, p) })).sort((a, b) => b.sc - a.sc).slice(0, n);

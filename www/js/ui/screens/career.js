@@ -466,11 +466,11 @@ screen('ctable', {
       const info = {
         ucl: 'Liga Mistrzów: najlepsze kluby z miejsc 1–3 w najwyższych ligach.',
         usl: 'Super Liga: najlepsze kluby z miejsc 4–8 w najwyższych ligach.',
-        unl: `Unova League, kategoria Świat: kluby z całego świata, które w poprzednim sezonie zdobyły puchar swojego kraju. Gra ${C.UNOVA_SIZE} najmocniejszych zdobywców pucharów, a każdy kontynent ma co najmniej 2 miejsca. W pierwszym sezonie kariery grają najmocniejsze kluby poszczególnych krajów.`,
+        unl: `Unova League, kategoria Świat: kluby z całego świata, które w poprzednim sezonie zdobyły puchar swojego kraju. Grają wszyscy zdobywcy pucharów, po jednym klubie z każdego kraju świata. Przy ponad 32 klubach jest 8 grup, a do fazy pucharowej od 1/8 finału awansują po 2 najlepsze kluby z każdej grupy. W pierwszym sezonie kariery grają najmocniejsze kluby poszczególnych krajów.`,
         ulg: 'Ultra Liga: najwyższe wyróżnienie. Gra w niej 10 klubów: po 5 najlepszych z fazy pucharowej Ligi Mistrzów i Super Ligi z poprzedniego sezonu. Każdy z każdym, wygrywa pierwsze miejsce w tabeli.',
       }[k];
       body += `<div class="card"><div class="facts"><div class="fact"><div class="k">Kluby</div><div class="v">${E.teams.length}</div></div><div class="fact"><div class="k">Etap</div><div class="v small">${E.kind === 'league' ? `kolejka ${Math.min(E.round + 1, E.fx.length)} z ${E.fx.length}` : E.stage === 'G' ? `faza grupowa, kolejka ${Math.min(E.round + 1, E.G)} z ${E.G}` : E.stage === 'KO' ? C.koStageName(E) : 'zakończone'}</div></div></div>
-        <p class="small mt">${info}${E.kind === 'groups' ? ` ${E.teams.length} klubów w 4 grupach. W grupie każdy gra z każdym, a 2 najlepsze kluby z każdej grupy przechodzą do fazy pucharowej: ćwierćfinał, półfinał i finał o trofeum.` : ''}</p>
+        <p class="small mt">${info}${E.kind === 'groups' && k !== 'unl' ? ` ${E.teams.length} klubów w ${E.groups.length} grupach. W grupie każdy gra z każdym, a 2 najlepsze kluby z każdej grupy przechodzą do fazy pucharowej${E.groups.length > 4 ? ': 1/8 finału, ćwierćfinał' : ': ćwierćfinał'}, półfinał i finał o trofeum.` : ''}</p>
         <p class="small muted">${mine === k ? 'Twój klub gra w tych rozgrywkach.' : mine ? `Twój klub gra w tym sezonie w rozgrywkach: ${C.EURO_NAMES[mine]}.` : (world ? 'Twój klub nie gra w tym sezonie w Unova League. Zdobądź puchar kraju, aby zagrać w następnym sezonie.' : 'Twój klub nie gra w tym sezonie w pucharach europejskich.')}</p></div>`;
       if (E.kind === 'league') {
         body += `<div class="card tight">${tbl(C.sortedTable(E), 0)}</div>`;
@@ -482,7 +482,7 @@ screen('ctable', {
         }
         body += E.groups.map((g, gi) => `<div class="card tight"><div class="card-h" style="padding:10px 12px 0"><h3>Grupa ${C.GROUP_NAMES[gi]}</h3></div>${tbl(C.groupTable(E, gi), 2)}</div>`).join('');
       }
-      body += `<p class="small muted center">Mecze ${world ? 'Unova League' : 'europejskie'} w tygodniach: ${C.EURO_WEEKS.map((w) => w + 1).join(', ')}.</p>`;
+      body += `<p class="small muted center">Mecze ${world ? 'Unova League' : 'europejskie'} w tygodniach: ${C.weeksOf(E).map((w) => w + 1).join(', ')}.</p>`;
       return { title: 'Rozgrywki', sub: E.name, body, cls: 'nofoot' };
     }
     if (ctab.t === 'table') {
@@ -521,25 +521,28 @@ function leagueSelect(action, cur) {
   const list = Object.values(pc.leagues).sort((a, b) => (a === my ? -1 : b === my ? 1 : NAT[a.nat].name.localeCompare(NAT[b.nat].name, 'pl') || a.div - b.div));
   return `<div class="card"><label class="small muted">Liga</label><select class="input" data-change="${action}">${list.map((x) => `<option value="${x.key}" ${x === cur ? 'selected' : ''}>${NAT[x.nat].flag} ${esc(C.leagueName(x))}</option>`).join('')}</select></div>`;
 }
+const COMP_KIND = { league: 'Ligi', euro: 'Puchary europejskie', world: 'Świat', cup: 'Puchary krajowe' };
 function awardsTab() {
   const pc = PC();
-  const leagues = Object.values(pc.leagues);
+  const comps = R.awardComps(pc, { league: C.leagueName });
   const my = C.myLeague();
-  const L = pc.leagues[ctab.lg] || my;
-  // kadry klubów tej ligi: statystyki zbierane od teraz, jeśli wcześniej ligi nie było w bazie zawodników
-  const fresh = L.teams.some((id) => !pc.ros[id]);
-  R.ensureLeague(pc, L);
-  const opts = leagues.slice().sort((a, b) => (a === my ? -1 : b === my ? 1 : C.leagueName(a).localeCompare(C.leagueName(b), 'pl')))
-    .map((x) => `<option value="${x.key}" ${x === L ? 'selected' : ''}>${esc(C.leagueName(x))}</option>`).join('');
-  let h = `<div class="card"><label class="small muted">Liga</label><select class="input" data-change="ctab.lg">${opts}</select>
-    <p class="small muted mt">Wyścig o nagrody indywidualne. Liczby aktualizują się co tydzień, po każdej kolejce. Po ostatniej kolejce pierwsze miejsce w każdej kategorii zdobywa nagrodę. Kategorie z oceną wymagają rozegrania co najmniej połowy meczów ligi.</p>${fresh ? '<p class="small mt">Zawodnicy tej ligi dopiero trafili do bazy, więc ich statystyki liczą się od teraz.</p>' : ''}</div>`;
+  const comp = comps.find((x) => x.id === ctab.lg) || comps.find((x) => x.id === `L:${my.key}`);
+  // lista rozgrywek: najpierw moje, potem grupy (ligi, puchary europejskie, Świat, puchary krajowe) alfabetycznie po kraju
+  const mineIds = new Set([`L:${my.key}`, C.myEuro() && `E:${C.myEuro()}`, C.myWorld() && 'E:unl', C.myCup() && `C:${C.myCup().nat}`].filter(Boolean));
+  const label = (x) => `${x.nat ? `${NAT[x.nat].flag} ` : x.kind === 'world' ? '🌍 ' : '🇪🇺 '}${esc(x.name)}`;
+  const opt = (x) => `<option value="${x.id}" ${x === comp ? 'selected' : ''}>${label(x)}</option>`;
+  const byNat = (a, b) => (a.nat && b.nat ? NAT[a.nat].name.localeCompare(NAT[b.nat].name, 'pl') : 0) || a.name.localeCompare(b.name, 'pl');
+  const groups = ['euro', 'world', 'league', 'cup'].map((k) => `<optgroup label="${COMP_KIND[k]}">${comps.filter((x) => x.kind === k && !mineIds.has(x.id)).sort(byNat).map(opt).join('')}</optgroup>`).join('');
+  let h = `<div class="card"><label class="small muted">Rozgrywki</label><select class="input" data-change="ctab.lg"><optgroup label="Twoje rozgrywki">${comps.filter((x) => mineIds.has(x.id)).map(opt).join('')}</optgroup>${groups}</select>
+    <p class="small muted mt">Nagrody indywidualne są w każdych rozgrywkach: w każdej lidze, w pucharach europejskich, w Unova League i w każdym pucharze kraju. Liczą się tylko mecze w tych rozgrywkach. Liczby aktualizują się co tydzień. Na koniec sezonu pierwsze miejsce w każdej kategorii zdobywa nagrodę. Kategorie z oceną wymagają rozegrania co najmniej połowy meczów, ile rozegrał zawodnik z największą liczbą występów.</p></div>`;
+  const players = R.compPlayers(pc, comp.teams, comp.key);
   for (const A of R.AWARDS) {
-    const list = R.awardRace(pc, L, A, 5);
+    const list = R.awardRace(pc, comp, A, 5, players);
     h += `<div class="card tight"><div class="card-h" style="padding:10px 12px 0"><h3>${A.ic} ${esc(A.n)}</h3></div><div class="list">${list.length ? list.map((p, i) => `<div class="row ${p.me ? 'me' : ''} tap" data-a="${p.me ? 'crail.go' : 'cpl.open'}" data-k="${p.me ? 'cdev' : p.id}"><span class="tag">${i + 1}</span>${posBadge(p.pos)}<div class="main"><div class="t1">${esc(p.fn)} ${esc(p.ln)}${p.me ? ' · Ty' : ''}</div><div class="t2 wrap">${esc(pc.clubs[p.c] ? pc.clubs[p.c].n : '')} · ${p.s.ap} meczów</div></div><b>${esc(A.fmt(p))}</b></div>`).join('') : '<p class="small muted" style="padding:8px 12px">Brak kandydatów. Za mało rozegranych meczów.</p>'}</div></div>`;
   }
   const last = (pc.awHist || [])[0];
-  if (last && last.leagues[L.key]) {
-    const row = last.leagues[L.key];
+  const row = last && (last.leagues[comp.id] || (comp.kind === 'league' && last.leagues[comp.id.slice(2)]));
+  if (row) {
     h += `<div class="card"><div class="card-h"><h3>Laureaci sezonu ${last.year}/${String((last.year + 1) % 100).padStart(2, '0')}</h3></div>${R.AWARDS.filter((A) => row[A.k]).map((A) => `<div class="row"><span style="font-size:20px">${A.ic}</span><div class="main"><div class="t1">${esc(A.n)}</div><div class="t2">${esc(row[A.k].n)} · ${esc(pc.clubs[row[A.k].c] ? pc.clubs[row[A.k].c].n : '')}</div></div><b class="small">${esc(row[A.k].v)}</b></div>`).join('')}</div>`;
   }
   return h;
@@ -568,7 +571,7 @@ function clubRankList() {
 }
 function playerRow(p, cid, mine) {
   const pc = PC();
-  const s = p.s || {};
+  const s = p.me ? p.s : R.totalStats(p);
   const rel = mine && !p.me ? pc.rel[p.id] || 0 : null;
   return `<div class="row tap ${p.me ? 'me' : ''}" data-a="${p.me ? 'crail.go' : 'cpl.open'}" data-k="${p.me ? 'cdev' : p.id}">${posBadge(p.pos)}<div class="main"><div class="t1">${flag(p.nat)} ${esc(p.fn)} ${esc(p.ln)}${p.me ? ' · Ty' : ''}</div>
     <div class="t2 wrap">${p.age} l. · ${s.ap || 0} m · ${s.g || 0} g · ${s.a || 0} a${s.ap ? ` · śr. ${avgR(s).toFixed(2)}` : ''}</div>
@@ -596,8 +599,9 @@ screen('cklub', {
     const value = ros.filter((p) => !p.me).reduce((a, p) => a + R.marketValue(p), 0);
     const best = ros.slice().sort((a, b) => b.o - a.o)[0];
     const capt = R.lineupOf(pc, cid).sort((a, b) => (b.o + b.age * 0.8) - (a.o + a.age * 0.8))[0];
-    const topS = ros.slice().sort((a, b) => b.s.g - a.s.g)[0];
-    const topA = ros.slice().sort((a, b) => b.s.a - a.s.a)[0];
+    const tot = (p) => (p.me ? p.s : R.totalStats(p));
+    const topS = ros.map((p) => ({ ...p, s: tot(p) })).sort((a, b) => b.s.g - a.s.g)[0];
+    const topA = ros.map((p) => ({ ...p, s: tot(p) })).sort((a, b) => b.s.a - a.s.a)[0];
     const eu = pc.euro ? ['ulg', 'ucl', 'usl'].find((k) => pc.euro[k] && pc.euro[k].teams.includes(cid)) : null;
     let euTxt = 'nie gra w tym sezonie';
     if (eu) {
@@ -652,13 +656,16 @@ function playerModal(pid) {
   const pc = PC(), p = pc.pl[pid];
   if (!p) return;
   const c = pc.clubs[p.c];
-  const s = p.s, t = p.t, mine = p.c === pc.club;
+  const s = R.totalStats(p), t = p.t, mine = p.c === pc.club;
+  const CN = { lg: 'Liga', cup: 'Puchar kraju', ucl: 'Liga Mistrzów', usl: 'Super Liga', ulg: 'Ultra Liga', unl: 'Unova League' };
+  const parts = ['lg', ...Object.keys(p.sc || {})].map((k) => [k, R.statsOf(p, k)]).filter(([, x]) => x.ap);
   const rel = pc.rel[pid] || 0;
   const F = (k, v) => `<div class="fact"><div class="k">${k}</div><div class="v small">${v}</div></div>`;
   const g = R.globalRanking(pc, 300).findIndex((x) => x.p.id === pid) + 1;
   const body = `<div class="row-flex">${posBadge(p.pos)}<div class="grow"><div class="big">${flag(p.nat)} ${esc(p.fn)} ${esc(p.ln)}</div><div class="small muted">${esc(POS_NAMES[p.pos] || p.pos)} · ${p.age} lat · ${esc(c ? c.n : '')}</div></div>${rating(p.o)}</div>
     <div class="facts mt">${F('Potencjał', Math.round(p.pt))}${F('Wartość', R.fmtMoney(R.marketValue(p)))}${F('Narodowość', esc(NAT[p.nat].name))}${F('Ranking świata', g ? `${g}. miejsce` : 'poza pierwszą trzysetką')}</div>
     <h3 class="mt">Sezon</h3><div class="facts">${F('Mecze', s.ap)}${F('Gole', s.g)}${F('Asysty', s.a)}${F('Średnia ocena', s.ap ? avgR(s).toFixed(2) : 'brak')}${p.pos === 'GK' || ['CB', 'LB', 'RB'].includes(p.pos) ? F('Czyste konta', s.cs) : ''}</div>
+    ${parts.length ? `<table class="tbl mt"><tr><th class="tl">Rozgrywki</th><th>M</th><th>G</th><th>A</th><th>Śr</th></tr>${parts.map(([k, x]) => `<tr><td class="tl">${CN[k] || k}</td><td>${x.ap}</td><td>${x.g}</td><td>${x.a}</td><td>${avgR(x).toFixed(2)}</td></tr>`).join('')}</table>` : ''}
     <h3 class="mt">Kariera</h3><div class="facts">${F('Mecze', t.ap + s.ap)}${F('Gole', t.g + s.g)}${F('Asysty', t.a + s.a)}</div>
     ${mine ? `<h3 class="mt">Relacja z Tobą</h3>${bar(rel, rel >= 60 ? 'good' : rel >= 30 ? 'mid' : 'low')}<p class="small muted">${R.relLabel(rel)} · ${Math.round(rel)} na 100. Im lepsza relacja, tym częściej podaje do Ciebie.</p>` : ''}
     ${p.aw && p.aw.length ? `<h3 class="mt">Nagrody</h3>${p.aw.slice(-8).reverse().map((a) => `<div class="small">🏅 ${esc(a.n)} · ${a.y}</div>`).join('')}` : ''}`;
