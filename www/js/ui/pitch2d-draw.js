@@ -50,10 +50,26 @@ export function render(P) {
   for (const l of P.lines) drawOfficial(V, l.x, l.y, V.R * 0.6);
 
   const own = P.ball.owner;
+  const me = P.sim && P.sim.ctrl && P.sim.ctrl.state !== 'gone' ? P.sim.ctrl : null;
+  if (me) {
+    // znacznik sterowanej postaci: świecący pierścień pod zawodnikiem
+    const mx = X(me.x), my = Y(me.y), pulse = 1 + Math.sin(P.time * 6) * 0.08;
+    c.save();
+    c.strokeStyle = '#ffe14d'; c.lineWidth = Math.max(2, V.R * 0.22);
+    c.shadowColor = '#ffe14d'; c.shadowBlur = 10;
+    c.beginPath(); c.ellipse(mx, my + V.R * 0.25, V.R * 1.45 * pulse, V.R * 1.05 * pulse, 0, 0, TAU); c.stroke();
+    c.restore();
+  }
   for (const p of people) if (p !== own) drawPlayer(V, P, p);
   if (own && own.state !== 'gone') drawPlayer(V, P, own);
   drawBall(V, P);
   drawLabels(V, P, people);
+  if (me) {
+    const mx = X(me.x), my = Y(me.y) - V.R * 2.1;
+    c.fillStyle = '#ffe14d';
+    c.beginPath(); c.moveTo(mx, my + V.R * 0.7); c.lineTo(mx - V.R * 0.55, my); c.lineTo(mx + V.R * 0.55, my); c.closePath(); c.fill();
+    if (me !== own) label(c, me.ln, mx, my - 3, '#ffe14d', V.W);
+  }
   drawFx(V, P);
 }
 

@@ -7,7 +7,7 @@ import { loadGame, autosave } from '../session.js';
 import { fmtDateLong, fmtDate } from '../../core/util.js';
 import { nextEvent } from '../flow.js';
 
-export const VERSION = '0.9.0';
+export const VERSION = '0.9.1';
 
 export const LOGO = '<img class="logo-img" src="img/logo.png" alt="Selekcjoner" draggable="false">';
 

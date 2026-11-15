@@ -234,7 +234,18 @@ const SECTIONS = [
       <li>W zakładce <b>Rozwój</b> wydajesz punkty na dowolne atrybuty. Im wyższy atrybut, tym drożej, a powyżej potencjału kilka razy drożej.</li>
       <li><b>Dalej</b> rozgrywa mecze tygodnia: ligę, puchar albo mecze reprezentacji.</li>
     </ul>
-    <h4>Mecz</h4>
+    <h4>Mecz na boisku 2D: sterujesz swoim zawodnikiem</h4>
+    <ul>
+      <li>Przycisk <b>Graj na boisku</b> uruchamia mecz 2D. Twój zawodnik ma żółty pierścień i strzałkę nad głową, a kamera podąża za nim.</li>
+      <li><b>Drążek</b> po lewej: bieg w wybranym kierunku. Gdy go puścisz, zawodnik sam ustawia się na swojej pozycji.</li>
+      <li><b>Z piłką:</b> Strzał, Podanie do partnera w kierunku drążka, Drybling, czyli próba minięcia najbliższego rywala w tę stronę, i Długie, czyli dośrodkowanie ze skrzydła albo długie podanie.</li>
+      <li><b>Bez piłki:</b> Odbiór przy rywalu z piłką, Zawołaj, czyli prośba do partnera o podanie, i Wślizg.</li>
+      <li>Wszystko zależy od statystyk: celność podań od Podań i Techniki, strzał od Wykończenia albo Strzałów z dystansu w starciu z Refleksem bramkarza, drybling od Dryblingu w starciu z Odbiorem obrońcy. Obrońcy mogą zablokować strzał, a bramkarz z lepszymi statystykami obroni więcej.</li>
+      <li>Na komputerze: strzałki albo WASD, J podanie, K strzał, L drybling, I długie.</li>
+      <li>Tempo meczu zmienisz przyciskiem Tempo, a Kamera przełącza widok bliski i całe boisko. Symuluj dogrywa resztę meczu, a Twój zawodnik gra wtedy sam.</li>
+      <li>Rezerwowy wchodzi z ławki w trakcie meczu. Gdy nie ma Cię w kadrze meczowej, mecz rozgrywa się bez Ciebie.</li>
+    </ul>
+    <h4>Szybki mecz z decyzjami</h4>
     <ul>
       <li>W kluczowych sytuacjach mecz się zatrzymuje i wybierasz, co robisz: strzał, drybling, podanie, dośrodkowanie, odbiór, wślizg, parada i inne, zależnie od pozycji.</li>
       <li>Przy każdej opcji widać szansę powodzenia. Liczy się porównanie Twoich atrybutów z siłą rywala, forma i świeżość.</li>

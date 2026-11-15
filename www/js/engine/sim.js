@@ -84,6 +84,10 @@ export class LiveMatch extends Match {
     this.cardsHalf = 0;
     for (const S of this.sides) S.pend = [];
     this.narr = new Narrator(this);
+    // sterowanie jednym zawodnikiem (tryb zawodnika); null = wszyscy grają sami
+    this.ctrl = null;
+    this.ctrlPid = null;
+    this.input = { jx: 0, jy: 0, cmd: null, lastT: -99 };
   }
 
   // =====================================================================
@@ -345,7 +349,10 @@ export class LiveMatch extends Match {
       if (a.runT > 0) { a.runT -= h; if (a.runT <= 0) { a.runTo = null; if (a.mode === 'run') a.mode = 'shape'; } }
     }
     if (this.dead) this.deadTick(h);
-    else this.playTick(h);
+    else {
+      if (this.ctrl && this.input.cmd && this.ball.owner !== this.ctrl) this.ctrlOff();
+      this.playTick(h);
+    }
     this.moveAll(h);
     this.ballStep(h);
     this.refStep(h);
@@ -696,6 +703,11 @@ export class LiveMatch extends Match {
   targetOf(a) {
     if (a.goal) return { x: a.goal.x, y: a.goal.y, u: a.urg };
     const b = this.ball;
+    if (a === this.ctrl && this.phase === 'PLAY' && !this.dead) {
+      const { jx, jy } = this.input, m = hyp(jx, jy);
+      const takeon = b.owner === a && a.act && a.act.k === 'takeon';
+      if (m > 0.15 && !takeon) return { x: a.x + (jx / m) * 6, y: a.y + (jy / m) * 6, u: clamp(m, 0.35, 1) };
+    }
     if (b.owner === a) {
       if (a.act && a.act.to) return { x: a.act.to.x, y: a.act.to.y, u: a.act.u ?? 0.75 };
       return { x: a.x + Math.cos(a.face) * 0.3, y: a.y + Math.sin(a.face) * 0.3, u: 0.2 };
@@ -864,6 +876,7 @@ export class LiveMatch extends Match {
       }
     }
     // zawodnik z piłką
+    if (o === this.ctrl && this.ctrlOwner(o)) return;
     o.decT -= h;
     const act = o.act;
     if (act && act.k === 'takeon') {
@@ -874,7 +887,96 @@ export class LiveMatch extends Match {
     } else if (act && (act.k === 'carry' || act.k === 'hold')) {
       if (this.t > act.until || (this.pressure(o) > 0.55 && act.k === 'carry' && Math.random() < h * 3)) o.decT = Math.min(o.decT, 0);
     }
-    if (o.decT <= 0) this.decide(o);
+    if (o.decT <= 0 && (o !== this.ctrl || this.t - this.input.lastT > 3)) this.decide(o);
+  }
+
+  // ---------------- sterowanie zawodnikiem przez gracza ----------------
+  /** Kierunek: drążek albo (bez drążka) w stronę bramki rywala. */
+  ctrlDir(a) {
+    const { jx, jy } = this.input, m = hyp(jx, jy);
+    if (m > 0.2) return { x: jx / m, y: jy / m };
+    const gy = this.goalY(a.side);
+    const dx = 34 - a.x, dy = gy - a.y, d = hyp(dx, dy) || 1;
+    return { x: dx / d, y: dy / d };
+  }
+
+  /** Polecenia gracza, gdy jego zawodnik ma piłkę. Zwraca true, jeśli akcja została wykonana. */
+  ctrlOwner(o) {
+    const inp = this.input, cmd = inp.cmd;
+    if (!cmd) return false;
+    inp.cmd = null;
+    const b = this.ball, s = o.side;
+    if (o.gk && o.holdT > 0) o.holdT = 0;
+    if (cmd === 'shoot') { this.shoot(o, b.z > 0.9 ? 'volley' : 'foot'); return true; }
+    if (cmd === 'pass') return this.ctrlPass(o, false);
+    if (cmd === 'lob') {
+      const X = this.rx(s, o.x), Y = this.ry(s, o.y);
+      if ((X < 20 || X > PW - 20) && Y > PL - 32) { this.cross(o); return true; }
+      return this.ctrlPass(o, true);
+    }
+    if (cmd === 'dribble') {
+      const dir = this.ctrlDir(o);
+      let vs = null, bd = 4.2;
+      for (const d of this.active(1 - s)) {
+        if (d.state !== 'play' || d.gk) continue;
+        const dx = d.x - o.x, dy = d.y - o.y, dd = hyp(dx, dy);
+        if (dd < bd && (dx * dir.x + dy * dir.y) / (dd || 1) > 0.3) { bd = dd; vs = d; }
+      }
+      const to = { x: clamp(o.x + dir.x * 9, 1.5, PW - 1.5), y: clamp(o.y + dir.y * 9, 1.5, PL - 1.5) };
+      if (vs) { o.act = { k: 'takeon', vs, to, until: this.t + 1.3, u: 1 }; o.decT = 1.4; this.emit('takeon', { a: o, d: vs }); }
+      else { o.act = { k: 'carry', to, until: this.t + 0.9, u: 1 }; o.decT = 1; }
+      return true;
+    }
+    return false;
+  }
+
+  /** Podanie w kierunku drążka: najlepszy partner w tę stronę (celność zależy od Podań i Techniki). */
+  ctrlPass(o, air) {
+    const s = o.side, dir = this.ctrlDir(o);
+    const pres = this.pressure(o), lc = this.lossCost(s, o.y);
+    let best = null, bs = -1e9;
+    for (const m of this.active(s)) {
+      if (m === o || m.state !== 'play') continue;
+      const dx = m.x - o.x, dy = m.y - o.y, d = hyp(dx, dy);
+      if (d < 3 || d > 55) continue;
+      const cos = (dx * dir.x + dy * dir.y) / d;
+      if (cos < 0.25) continue;
+      for (const kind of air ? ['air'] : (d < 32 ? ['ground', 'through'] : ['air'])) {
+        const ev = this.evalPass(o, m, kind, pres, 1, lc) || { R: { x: m.x, y: m.y }, ps: 0.4 };
+        const sc = cos * 2.2 + (ev.ps ?? 0.5) - d / 90;
+        if (sc > bs) { bs = sc; best = { m, R: ev.R, kind }; }
+      }
+    }
+    if (!best) {
+      // nikogo w tym kierunku: podanie w wolne pole
+      const R = { x: clamp(o.x + dir.x * 14, 2, PW - 2), y: clamp(o.y + dir.y * 14, 2, PL - 2) };
+      this.passTo(o, null, R, air ? 'air' : 'ground');
+      return true;
+    }
+    this.passTo(o, best.m, best.R, best.kind);
+    return true;
+  }
+
+  /** Polecenia gracza bez piłki: odbiór przy rywalu, prośba o podanie od partnera. */
+  ctrlOff() {
+    const a = this.ctrl, inp = this.input, cmd = inp.cmd;
+    inp.cmd = null;
+    if (!a || a.state !== 'play') return;
+    const b = this.ball, o = b.owner;
+    if ((cmd === 'dribble' || cmd === 'tackle') && o && o.side !== a.side && a.tackleCd <= 0 && D2(a, o) < 2.1) { this.duel(a, o, false); return; }
+    if ((cmd === 'dribble' || cmd === 'tackle') && !o) {
+      // doskok do wolnej piłki
+      a.mode = 'chase'; a.target = { x: b.x, y: b.y }; a.urg = 1;
+      return;
+    }
+    if (cmd === 'pass' && o && o.side === a.side && o !== a) {
+      const kind = D2(o, a) < 30 ? (this.ry(a.side, a.y) > this.ry(a.side, o.y) + 4 ? 'through' : 'ground') : 'air';
+      const ev = this.evalPass(o, a, kind, this.pressure(o), 1, this.lossCost(o.side, o.y));
+      if (ev) { this.passTo(o, a, ev.R, kind); o.act = null; }
+      else this.emit('callBall', { a });
+      return;
+    }
+    if (cmd === 'shoot' && !o && hyp(b.x - a.x, b.y - a.y) < 1.4 && b.z < 1.8) { this.gainBall(a, 'loose'); this.shoot(a, b.z > 0.9 ? 'volley' : 'foot'); }
   }
 
   decisionDelay(a) {
@@ -2285,6 +2387,7 @@ export class LiveMatch extends Match {
     let worst = null, ws = 1e9;
     for (const a of this.active(S.idx)) {
       if (S.pend.some((q) => q.out === a.pid)) continue;
+      if (a.pid === this.ctrlPid && !a.injured) continue;
       let sc = S.st[a.pid] + (a.rating - 6.5) * 18;
       if (a.injured) sc = -100;
       else if (S.yc[a.pid] && m >= 65 && POS_GROUP[a.pos] !== 'A') sc -= 12;

@@ -169,7 +169,10 @@ export class Pitch2D {
     const f = snap ? 1 : Math.min(1, dt * 3.5);
     this.cam.k += (kT - this.cam.k) * f;
     const b = this.sim.ball;
-    const tx = b.x + b.vx * 0.35, ty = b.y + b.vy * 0.35;
+    let tx = b.x + b.vx * 0.35, ty = b.y + b.vy * 0.35;
+    // tryb zawodnika: kamera między piłką a sterowaną postacią
+    const cp = this.sim.ctrl;
+    if (cp && cp.state !== 'gone') { tx = lerp(tx, cp.x, 0.45); ty = lerp(ty, cp.y, 0.45); }
     const visH = this.H / this.cam.k, visW = this.W / this.cam.k;
     let cy = mode === 'full' ? PL / 2 : ty;
     const lo = -4.2 + visH / 2, hi = PL + 4.2 - visH / 2;

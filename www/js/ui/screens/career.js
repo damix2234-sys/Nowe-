@@ -5,11 +5,13 @@ import { SCEN } from '../../career/scenarios.js';
 import { NATIONS, NAT, CONFS, CONF_ORDER } from '../../data/nations.js';
 import { ovr, posRating, POS_W, POS_NAMES, ATTR_NAMES, ATTR_GROUPS, ATTR_HINTS, FORM_NAMES, POSITIONS } from '../../engine/player.js';
 import { SKIN, HAIR } from '../avatar.js';
-import { saveSlot, loadSlot, slotMeta, getSettings } from '../../core/storage.js';
+import { saveSlot, loadSlot, slotMeta, getSettings, setSettings } from '../../core/storage.js';
 import { plural, clamp } from '../../core/util.js';
+import { createLive, finishLive, liveSubCheck, USER_PID } from '../../career/live.js';
+import { Pitch2D } from '../pitch2d.js';
 
 const CSLOTS = ['cauto', 'c1', 'c2', 'c3'];
-const SCREENS = new Set(['cstart', 'cnew', 'cclub', 'chome', 'cmatch', 'ctrain', 'cdev', 'ctable', 'cnat', 'ctransfer', 'ccareer', 'cmsgs', 'csave']);
+const SCREENS = new Set(['cstart', 'cnew', 'cclub', 'chome', 'cmatch', 'clive', 'ctrain', 'cdev', 'ctable', 'cnat', 'ctransfer', 'ccareer', 'cmsgs', 'csave']);
 const PC = () => C.PC;
 const fmtE = (v) => `${Math.round(v).toLocaleString('pl-PL')} €`;
 
@@ -22,7 +24,7 @@ const RAIL = [
 const prevRail = UIS.rail;
 setRail((name) => {
   if (!SCREENS.has(name)) return prevRail ? prevRail(name) : '';
-  if (!PC() || ['cstart', 'cnew', 'cclub', 'cmatch'].includes(name)) return '';
+  if (!PC() || ['cstart', 'cnew', 'cclub', 'cmatch', 'clive'].includes(name)) return '';
   const unread = PC().msgs.filter((m) => !m.read).length;
   const badge = { cmsgs: unread, ctransfer: PC().offers.length };
   const item = (k, img, label) => `<button class="rail-it ${name === k ? 'on' : ''}" data-a="crail.go" data-k="${k}" aria-label="${label}"><img class="rail-ic" src="img/rail/${img}.png" alt=""><span class="rail-lb">${label}</span>${badge[k] ? `<span class="badge">${badge[k]}</span>` : ''}</button>`;
@@ -142,7 +144,7 @@ screen('chome', {
       <div class="card"><div class="card-h"><h3>${summer ? 'Lato' : 'Ten tydzień'}</h3><span class="small muted">${STATUS_TXT[pc.status]}</span></div>${next}</div>
       <div class="btnrow mb"><button class="btn ghost" data-a="crail.go" data-k="ctrain" ${C.canTrain() && !summer ? '' : 'disabled'}>${icon('bolt')} ${C.canTrain() ? 'Trening' : 'Po treningu'}</button><button class="btn ghost" data-a="crail.go" data-k="cdev">${icon('up')} Rozwój: ${pc.tp} pkt</button></div>
       ${recent ? `<div class="card tight"><div class="card-h" style="padding:10px 12px 0"><h3>Ostatnie mecze</h3></div><div class="list">${recent}</div></div>` : ''}`;
-    return { title: 'Kariera', sub: `${p.fn} ${p.ln}`, body, foot: `<button class="btn block" data-a="c.advance">${fxs.length ? `${icon('play')} Graj mecz` : `Dalej ${icon('right')}`}</button>`, back: false };
+    return { title: 'Kariera', sub: `${p.fn} ${p.ln}`, body, foot: fxs.length ? `<button class="btn ghost" data-a="c.advance">Szybki mecz</button><button class="btn" data-a="c.play2d">${icon('play')} Graj na boisku</button>` : `<button class="btn block" data-a="c.advance">Dalej ${icon('right')}</button>`, back: false };
   },
 });
 
@@ -214,6 +216,127 @@ screen('cmatch', {
     return { title: M.comp === 'league' ? 'Mecz ligowy' : M.comp === 'cup' ? 'Mecz pucharowy' : 'Reprezentacja', sub: M.line, body, foot, back: false, cls: '' };
   },
   leave() { stopTimer(); },
+});
+
+// ---------------- mecz 2D ze sterowaniem ----------------
+let L = null; // { M, sim, side, pitch, rate, ended }
+const RATES = [1, 1.4, 2];
+function liveStart() {
+  stopLive();
+  M = C.setupMatch(MQ[MI]);
+  if (M.role === 'out') { C.autoPlay(M); go('cmatch', {}, { replace: current() && ['cmatch', 'clive'].includes(current().name) }); return; }
+  const { sim, userSide } = createLive(M);
+  L = { M, sim, side: userSide, pitch: null, rate: RATES[clamp(getSettings().liveRate ?? 1, 0, 2)], ended: false, rateIdx: clamp(getSettings().liveRate ?? 1, 0, 2), waitT: 0 };
+  go('clive', {}, { replace: current() && ['cmatch', 'clive'].includes(current().name) });
+}
+function stopLive() { if (L && L.pitch) { L.pitch.destroy(); L.pitch = null; } }
+function hudHTML() {
+  const sim = L.sim, a = sim.sides[0], b = sim.sides[1];
+  const S = sim.sides[L.side], ps = S.ps[USER_PID];
+  const r = sim.liveRating(L.side, USER_PID);
+  return `<div class="lv-sc"><span class="lv-tn">${esc(a.name)}</span><b>${a.goals}:${b.goals}</b><span class="lv-tn">${esc(b.name)}</span></div>
+    <div class="lv-info">${sim.minLabel()}${r != null ? ` · ocena <b>${r.toFixed(1)}</b>` : ''}${ps && (ps.g || ps.a) ? ` · ⚽ ${ps.g || 0} 🅰️ ${ps.a || 0}` : ''}${!sim.ctrl ? (M.role === 'sub' && !M.subDone ? ` · wchodzisz w ${M.enter}. min` : ' · poza boiskiem') : ''}</div>`;
+}
+function liveFrame() {
+  if (!L) return;
+  const sim = L.sim;
+  if (!sim.ctrl || sim.ctrl.state === 'gone') sim.ctrl = sim.agentOf(L.side, USER_PID);
+  liveSubCheck(M, sim, L.side);
+  if (sim.waiting && !sim.done) { L.waitT += 1 / 60; if (L.waitT > 1.6) { L.waitT = 0; sim.resume(); } }
+  const h = document.getElementById('lv-hud'); if (h) h.innerHTML = hudHTML();
+  // przyciski kontekstowe: z piłką drybling/podanie, bez piłki odbiór/zawołaj
+  const own = sim.ball.owner === sim.ctrl && sim.ctrl;
+  if (L.own !== own) {
+    L.own = own;
+    const t = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+    t('lv-b-pass', own ? 'Podanie' : 'Zawołaj');
+    t('lv-b-drb', own ? 'Drybling' : 'Odbiór');
+    t('lv-b-lob', own ? 'Długie' : 'Wślizg');
+  }
+  if (sim.done && !L.ended) { L.ended = true; finishLive(M, sim, L.side); stopLive(); go('cmatch', {}, { replace: true }); }
+}
+const keys = new Set();
+function keyDir() {
+  let x = 0, y = 0;
+  if (keys.has('ArrowLeft') || keys.has('a')) x -= 1;
+  if (keys.has('ArrowRight') || keys.has('d')) x += 1;
+  if (keys.has('ArrowUp') || keys.has('w')) y += 1;
+  if (keys.has('ArrowDown') || keys.has('s')) y -= 1;
+  return { x, y };
+}
+function cmd(c) { if (!L) return; L.sim.input.cmd = c; L.sim.input.lastT = L.sim.t; if (navigator.vibrate) try { navigator.vibrate(12); } catch (e) { /* brak */ } }
+function bindLive(root) {
+  const joy = root.querySelector('#lv-joy'), knob = root.querySelector('#lv-knob');
+  let jid = null, cx = 0, cy = 0;
+  const R = 46;
+  const setJ = (dx, dy) => {
+    const d = Math.hypot(dx, dy), k = d > R ? R / d : 1;
+    knob.style.transform = `translate(${dx * k}px, ${dy * k}px)`;
+    if (L) { L.sim.input.jx = clamp(dx / R, -1, 1); L.sim.input.jy = clamp(-dy / R, -1, 1); L.sim.input.lastT = L.sim.t; }
+  };
+  joy.addEventListener('pointerdown', (e) => { jid = e.pointerId; const r = joy.getBoundingClientRect(); cx = r.left + r.width / 2; cy = r.top + r.height / 2; joy.setPointerCapture(jid); setJ(e.clientX - cx, e.clientY - cy); e.preventDefault(); });
+  joy.addEventListener('pointermove', (e) => { if (e.pointerId === jid) setJ(e.clientX - cx, e.clientY - cy); });
+  const up = (e) => { if (e.pointerId !== jid) return; jid = null; knob.style.transform = ''; if (L) { L.sim.input.jx = 0; L.sim.input.jy = 0; } };
+  joy.addEventListener('pointerup', up); joy.addEventListener('pointercancel', up);
+  for (const b of root.querySelectorAll('[data-lv]')) b.addEventListener('pointerdown', (e) => { e.preventDefault(); const c = b.dataset.lv; cmd(c === 'lob' && !(L && L.own) ? 'tackle' : c); b.classList.add('hit'); setTimeout(() => b.classList.remove('hit'), 140); });
+  const kd = (e) => {
+    if (!L || current().name !== 'clive') return;
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'w', 'a', 's', 'd'].includes(k)) { keys.add(k); const v = keyDir(); L.sim.input.jx = v.x; L.sim.input.jy = v.y; L.sim.input.lastT = L.sim.t; e.preventDefault(); }
+    if (k === 'j') cmd('pass'); if (k === 'k') cmd('shoot'); if (k === 'l') cmd('dribble'); if (k === 'i') cmd(L.own ? 'lob' : 'tackle');
+  };
+  const ku = (e) => { const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; keys.delete(k); if (L) { const v = keyDir(); L.sim.input.jx = v.x; L.sim.input.jy = v.y; } };
+  window.removeEventListener('keydown', window.__lvkd || (() => {})); window.removeEventListener('keyup', window.__lvku || (() => {}));
+  window.__lvkd = kd; window.__lvku = ku;
+  window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
+}
+
+// barwy klubów: stałe dla klubu, wyraźnie różne od rywala
+const CLUB_COLORS = [['#d62828', '#ffffff'], ['#1e5bd8', '#ffffff'], ['#f5d000', '#111111'], ['#111111', '#f5d000'], ['#2a9d4b', '#ffffff'], ['#ffffff', '#1e3a8a'], ['#7c3cff', '#ffffff'], ['#ff7f11', '#111111'], ['#0d9488', '#ffffff'], ['#8b1e3f', '#f2d16b'], ['#38bdf8', '#0b2545'], ['#e11d74', '#ffffff']];
+const hexDist = (a, b) => { const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const x = p(a), y = p(b); return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]); };
+function clubKits(L) {
+  if (M.comp === 'intl' || M.comp === 'tour') return;
+  const sim = L.sim;
+  const keyOf = (s) => (s === L.side ? M.usKey : M.themKey);
+  const idx = (k) => (Math.abs(String(PC().clubs[k].n).split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7)) % CLUB_COLORS.length);
+  let h = CLUB_COLORS[idx(keyOf(0))], a = CLUB_COLORS[idx(keyOf(1))];
+  const ok = (x) => hexDist(h[0], x[0]) >= 170 && hexDist(h[1], x[0]) >= 120 && hexDist(h[0], x[1]) >= 120;
+  if (!ok(a)) a = CLUB_COLORS.find(ok) || CLUB_COLORS.slice().sort((x, y) => hexDist(h[0], y[0]) - hexDist(h[0], x[0]))[0];
+  const kit = (c, old) => ({ shirt: c[0], trim: c[1], pat: '', num: c[1], gk: old.gk });
+  sim.teams[0].kit = kit(h, sim.teams[0].kit);
+  sim.teams[1].kit = kit(a, sim.teams[1].kit);
+}
+
+screen('clive', {
+  render() {
+    if (!L) return { title: 'Mecz', body: empty('Brak meczu.'), cls: 'nofoot' };
+    const body = `<div class="lv-wrap"><div id="lv-hud" class="lv-hud">${hudHTML()}</div><canvas id="lv-pitch" class="lv-pitch" aria-label="Boisko"></canvas>
+      <div class="lv-ctl">
+        <div id="lv-joy" class="lv-joy"><div id="lv-knob" class="lv-knob"></div></div>
+        <div class="lv-btns">
+          <button class="lv-b lv-shoot" data-lv="shoot">Strzał</button>
+          <button class="lv-b lv-pass" data-lv="pass" id="lv-b-pass">Podanie</button>
+          <button class="lv-b lv-drb" data-lv="dribble" id="lv-b-drb">Drybling</button>
+          <button class="lv-b lv-lob" data-lv="lob" id="lv-b-lob">Długie</button>
+        </div>
+      </div>
+      <div class="lv-bar"><button class="btn ghost small" data-a="lv.pause" id="lv-pause">${icon('pause')} Pauza</button><button class="btn ghost small" data-a="lv.rate" id="lv-rate">Tempo ${L.rate}×</button><button class="btn ghost small" data-a="lv.cam">Kamera</button><button class="btn ghost small" data-a="lv.sim">Symuluj</button></div></div>`;
+    return { title: M.title, sub: M.line, body, back: false, cls: 'nofoot live-view', noHeader: true };
+  },
+  mount(root) {
+    const cv = root.querySelector('#lv-pitch');
+    if (!L || !cv) return;
+    if (!L.pitch) {
+      L.pitch = new Pitch2D(cv, L.sim, { frame: liveFrame });
+      L.pitch.setRate(L.rate);
+      L.pitch.cam.mode = 'near';
+      clubKits(L);
+    }
+    else L.pitch.attach(cv);
+    L.own = undefined;
+    bindLive(root);
+    if (!L.paused) L.pitch.play();
+  },
 });
 
 function endWeekFlow() {
@@ -398,7 +521,7 @@ actions({
   'c.advance': () => {
     const fxs = C.weekMatches();
     if (!fxs.length) { endWeekFlow(); return; }
-    MQ = fxs; MI = 0;
+    MQ = fxs; MI = 0; L = null;
     startMatch();
   },
   'cmx.play': () => { if (M && !M.done) play(); },
@@ -421,8 +544,38 @@ actions({
   },
   'cmx.next': () => {
     MI++;
-    if (MI < MQ.length) startMatch();
-    else endWeekFlow();
+    if (MI < MQ.length) { if (L) liveStart(); else startMatch(); }
+    else { L = null; endWeekFlow(); }
+  },
+  'c.play2d': () => {
+    const fxs = C.weekMatches();
+    if (!fxs.length) { endWeekFlow(); return; }
+    MQ = fxs; MI = 0; L = { pending: true };
+    liveStart();
+  },
+  'lv.pause': () => {
+    if (!L || !L.pitch) return;
+    L.paused = !L.paused;
+    if (L.paused) L.pitch.pause(); else L.pitch.play();
+    const b = document.getElementById('lv-pause'); if (b) b.innerHTML = L.paused ? `${icon('play')} Graj` : `${icon('pause')} Pauza`;
+  },
+  'lv.cam': () => { if (!L || !L.pitch) return; const c = L.pitch.cam; c.mode = c.mode === 'near' ? 'full' : 'near'; },
+  'lv.rate': () => {
+    if (!L || !L.pitch) return;
+    L.rateIdx = (L.rateIdx + 1) % RATES.length; L.rate = RATES[L.rateIdx]; L.pitch.setRate(L.rate);
+    const st = getSettings(); st.liveRate = L.rateIdx; setSettings(st);
+    const b = document.getElementById('lv-rate'); if (b) b.textContent = `Tempo ${L.rate}×`;
+  },
+  'lv.sim': async () => {
+    if (!L) return;
+    const ok = await confirmBox('Dograć resztę meczu automatycznie? Twój zawodnik zagra sam, według swoich statystyk.', 'Symuluj');
+    if (!ok || !L) return;
+    const sim = L.sim;
+    if (L.pitch) L.pitch.pause();
+    sim.input.jx = 0; sim.input.jy = 0; sim.input.lastT = -99;
+    let guard = 0;
+    while (!sim.done && guard++ < 400000) { sim.advance(0.05); liveSubCheck(M, sim, L.side); if (sim.waiting) sim.resume(); if (!sim.ctrl || sim.ctrl.state === 'gone') sim.ctrl = sim.agentOf(L.side, USER_PID); }
+    liveFrame();
   },
   // trening i rozwój
   'ct.do': (d) => {
