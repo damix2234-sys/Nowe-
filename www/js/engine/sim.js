@@ -754,10 +754,11 @@ export class LiveMatch extends Match {
     const want = tg.stop ? 0 : d < 0.05 ? 0 : Math.min(top * (0.3 + 0.7 * u), d * 2.2 * g);
     const vx = d > 0 ? (dx / d) * want : 0, vy = d > 0 ? (dy / d) * want : 0;
     // sterowana postać reaguje szybciej na drążek (bez „ślizgania się”); maksymalna prędkość nadal z atrybutów
-    const acc = (a.state === 'dive' || a.state === 'slide' ? 30 : this.accel(a) * (tg.ctrl ? 2.6 : 1)) * g * g * h;
+    if (tg.ctrl && a.state === 'play' && !this.noCtrlMove) { this.ctrlMove(a, vx, vy, h); return; }
+    const acc = (a.state === 'dive' || a.state === 'slide' ? 30 : this.accel(a)) * g * g * h;
     const ax = vx - a.vx, ay = vy - a.vy, am = hyp(ax, ay);
     // hamowanie jest szybsze niż rozpędzanie (zwłaszcza powyżej prędkości maksymalnej)
-    const brake = a.vx * ax + a.vy * ay < 0 ? (tg.ctrl ? 2.6 : hyp(a.vx, a.vy) > top * 1.05 ? 3 : 1.6) : 1;
+    const brake = a.vx * ax + a.vy * ay < 0 ? (hyp(a.vx, a.vy) > top * 1.05 ? 3 : 1.6) : 1;
     const k = am > acc * brake ? (acc * brake) / am : 1;
     a.vx += ax * k; a.vy += ay * k;
     a.x += a.vx * h; a.y += a.vy * h;
@@ -769,6 +770,36 @@ export class LiveMatch extends Match {
     while (df < -Math.PI) df += 2 * Math.PI;
     a.face += df * Math.min(1, h * (a === this.ctrl ? 16 : 8));
     if (a.state === 'off' && ((a.goal && d < 0.8) || this.t > a.offUntil)) { a.state = 'gone'; this.invalidate(); }
+  }
+
+  /** Ruch sterowanej postaci: kierunek podąża za drążkiem prawie od razu (bez ślizgania), rozpędzanie jak u innych
+   *  (Przyspieszenie, Szybkość), hamowanie i ostre zwroty szybkie, ale ostry zwrot kosztuje prędkość. */
+  ctrlMove(a, vx, vy, h) {
+    const spd = hyp(a.vx, a.vy), want = hyp(vx, vy);
+    const acc = this.accel(a), dec = this.accel(a) * 1.8;
+    let ang = spd > 0.05 ? Math.atan2(a.vy, a.vx) : Math.atan2(vy, vx);
+    let s2 = spd;
+    if (want > 0.05) {
+      const tgt = Math.atan2(vy, vx);
+      let df = tgt - ang;
+      while (df > Math.PI) df -= 2 * Math.PI;
+      while (df < -Math.PI) df += 2 * Math.PI;
+      const agi = this.E(a, 'agi') / 100;
+      const rate = (3.6 + 3 * agi) + 7 * Math.max(0, 1 - spd / 3);
+      const step = clamp(df, -rate * h, rate * h);
+      ang += step;
+      // ostry zwrot: najpierw wyhamowanie
+      if (Math.abs(df) > 1.9) s2 = Math.max(0, s2 - dec * h);
+      else s2 = s2 < want ? Math.min(want, s2 + acc * h) : Math.max(want, s2 - dec * h);
+      s2 *= 1 - Math.min(0.5, Math.abs(step)) * 0.6;
+    } else s2 = Math.max(0, s2 - dec * h);
+    a.vx = Math.cos(ang) * s2; a.vy = Math.sin(ang) * s2;
+    a.x += a.vx * h; a.y += a.vy * h;
+    const fa = s2 > 0.8 ? ang : Math.atan2(this.ball.y - a.y, this.ball.x - a.x);
+    let df2 = fa - a.face;
+    while (df2 > Math.PI) df2 -= 2 * Math.PI;
+    while (df2 < -Math.PI) df2 += 2 * Math.PI;
+    a.face += df2 * Math.min(1, h * 16);
   }
 
   separate() {
