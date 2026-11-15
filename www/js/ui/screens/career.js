@@ -293,26 +293,41 @@ function keyDir() {
 }
 function cmd(c) { if (!L) return; L.sim.input.cmd = c; L.sim.input.lastT = L.sim.t; if (navigator.vibrate) try { navigator.vibrate(12); } catch (e) { /* brak */ } }
 function bindLive(root) {
-  const joy = root.querySelector('#lv-joy'), knob = root.querySelector('#lv-knob');
-  let jid = null, cx = 0, cy = 0;
-  const R = 46;
-  const setJ = (dx, dy) => {
-    const d = Math.hypot(dx, dy), k = d > R ? R / d : 1;
-    knob.style.transform = `translate(${dx * k}px, ${dy * k}px)`;
-    if (L) { const u = { x: clamp(dx / R, -1, 1), y: clamp(-dy / R, -1, 1) }; L.joyU = u; const w = screenToWorld(u.x, u.y); L.sim.input.jx = w.x; L.sim.input.jy = w.y; L.sim.input.lastT = L.sim.t; }
+  // dynamiczny drążek: pojawia się w miejscu dotknięcia lewej połowy ekranu i podąża za palcem
+  const zone = root.querySelector('#lv-zone'), joy = root.querySelector('#lv-joy'), knob = root.querySelector('#lv-knob');
+  let jid = null, bx = 0, by = 0;
+  const R = 52;
+  const home = () => { joy.classList.remove('on'); joy.style.left = ''; joy.style.top = ''; knob.style.transform = ''; };
+  const place = () => { const zr = zone.getBoundingClientRect(); joy.style.left = `${bx - zr.left}px`; joy.style.top = `${by - zr.top}px`; };
+  const setJ = (px, py) => {
+    let dx = px - bx, dy = py - by;
+    const d = Math.hypot(dx, dy);
+    if (d > R) { bx += (dx / d) * (d - R); by += (dy / d) * (d - R); place(); dx = px - bx; dy = py - by; }
+    knob.style.transform = `translate(${dx}px, ${dy}px)`;
+    if (!L) return;
+    const m = Math.min(1, Math.hypot(dx, dy) / R);
+    const u = m < 0.12 ? { x: 0, y: 0 } : { x: dx / R, y: -dy / R };
+    L.joyU = m < 0.12 ? null : u;
+    const w = screenToWorld(u.x, u.y);
+    L.sim.input.jx = w.x; L.sim.input.jy = w.y; L.sim.input.lastT = L.sim.t; L.sim.input.stickT = L.sim.t;
   };
-  joy.addEventListener('pointerdown', (e) => { jid = e.pointerId; const r = joy.getBoundingClientRect(); cx = r.left + r.width / 2; cy = r.top + r.height / 2; joy.setPointerCapture(jid); setJ(e.clientX - cx, e.clientY - cy); e.preventDefault(); });
-  joy.addEventListener('pointermove', (e) => { if (e.pointerId === jid) setJ(e.clientX - cx, e.clientY - cy); });
-  const up = (e) => { if (e.pointerId !== jid) return; jid = null; knob.style.transform = ''; if (L) { L.joyU = null; L.sim.input.jx = 0; L.sim.input.jy = 0; } };
-  joy.addEventListener('pointerup', up); joy.addEventListener('pointercancel', up);
+  zone.addEventListener('pointerdown', (e) => {
+    if (jid != null) return;
+    jid = e.pointerId; bx = e.clientX; by = e.clientY;
+    joy.classList.add('on'); place(); knob.style.transform = '';
+    zone.setPointerCapture(jid); e.preventDefault();
+  });
+  zone.addEventListener('pointermove', (e) => { if (e.pointerId === jid) setJ(e.clientX, e.clientY); });
+  const up = (e) => { if (e.pointerId !== jid) return; jid = null; home(); if (L) { L.joyU = null; L.sim.input.jx = 0; L.sim.input.jy = 0; L.sim.input.stickT = L.sim.t; } };
+  zone.addEventListener('pointerup', up); zone.addEventListener('pointercancel', up);
   for (const b of root.querySelectorAll('[data-lv]')) b.addEventListener('pointerdown', (e) => { e.preventDefault(); const c = b.dataset.lv; cmd(c === 'lob' && !(L && L.own) ? 'tackle' : c); b.classList.add('hit'); setTimeout(() => b.classList.remove('hit'), 140); });
   const kd = (e) => {
     if (!L || current().name !== 'clive') return;
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'w', 'a', 's', 'd'].includes(k)) { keys.add(k); const v = screenToWorld(...Object.values(keyDir())); L.sim.input.jx = v.x; L.sim.input.jy = v.y; L.sim.input.lastT = L.sim.t; e.preventDefault(); }
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'w', 'a', 's', 'd'].includes(k)) { keys.add(k); const v = screenToWorld(...Object.values(keyDir())); L.sim.input.jx = v.x; L.sim.input.jy = v.y; L.sim.input.lastT = L.sim.t; L.sim.input.stickT = L.sim.t; e.preventDefault(); }
     if (k === 'j') cmd('pass'); if (k === 'k') cmd('shoot'); if (k === 'l') cmd('dribble'); if (k === 'i') cmd(L.own ? 'lob' : 'tackle');
   };
-  const ku = (e) => { const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; keys.delete(k); if (L) { const v = screenToWorld(...Object.values(keyDir())); L.sim.input.jx = v.x; L.sim.input.jy = v.y; } };
+  const ku = (e) => { const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; keys.delete(k); if (L) { const v = screenToWorld(...Object.values(keyDir())); L.sim.input.jx = v.x; L.sim.input.jy = v.y; L.sim.input.stickT = L.sim.t; } };
   window.removeEventListener('keydown', window.__lvkd || (() => {})); window.removeEventListener('keyup', window.__lvku || (() => {}));
   window.__lvkd = kd; window.__lvku = ku;
   window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
@@ -339,7 +354,7 @@ screen('clive', {
     if (!L) return { title: 'Mecz', body: empty('Brak meczu.'), cls: 'nofoot' };
     const body = `<div class="lv-wrap"><div id="lv-hud" class="lv-hud">${hudHTML()}</div><canvas id="lv-pitch" class="lv-pitch" aria-label="Boisko"></canvas>
       <div class="lv-ctl">
-        <div id="lv-joy" class="lv-joy"><div id="lv-knob" class="lv-knob"></div></div>
+        <div id="lv-zone" class="lv-zone"><div id="lv-joy" class="lv-joy"><div id="lv-knob" class="lv-knob"></div></div></div>
         <div class="lv-btns">
           <button class="lv-b lv-shoot" data-lv="shoot">Strzał</button>
           <button class="lv-b lv-pass" data-lv="pass" id="lv-b-pass">Podanie</button>

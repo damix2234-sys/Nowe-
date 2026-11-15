@@ -706,7 +706,9 @@ export class LiveMatch extends Match {
     if (a === this.ctrl && this.phase === 'PLAY' && !this.dead) {
       const { jx, jy } = this.input, m = hyp(jx, jy);
       const takeon = b.owner === a && a.act && a.act.k === 'takeon';
-      if (m > 0.15 && !takeon) return { x: a.x + (jx / m) * 6, y: a.y + (jy / m) * 6, u: clamp(m, 0.35, 1) };
+      if (m > 0.15 && !takeon) return { x: a.x + (jx / m) * 6, y: a.y + (jy / m) * 6, u: clamp(m, 0.35, 1), ctrl: true };
+      // drążek puszczony: zawodnik zatrzymuje się na chwilę, zanim znów sam wróci na pozycję
+      if (!takeon && b.owner !== a && this.t - (this.input.stickT ?? -99) < 1.6) return { x: a.x, y: a.y, u: 0, ctrl: true, stop: true };
     }
     if (b.owner === a) {
       if (a.act && a.act.to) return { x: a.act.to.x, y: a.act.to.y, u: a.act.u ?? 0.75 };
@@ -749,12 +751,13 @@ export class LiveMatch extends Match {
     let u = tg.u;
     if ((this.phase === 'BREAK' || (this.dead && this.dead.type === 'goal')) && !a.goal) { top *= 0.5; u = Math.min(u, 0.4); }
     if (a.state === 'dive' || a.state === 'slide') top = Math.min(top * 1.5, a.state === 'dive' ? 9 : 10);
-    const want = d < 0.05 ? 0 : Math.min(top * (0.3 + 0.7 * u), d * 2.2 * g);
+    const want = tg.stop ? 0 : d < 0.05 ? 0 : Math.min(top * (0.3 + 0.7 * u), d * 2.2 * g);
     const vx = d > 0 ? (dx / d) * want : 0, vy = d > 0 ? (dy / d) * want : 0;
-    const acc = (a.state === 'dive' || a.state === 'slide' ? 30 : this.accel(a)) * g * g * h;
+    // sterowana postać reaguje szybciej na drążek (bez „ślizgania się”); maksymalna prędkość nadal z atrybutów
+    const acc = (a.state === 'dive' || a.state === 'slide' ? 30 : this.accel(a) * (tg.ctrl ? 2.6 : 1)) * g * g * h;
     const ax = vx - a.vx, ay = vy - a.vy, am = hyp(ax, ay);
     // hamowanie jest szybsze niż rozpędzanie (zwłaszcza powyżej prędkości maksymalnej)
-    const brake = a.vx * ax + a.vy * ay < 0 ? (hyp(a.vx, a.vy) > top * 1.05 ? 3 : 1.6) : 1;
+    const brake = a.vx * ax + a.vy * ay < 0 ? (tg.ctrl ? 2.6 : hyp(a.vx, a.vy) > top * 1.05 ? 3 : 1.6) : 1;
     const k = am > acc * brake ? (acc * brake) / am : 1;
     a.vx += ax * k; a.vy += ay * k;
     a.x += a.vx * h; a.y += a.vy * h;
@@ -764,7 +767,7 @@ export class LiveMatch extends Match {
     let df = fa - a.face;
     while (df > Math.PI) df -= 2 * Math.PI;
     while (df < -Math.PI) df += 2 * Math.PI;
-    a.face += df * Math.min(1, h * 8);
+    a.face += df * Math.min(1, h * (a === this.ctrl ? 16 : 8));
     if (a.state === 'off' && ((a.goal && d < 0.8) || this.t > a.offUntil)) { a.state = 'gone'; this.invalidate(); }
   }
 
