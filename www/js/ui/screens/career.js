@@ -494,7 +494,15 @@ screen('ctable', {
         <p class="small muted">${LT.div === 1 ? 'Mistrz zdobywa trofeum. Dwa ostatnie kluby spadają do II ligi.' : LT.div === 2 ? 'Dwa najlepsze kluby awansują do najwyższej ligi, dwa ostatnie spadają do III ligi.' : 'Dwa najlepsze kluby awansują do II ligi.'}</p>`;
       return { title: 'Rozgrywki', sub: C.leagueName(LT), body, cls: 'nofoot' };
     } else if (ctab.t === 'fx') {
-      body += `<div class="card tight"><div class="list">${L.fx.map((rd, i) => { const m = rd.find((x) => x.h === pc.club || x.a === pc.club); if (!m) return ''; return `<div class="row ${i === L.round ? 'me' : ''}"><span class="tag">${i + 1}</span><div class="main"><div class="t1 wrap">${esc(pc.clubs[m.h].n)} vs ${esc(pc.clubs[m.a].n)}</div></div><b>${m.r ? `${m.r[0]}:${m.r[1]}` : '–'}</b></div>`.replace('–', 'vs'); }).join('')}</div></div>`;
+      const sch = C.mySchedule();
+      const nm = (id) => `<span class="tap" data-a="ck.open" data-k="${id}">${esc(pc.clubs[id].n)}</span>`;
+      const left = sch.filter((x) => !x.info && !x.played && !x.todo).length;
+      body += `<div class="card"><p class="small muted">Wszystkie mecze Twojego klubu w tym sezonie: liga, puchar kraju, puchary europejskie i Unova League. Przy każdym meczu widać, o co jest gra. Do rozegrania: ${left} ${plural(left, 'mecz', 'mecze', 'meczów')} z ustalonym rywalem.</p></div>`;
+      body += sch.length ? `<div class="card tight"><div class="list">${sch.map((x) => {
+        if (x.info) return `<div class="row sch-info ${x.next ? 'me' : ''}"><span class="tag t-intl">Tydz. ${x.w + 1}</span><div class="main"><div class="t2 wrap">🌍 ${esc(x.stake)}</div></div></div>`;
+        const teams = x.h != null ? `${nm(x.h)} vs ${nm(x.a)}` : x.line ? esc(x.line) : `Rywal do rozlosowania${x.cond ? `, ${x.cond}` : ''}`;
+        return `<div class="row ${x.next ? 'me' : ''}"><span class="tag t-${x.comp}">${esc(x.tag)}</span><div class="main"><div class="t1 wrap">${teams}</div><div class="t2 wrap">Tydzień ${x.w + 1} · ${esc(x.stake)}</div></div><b>${x.res ? esc(x.res) : x.next ? 'teraz' : ''}</b></div>`;
+      }).join('')}</div></div>` : empty('Terminarz nowego sezonu pojawi się po letniej przerwie.');
     } else {
       const myNat = pc.clubs[pc.club].nat;
       const cups = C.allCups(pc);

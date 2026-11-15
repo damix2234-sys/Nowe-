@@ -767,3 +767,10 @@ tr.tap:active, .tap:active { opacity: 0.8; }
 .xi-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #ffe14d; margin-right: 5px; vertical-align: middle; }
 .seg.seg-wrap { flex-wrap: wrap; overflow: visible; }
 .seg.seg-wrap button { flex: 1 0 30%; padding: 8px 6px; }
+/* terminarz: kolor rozgrywek */
+.tag.t-league { background: rgba(80, 160, 255, 0.18); color: #9fd0ff; }
+.tag.t-cup { background: rgba(255, 190, 60, 0.2); color: #ffd27a; }
+.tag.t-ucl, .tag.t-usl, .tag.t-ulg { background: rgba(176, 108, 255, 0.22); color: #d6b4ff; }
+.tag.t-unl { background: rgba(60, 220, 160, 0.2); color: #8ff0c8; }
+.tag.t-intl { background: rgba(255, 255, 255, 0.08); color: var(--muted); }
+.row.sch-info { padding-top: 6px; padding-bottom: 6px; }

@@ -677,6 +677,64 @@ export function finishMatch(M) {
 // puchar
 // ---------------------------------------------------------------------
 const CUP_ROUNDS = ['1/8 finału', 'ćwierćfinał', 'półfinał', 'finał'];
+
+/**
+ * Terminarz klubu zawodnika na cały sezon: liga, puchar kraju, puchary europejskie, Unova League i przerwy na
+ * reprezentację. Każdy wpis: { w, comp, tag, stake, h, a, res, next, todo }. Rozegrane mecze z dziennika meczów,
+ * przyszłe z kalendarza rozgrywek; mecze fazy pucharowej, których rywal nie jest jeszcze znany, jako „do rozlosowania”.
+ */
+export function mySchedule() {
+  if (PC.phase !== 'season') return [];
+  const out = [], club = PC.club, y = PC.year;
+  const played = PC.log.filter((x) => x.y === y);
+  const done = (w, comp) => played.find((x) => x.w === w && x.comp === comp);
+  const mine = (m) => m && (m.h === club || m.a === club);
+  const add = (o) => {
+    const lg = done(o.w, o.comp);
+    out.push({ ...o, res: lg ? lg.res : o.res || null, line: lg ? lg.line : null, played: !!lg, next: o.w === PC.week });
+  };
+  const L = myLeague();
+  const cup = myCup();
+  const comps = [myEuro(), myWorld()].filter(Boolean);
+  for (let w = 0; w < SEASON_WEEKS; w++) {
+    if (INTL_WEEKS.includes(w)) out.push({ w, comp: 'intl', tag: 'Kadra', stake: 'Przerwa na mecze reprezentacji', next: w === PC.week, info: true });
+    const rd = leagueRoundForWeek(w);
+    if (rd >= 0 && L.fx[rd]) {
+      const m = L.fx[rd].find(mine);
+      if (m) add({ w, comp: 'league', tag: 'Liga', stake: `${leagueName(L)}, kolejka ${rd + 1} z ${L.fx.length}`, h: m.h, a: m.a, res: m.r ? `${m.r[0]}:${m.r[1]}` : null });
+    }
+    const ci = CUP_WEEKS.indexOf(w);
+    if (cup && ci >= 0) {
+      const stake = `Puchar ${NAT[cup.nat].name}, ${CUP_ROUNDS[ci] || ''}`;
+      const lg = done(w, 'cup');
+      const tie = ci === cup.round ? cup.ties.find(mine) : null;
+      if (lg || tie) add({ w, comp: 'cup', tag: 'Puchar', stake, h: tie && tie.h, a: tie && tie.a });
+      else if (ci >= cup.round && !cup.done && cup.alive.includes(club)) add({ w, comp: 'cup', tag: 'Puchar', stake, todo: true });
+    }
+    for (const k of comps) {
+      const E = PC.euro[k], W = weeksOf(E), i = W.indexOf(w);
+      if (i < 0) continue;
+      const tag = { ucl: 'LM', usl: 'SL', ulg: 'UL', unl: 'Świat' }[k];
+      if (E.kind === 'league') {
+        const m = (E.fx[i] || []).find(mine);
+        if (m) add({ w, comp: k, tag, stake: `${E.name}, kolejka ${i + 1} z ${E.fx.length}`, h: m.h, a: m.a, res: m.r ? `${m.r[0]}:${m.r[1]}` : null });
+      } else if (i < E.G) {
+        const m = (E.gfx[i] || []).find(mine);
+        const g = E.groups.findIndex((x) => x.includes(club));
+        if (m) add({ w, comp: k, tag, stake: `${E.name}, grupa ${GROUP_NAMES[g]}, kolejka ${i + 1} z ${E.G}`, h: m.h, a: m.a, res: m.r ? `${m.r[0]}:${m.r[1]}` : null });
+      } else {
+        const r = i - E.G, nko = Math.ceil(Math.log2(2 * E.groups.length));
+        const stage = ({ 1: 'finał', 2: 'półfinał', 3: 'ćwierćfinał', 4: '1/8 finału' })[nko - r] || 'faza pucharowa';
+        const lg = done(w, k);
+        const tie = E.ko && E.stage === 'KO' && r === E.ko.round ? E.ko.ties.find(mine) : null;
+        const alive = E.stage === 'G' || (E.stage === 'KO' && E.ko.ties.some(mine));
+        if (lg || tie) add({ w, comp: k, tag, stake: `${E.name}, ${stage}`, h: tie && tie.h, a: tie && tie.a });
+        else if (alive && (!E.ko || r >= E.ko.round)) add({ w, comp: k, tag, stake: `${E.name}, ${stage}`, todo: true, cond: E.stage === 'G' ? 'jeśli awansujesz z grupy' : 'jeśli przejdziesz dalej' });
+      }
+    }
+  }
+  return out;
+}
 /** Wszystkie puchary krajowe (zapisy sprzed 1.0: jeden puchar kraju zawodnika do końca sezonu). */
 export const allCups = (st = PC) => (st.cups ? Object.values(st.cups) : st.cup ? [st.cup] : []);
 export const cupOf = (nat, st = PC) => (st.cups ? st.cups[nat] : st.cup && st.cup.nat === nat ? st.cup : null) || null;
