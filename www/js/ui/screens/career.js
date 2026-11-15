@@ -266,7 +266,7 @@ function hudHTML() {
 function liveFrame() {
   if (!L) return;
   const sim = L.sim;
-  if (!sim.ctrl || sim.ctrl.state === 'gone') sim.ctrl = sim.agentOf(L.side, USER_PID);
+  if (!L.autoSim && (!sim.ctrl || sim.ctrl.state === 'gone')) sim.ctrl = sim.agentOf(L.side, USER_PID);
   if (L.pitch) { const r = rotFor(sim); if (r !== (L.pitch.rot || 0)) { L.pitch.rot = r; L.pitch.resize(); if (L.joyU) { const w = screenToWorld(L.joyU.x, L.joyU.y); sim.input.jx = w.x; sim.input.jy = w.y; } } }
   liveSubCheck(M, sim, L.side);
   if (sim.waiting && !sim.done) { L.waitT += 1 / 60; if (L.waitT > 1.6) { L.waitT = 0; sim.resume(); } }
@@ -631,7 +631,9 @@ actions({
     if (L.pitch) L.pitch.pause();
     sim.input.jx = 0; sim.input.jy = 0; sim.input.lastT = -99;
     let guard = 0;
-    while (!sim.done && guard++ < 400000) { sim.advance(0.05); liveSubCheck(M, sim, L.side); if (sim.waiting) sim.resume(); if (!sim.ctrl || sim.ctrl.state === 'gone') sim.ctrl = sim.agentOf(L.side, USER_PID); }
+    // symulacja na życzenie gracza: zawodnik gra sam, według statystyk
+    sim.ctrl = null; L.autoSim = true;
+    while (!sim.done && guard++ < 400000) { sim.advance(0.05); liveSubCheck(M, sim, L.side); if (sim.waiting) sim.resume(); }
     liveFrame();
   },
   // trening i rozwój

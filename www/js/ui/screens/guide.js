@@ -237,7 +237,8 @@ const SECTIONS = [
     <h4>Mecz na boisku 2D: sterujesz swoim zawodnikiem</h4>
     <ul>
       <li>Przycisk <b>Graj na boisku</b> uruchamia mecz 2D. Twój zawodnik ma żółty pierścień i strzałkę nad głową, a kamera podąża za nim.</li>
-      <li><b>Drążek</b> po lewej: bieg w wybranym kierunku. Gdy go puścisz, zawodnik sam ustawia się na swojej pozycji.</li>
+      <li><b>Drążek</b>: dotknij lewej połowy ekranu, a drążek pojawi się pod palcem. Lekkie wychylenie to bieg, pełne to sprint. Twoją postacią sterujesz tylko Ty: gdy puścisz drążek, stoi w miejscu, a z piłką nic nie zrobi bez Twojego polecenia.</li>
+      <li>Stałe fragmenty, czyli rożne, wolne, karne i auty, wykonują koledzy z drużyny. Twoja postać nie jest przy nich przestawiana, sam wybierasz, gdzie stanąć.</li>
       <li><b>Z piłką:</b> Strzał, Podanie do partnera w kierunku drążka, Drybling, czyli próba minięcia najbliższego rywala w tę stronę, i Długie, czyli dośrodkowanie ze skrzydła albo długie podanie.</li>
       <li><b>Bez piłki:</b> Odbiór przy rywalu z piłką, Zawołaj, czyli prośba do partnera o podanie, i Wślizg.</li>
       <li>Wszystko zależy od statystyk: celność podań od Podań i Techniki, strzał od Wykończenia albo Strzałów z dystansu w starciu z Refleksem bramkarza, drybling od Dryblingu w starciu z Odbiorem obrońcy. Obrońcy mogą zablokować strzał, a bramkarz z lepszymi statystykami obroni więcej.</li>

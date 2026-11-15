@@ -417,7 +417,7 @@ export class LiveMatch extends Match {
     this.dead = null;
     this.shot = null;
     this.ball.owner = null; this.ball.vx = 0; this.ball.vy = 0;
-    for (const x of this.allAgents()) { x.mode = 'shape'; x.goal = { x: x.x + rnd(-3, 3), y: x.y + rnd(-3, 3) }; x.urg = 0.2; }
+    for (const x of this.allAgents()) { x.mode = 'shape'; if (x === this.ctrl) continue; x.goal = { x: x.x + rnd(-3, 3), y: x.y + rnd(-3, 3) }; x.urg = 0.2; }
     if (p === 1) { this.waiting = 'HT'; this.emit('halftime', {}); return; }
     if (p === 3) { this.waiting = 'ETH'; this.emit('etHalf', {}); return; }
     if (this.opts.ko && h.goals === a.goals) {
@@ -703,12 +703,14 @@ export class LiveMatch extends Match {
   targetOf(a) {
     if (a.goal) return { x: a.goal.x, y: a.goal.y, u: a.urg };
     const b = this.ball;
-    if (a === this.ctrl && this.phase === 'PLAY' && !this.dead) {
+    if (a === this.ctrl && this.phase === 'PLAY') {
       const { jx, jy } = this.input, m = hyp(jx, jy);
       const takeon = b.owner === a && a.act && a.act.k === 'takeon';
       if (m > 0.15 && !takeon) return { x: a.x + (jx / m) * 6, y: a.y + (jy / m) * 6, u: clamp(m, 0.35, 1), ctrl: true };
-      // drążek puszczony: zawodnik zatrzymuje się na chwilę, zanim znów sam wróci na pozycję
-      if (!takeon && b.owner !== a && this.t - (this.input.stickT ?? -99) < 1.6) return { x: a.x, y: a.y, u: 0, ctrl: true, stop: true };
+      // drążek puszczony: zawodnik stoi w miejscu; nikt poza graczem nim nie steruje
+      const carry = b.owner === a && a.act && a.act.k === 'carry' && a.act.to;
+      if (carry) return { x: a.act.to.x, y: a.act.to.y, u: 1, ctrl: true };
+      if (!takeon) return { x: a.x, y: a.y, u: 0, ctrl: true, stop: true };
     }
     if (b.owner === a) {
       if (a.act && a.act.to) return { x: a.act.to.x, y: a.act.to.y, u: a.act.u ?? 0.75 };
@@ -921,7 +923,7 @@ export class LiveMatch extends Match {
     } else if (act && (act.k === 'carry' || act.k === 'hold')) {
       if (this.t > act.until || (this.pressure(o) > 0.55 && act.k === 'carry' && Math.random() < h * 3)) o.decT = Math.min(o.decT, 0);
     }
-    if (o.decT <= 0 && (o !== this.ctrl || this.t - this.input.lastT > 3)) this.decide(o);
+    if (o.decT <= 0 && o !== this.ctrl) this.decide(o);
   }
 
   // ---------------- sterowanie zawodnikiem przez gracza ----------------
@@ -998,11 +1000,6 @@ export class LiveMatch extends Match {
     if (!a || a.state !== 'play') return;
     const b = this.ball, o = b.owner;
     if ((cmd === 'dribble' || cmd === 'tackle') && o && o.side !== a.side && a.tackleCd <= 0 && D2(a, o) < 2.1) { this.duel(a, o, false); return; }
-    if ((cmd === 'dribble' || cmd === 'tackle') && !o) {
-      // doskok do wolnej piłki
-      a.mode = 'chase'; a.target = { x: b.x, y: b.y }; a.urg = 1;
-      return;
-    }
     if (cmd === 'pass' && o && o.side === a.side && o !== a) {
       const kind = D2(o, a) < 30 ? (this.ry(a.side, a.y) > this.ry(a.side, o.y) + 4 ? 'through' : 'ground') : 'air';
       const ev = this.evalPass(o, a, kind, this.pressure(o), 1, this.lossCost(o.side, o.y));
@@ -2085,9 +2082,10 @@ export class LiveMatch extends Match {
     if (scorer && scorer.side === att) {
       const cx = scorer.x < 34 ? rnd(5, 10) : rnd(58, 63);
       const cy = gy - dy * rnd(6, 14);
-      scorer.goal = { x: cx, y: cy }; scorer.urg = 1; scorer.hl = 4;
+      if (scorer !== this.ctrl) { scorer.goal = { x: cx, y: cy }; scorer.urg = 1; }
+      scorer.hl = 4;
       for (const m of this.active(att)) {
-        if (m === scorer || m.gk || D2(m, scorer) > 45) continue;
+        if (m === scorer || m === this.ctrl || m.gk || D2(m, scorer) > 45) continue;
         m.goal = { x: cx + rnd(-3, 3), y: cy - dy * rnd(1, 4) }; m.urg = 0.9;
       }
       this.addFx('confetti', { s: att, x: scorer.x, y: scorer.y });
@@ -2148,6 +2146,17 @@ export class LiveMatch extends Match {
   }
 
   pickTaker(d) {
+    const t = this.pickTakerRaw(d);
+    if (t && t === this.ctrl) {
+      // sterowaną postacią nie gra komputer: stały fragment wykonuje najbliższy partner
+      let best = null, bd = 1e9;
+      for (const a of this.active(d.side)) { if (a === t || a.state !== 'play' || (a.gk && d.type !== 'goalkick')) continue; const dd = hyp(a.x - d.x, a.y - d.y); if (dd < bd) { bd = dd; best = a; } }
+      return best || t;
+    }
+    return t;
+  }
+
+  pickTakerRaw(d) {
     const s = d.side;
     const S = this.sides[s];
     const byPid = (pid) => this.agentOf(s, pid);
@@ -2192,7 +2201,7 @@ export class LiveMatch extends Match {
     d.spot = spot;
     if (!tk) return;
     const behind = (dist) => ({ x: spot.x + rnd(-0.4, 0.4), y: spot.y - this.dirOf(s) * dist });
-    const set = (a, pt, g = 1.5, u = 0.9) => { a.goal = { x: clamp(pt.x, -1.5, PW + 1.5), y: clamp(pt.y, -1, PL + 1) }; a.gSpd = g; a.urg = u; };
+    const set = (a, pt, g = 1.5, u = 0.9) => { if (a === this.ctrl && d.type !== 'kickoff') return; a.goal = { x: clamp(pt.x, -1.5, PW + 1.5), y: clamp(pt.y, -1, PL + 1) }; a.gSpd = g; a.urg = u; };
     if (d.type === 'kickoff') {
       // wszyscy zostają na pozycjach do rozpoczęcia gry, wykonawca przy piłce na środku
       this.placeKickoff(s, false);
@@ -2251,17 +2260,18 @@ export class LiveMatch extends Match {
     const tall = (a) => this.airPower(a);
     const inBox = att.slice().sort((p1, p2) => tall(p2) - tall(p1)).slice(0, 5);
     const SP = [[30, PL - 6], [38, PL - 6.5], [34, PL - 10], [27, PL - 12], [42, PL - 12]];
-    const set = (a, pt, g = 1.6, u = 1) => { a.goal = { x: clamp(pt.x, 1, PW - 1), y: clamp(pt.y, 1, PL - 1) }; a.gSpd = g; a.urg = u; };
+    const set = (a, pt, g = 1.6, u = 1) => { if (a === this.ctrl) return; a.goal = { x: clamp(pt.x, 1, PW - 1), y: clamp(pt.y, 1, PL - 1) }; a.gSpd = g; a.urg = u; };
     inBox.forEach((a, i) => set(a, this.w(s, SP[i][0] + rnd(-1.5, 1.5), SP[i][1] + rnd(-1, 1))));
     att.filter((a) => !inBox.includes(a)).forEach((a, i) => set(a, i < 2 ? this.w(s, i ? 22 : 46, PL - 21) : this.w(s, [20, 48, 34, 10, 58][(i - 2) % 5], 55 + rnd(-3, 3)), 1.5, 0.8));
     const def = this.active(o).filter((a) => !a.gk && a.state === 'play' && !skip.includes(a));
     const used = new Set();
     const toGoal = this.dirOf(s);
     for (const ap of inBox) {
-      const m = def.filter((x) => !used.has(x)).sort((p1, p2) => D2(p1, ap.goal) - D2(p2, ap.goal))[0];
+      const ag = ap.goal || ap;
+      const m = def.filter((x) => !used.has(x)).sort((p1, p2) => D2(p1, ag) - D2(p2, ag))[0];
       if (!m) continue;
       used.add(m);
-      set(m, { x: ap.goal.x + rnd(-0.8, 0.8), y: ap.goal.y + toGoal * 1.2 });
+      set(m, { x: ag.x + rnd(-0.8, 0.8), y: ag.y + toGoal * 1.2 });
     }
     def.filter((x) => !used.has(x)).forEach((x, i) => set(x, this.w(s, [26, 34, 42, 30, 38, 22, 46][i % 7], i < 3 ? PL - 8 : PL - 17), 1.6, 0.9));
     const G = this.gkOf(o);
