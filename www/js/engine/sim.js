@@ -26,6 +26,7 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const hyp = (x, y) => Math.sqrt(x * x + y * y);
+const gauss = () => Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(2 * Math.PI * Math.random());
 const D2 = (a, b) => hyp(b.x - a.x, b.y - a.y);
 const sig = (x) => 1 / (1 + Math.exp(-x));
 function gaussR() {
@@ -346,8 +347,12 @@ export class LiveMatch extends Match {
       if (a.noTouch > 0) a.noTouch -= h;
       if (a.beatT > 0) a.beatT -= h;
       if (a.tackleCd > 0) a.tackleCd -= h;
+      if (a.slideCd > 0) a.slideCd -= h;
       if (a.runT > 0) { a.runT -= h; if (a.runT <= 0) { a.runTo = null; if (a.mode === 'run') a.mode = 'shape'; } }
     }
+    // drybling-przenikanie sterowanej postaci: trwa 3 s albo do utraty piłki
+    if (this.ghostT > 0) { this.ghostT -= h; if (this.ball.owner !== this.ctrl || this.dead) this.ghostT = 0; }
+    if (this.dribCd > 0) this.dribCd -= h;
     if (this.dead) this.deadTick(h);
     else {
       if (this.ctrl && this.input.cmd && this.ball.owner !== this.ctrl) this.ctrlOff();
@@ -743,6 +748,8 @@ export class LiveMatch extends Match {
       }
     }
     if (a.state === 'gone') return;
+    // zawodnik, któremu odebrano piłkę czystym odbiorem, stoi przez chwilę w miejscu
+    if (a.frozenT > 0) { a.frozenT -= h; a.vx = 0; a.vy = 0; return; }
     if (a.state === 'down') { a.vx *= 0.85; a.vy *= 0.85; a.x += a.vx * h; a.y += a.vy * h; return; }
     const tg = this.targetOf(a);
     const dx = tg.x - a.x, dy = tg.y - a.y, d = hyp(dx, dy);
@@ -797,6 +804,10 @@ export class LiveMatch extends Match {
     } else s2 = Math.max(0, s2 - dec * h);
     a.vx = Math.cos(ang) * s2; a.vy = Math.sin(ang) * s2;
     a.x += a.vx * h; a.y += a.vy * h;
+    // sterowana postać nie wybiegnie daleko za linie boiska
+    const nx = clamp(a.x, -3, PW + 3), ny = clamp(a.y, -3, PL + 3);
+    if (nx !== a.x) { a.x = nx; a.vx = 0; }
+    if (ny !== a.y) { a.y = ny; a.vy = 0; }
     const fa = s2 > 0.8 ? ang : Math.atan2(this.ball.y - a.y, this.ball.x - a.x);
     let df2 = fa - a.face;
     while (df2 > Math.PI) df2 -= 2 * Math.PI;
@@ -811,6 +822,7 @@ export class LiveMatch extends Match {
     for (let i = 0; i < all.length; i++) {
       for (let j = i + 1; j < all.length; j++) {
         const a = all[i], b = all[j];
+        if (this.ghostT > 0 && ((a === this.ctrl && !b.gk) || (b === this.ctrl && !a.gk))) continue;
         const min = a.side === b.side ? 1.8 : 1.0;
         const dx = b.x - a.x, dy = b.y - a.y;
         const d2 = dx * dx + dy * dy;
@@ -837,10 +849,11 @@ export class LiveMatch extends Match {
   ctrlCollide(all) {
     const c = this.ctrl;
     if (!c || (c.state !== 'play' && c.state !== 'stumble')) return;
+    const ghost = this.ghostT > 0; // udany drybling: postać z piłką przenika przez rywali (nie przez bramkarza)
     const R = this.contactD();
     const body = (x) => 0.6 * this.E(x, 'st') + 0.4 * this.E(x, 'bal');
     for (const o of all) {
-      if (o === c) continue;
+      if (o === c || (ghost && !o.gk)) continue;
       if (o.beatT > 0 || c.beatT > 0) continue;
       const dx = o.x - c.x, dy = o.y - c.y, d = hyp(dx, dy);
       if (d >= R || d < 0.001) continue;
@@ -928,9 +941,10 @@ export class LiveMatch extends Match {
       if (o.holdT <= 0) o.decT = 0;
       else return;
     }
-    // próby odbioru przez pressujących
-    for (const d of this.active(1 - o.side)) {
-      if (d.state !== 'play' || d.gk || d.beatT > 0 || d.tackleCd > 0) continue;
+    // próby odbioru przez pressujących (sterowanej postaci w trakcie udanego dryblingu nie da się zaatakować)
+    const ghost = o === this.ctrl && this.ghostT > 0;
+    for (const d of ghost ? [] : this.active(1 - o.side)) {
+      if (d.state !== 'play' || d.gk || d.beatT > 0 || d.tackleCd > 0 || d.frozenT > 0) continue;
       const dist = D2(d, o);
       const rp = this.reachPlus(d, o);
       if (dist > 1.45 + rp) continue;
@@ -982,20 +996,98 @@ export class LiveMatch extends Match {
       if ((X < 20 || X > PW - 20) && Y > PL - 32) { this.cross(o); return true; }
       return this.ctrlPass(o, true);
     }
-    if (cmd === 'dribble') {
-      const dir = this.ctrlDir(o);
-      let vs = null, bd = 4.2;
-      for (const d of this.active(1 - s)) {
-        if (d.state !== 'play' || d.gk) continue;
-        const dx = d.x - o.x, dy = d.y - o.y, dd = hyp(dx, dy);
-        if (dd < bd && (dx * dir.x + dy * dir.y) / (dd || 1) > 0.3) { bd = dd; vs = d; }
-      }
-      const to = { x: clamp(o.x + dir.x * 9, 1.5, PW - 1.5), y: clamp(o.y + dir.y * 9, 1.5, PL - 1.5) };
-      if (vs) { o.act = { k: 'takeon', vs, to, until: this.t + 1.3, u: 1 }; o.decT = 1.4; this.emit('takeon', { a: o, d: vs }); }
-      else { o.act = { k: 'carry', to, until: this.t + 0.9, u: 1 }; o.decT = 1; }
+    if (cmd === 'dribble') return this.ctrlDribble(o);
+    return false;
+  }
+
+  /** Drybling gracza: od razu pojedynek statystyk z najbliższym rywalem przed sobą (Drybling, Zwinność, Równowaga,
+   *  Przyspieszenie, Technika, Flair przeciw jego Odbiorowi, Przewidywaniu i Ustawianiu się). Udany: przez 3 s postać
+   *  razem z piłką staje się przezroczysta i przenika przez rywali (nikt nie może jej zaatakować). Nieudany: rywal
+   *  czysto zabiera piłkę (faul tylko wyjątkowo). Bez rywala w pobliżu to zwykłe szybsze prowadzenie piłki.
+   *  Przez bramkarza nie da się przeniknąć. */
+  ctrlDribble(o) {
+    if (this.ghostT > 0 || this.dribCd > 0) return true;
+    const s = o.side, dir = this.ctrlDir(o);
+    let vs = null, bd = 4.5;
+    for (const d of this.active(1 - s)) {
+      if (d.state !== 'play' || d.frozenT > 0) continue;
+      const dx = d.x - o.x, dy = d.y - o.y, dd = hyp(dx, dy);
+      if (dd < bd && (dd < 1.6 || (dx * dir.x + dy * dir.y) / (dd || 1) > 0.2)) { bd = dd; vs = d; }
+    }
+    // nikogo do minięcia: zwykłe szybsze prowadzenie piłki w kierunku drążka (bez efektu)
+    if (!vs) { o.act = { k: 'carry', to: { x: clamp(o.x + dir.x * 9, 1.5, PW - 1.5), y: clamp(o.y + dir.y * 9, 1.5, PL - 1.5) }, until: this.t + 0.9, u: 1 }; o.decT = 1; return true; }
+    const aps = this.ps(o);
+    const p = clamp(this.beatChance(o, vs), 0.05, 0.9);
+    if (Math.random() < p) {
+      this.ghostT = 3; this.dribCd = 6;
+      o.act = null; o.decT = 3;
+      aps.drw = (aps.drw || 0) + 1;
+      this.rate(o, 0.05); this.rate(vs, -0.03);
+      vs.beatT = 0.8;
+      this.emit('ghost', { a: o, d: vs });
+      this.emit('beaten', { d: vs, a: o, takeon: true });
       return true;
     }
-    return false;
+    // nieudany drybling: rywal czysto zabiera piłkę
+    this.dribCd = 1.2;
+    aps.drl = (aps.drl || 0) + 1;
+    const dps = this.ps(vs);
+    dps.tka = (dps.tka || 0) + 1; dps.tk++;
+    this.rate(o, -0.04); this.rate(vs, 0.05);
+    if (Math.random() < 0.06 * (0.5 + this.E(vs, 'agg') / 100) && !this.inBox(o.side, o.x, o.y)) { this.foul(vs, o, false, 1); return true; }
+    this.loss(o);
+    this.gainBall(vs, 'tackle');
+    vs.tackleCd = 0.8;
+    o.state = 'stumble'; o.stT = 0.5; o.act = null; o.noTouch = 0.6;
+    this.emit('tackle', { d: vs, a: o, takeon: true, slide: false });
+    return true;
+  }
+
+  /** Odbiór gracza: czyste zabranie piłki bez faulu. Moje Odbiór i Ustawianie się kontra jego Drybling i Technika:
+   *  lepszy wygrywa (z małym losowym rozrzutem). Udany: rywal stoi w miejscu przez sekundę. */
+  ctrlTackle(a, o) {
+    const mine = 0.75 * this.E(a, 'tk') + 0.15 * this.E(a, 'psn') + 0.1 * this.E(a, 'st');
+    const his = 0.75 * this.E(o, 'dr') + 0.15 * this.E(o, 'te') + 0.1 * this.E(o, 'bal');
+    const dps = this.ps(a);
+    dps.tka = (dps.tka || 0) + 1;
+    if (mine + gauss() * 5 > his) {
+      dps.tk++;
+      this.rate(a, 0.05); this.rate(o, -0.03);
+      this.loss(o);
+      this.gainBall(a, 'tackle');
+      o.act = null; o.frozenT = 1; o.noTouch = 1.1; o.vx = 0; o.vy = 0;
+      a.tackleCd = 0.6;
+      this.emit('tackle', { d: a, a: o, takeon: false, slide: false });
+      return;
+    }
+    a.tackleCd = 1.1;
+    this.emit('beaten', { d: a, a: o, takeon: false });
+  }
+
+  /** Wślizg gracza: zawsze zabiera piłkę rywalowi w zasięgu, przykleja ją do mnie i odrzuca rywala. Długie odnowienie. */
+  ctrlSlide(a) {
+    if (a.slideCd > 0) return;
+    const b = this.ball, o = b.owner;
+    const dir = this.ctrlDir(a);
+    a.slideCd = 5;
+    if (o && o.side !== a.side && !o.gk && D2(a, o) < 3.2 + this.reachPlus(a, o)) {
+      const dps = this.ps(a);
+      dps.tka = (dps.tka || 0) + 1; dps.tk++;
+      this.rate(a, 0.06); this.rate(o, -0.03);
+      this.loss(o);
+      const dx = o.x - a.x, dy = o.y - a.y, d = hyp(dx, dy) || 1;
+      // dojazd wślizgiem do piłki
+      a.x = o.x - (dx / d) * this.contactD() * 0.9; a.y = o.y - (dy / d) * this.contactD() * 0.9;
+      this.gainBall(a, 'tackle');
+      o.act = null; o.state = 'down'; o.stT = 1.2; o.noTouch = 1.5;
+      o.vx = (dx / d) * 7; o.vy = (dy / d) * 7;
+      this.emit('tackle', { d: a, a: o, takeon: false, slide: true });
+      return;
+    }
+    // pudło: wślizg w pustą murawę
+    a.state = 'slide'; a.stT = 0.55;
+    a.vx = dir.x * 8; a.vy = dir.y * 8;
+    a.slideCd = 2.5;
   }
 
   /** Podanie w kierunku drążka: najlepszy partner w tę stronę (celność zależy od Podań i Techniki). */
@@ -1031,7 +1123,8 @@ export class LiveMatch extends Match {
     inp.cmd = null;
     if (!a || a.state !== 'play') return;
     const b = this.ball, o = b.owner;
-    if ((cmd === 'dribble' || cmd === 'tackle') && o && o.side !== a.side && a.tackleCd <= 0 && D2(a, o) < 2.1 + this.reachPlus(a, o)) { this.duel(a, o, false); return; }
+    if (cmd === 'slide') { this.ctrlSlide(a); return; }
+    if ((cmd === 'dribble' || cmd === 'tackle') && o && o.side !== a.side && !o.gk && a.tackleCd <= 0 && D2(a, o) < 2.1 + this.reachPlus(a, o)) { this.ctrlTackle(a, o); return; }
     if (cmd === 'pass' && o && o.side === a.side && o !== a) {
       const kind = D2(o, a) < 30 ? (this.ry(a.side, a.y) > this.ry(a.side, o.y) + 4 ? 'through' : 'ground') : 'air';
       const ev = this.evalPass(o, a, kind, this.pressure(o), 1, this.lossCost(o.side, o.y));
@@ -1220,6 +1313,8 @@ export class LiveMatch extends Match {
     const space = this.nearestOppDist(s, R);
     V *= 0.75 + 0.25 * Math.min(1, space / 5);
     let u = ps * V - (1 - ps) * lc * risk;
+    // tryb zawodnika: koledzy z lepszą relacją chętniej podają do sterowanej postaci
+    if (m === this.ctrl && this.ctrlRel && u > 0) u *= 1 + 0.7 * (this.ctrlRel[a.pid] || 0) / 100;
     // podanie do zawodnika na spalonym, dobry rozgrywający to widzi
     if (kind === 'through' || kind === 'air') {
       const off = PL - this.teams[1 - s].line;

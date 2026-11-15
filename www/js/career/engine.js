@@ -5,6 +5,7 @@ import { NATIONS, NAT, LEAGUES } from '../data/nations.js';
 import { makePlayer, genName, clubNameFor } from '../engine/db.js';
 import { ovr, posRating, POS_W, ATTR_NAMES, FORM_MUL, applyDelta, GK_ATTRS } from '../engine/player.js';
 import { SCEN, POS_SCEN } from './scenarios.js';
+import { ensureRosters, teamMatchStats, relAfterMatch, rosterSeasonEnd, signPlayers, AWARDS, awardRace, globalRanking, globalAwardFor, addHist, ME, rosterOf } from './rosters.js';
 
 export let PC = null;
 export function setCareer(pc) { PC = pc; if (pc) migrateCareer(pc); }
@@ -12,9 +13,13 @@ export function setCareer(pc) { PC = pc; if (pc) migrateCareer(pc); }
 /** Uzupełnia zapisy kariery z wcześniejszych wersji gry o nowe rozgrywki i pola. */
 function migrateCareer(st) {
   if (!st.ss) return;
+  // 0.9.9: stałe składy klubów ze statystykami zawodników
+  if (st.clubs && !st.pl) ensureRosters(st);
   if (st.ss.euroApps == null) st.ss.euroApps = 0;
   // puchary europejskie: brak (zapisy sprzed 0.9.2) albo stary format bez grup (0.9.2–0.9.7) → nowe rozgrywki w trwającym sezonie
-  if (st.leagues && st.clubs && (!st.euro || !st.euro.ucl || !st.euro.ucl.kind)) {
+  // 0.9.9: w pucharach tylko kluby z Europy
+  const nonEu = st.euro && st.euro.ucl && st.euro.ucl.teams && [st.euro.ucl, st.euro.usl].some((E) => E && E.teams.some((id) => st.clubs[id] && NAT[st.clubs[id].nat].conf !== 'EU'));
+  if (st.leagues && st.clubs && (!st.euro || !st.euro.ucl || !st.euro.ucl.kind || nonEu)) {
     buildEuro(st, false);
     const done = st.phase === 'season' ? EURO_WEEKS.filter((w) => w < st.week).length : EURO_WEEKS.length;
     for (let i = 0; i < done; i++) for (const E of Object.values(st.euro)) euroRound(st, E, i);
@@ -127,13 +132,16 @@ function buildEuro(st, useTables) {
   const inU = new Set(ultra);
   const c1 = [], c2 = [];
   for (const L of Object.values(st.leagues)) {
-    if (L.div !== 1) continue;
+    // puchary są europejskie: grają w nich tylko kluby z lig Europy
+    if (L.div !== 1 || NAT[L.nat].conf !== 'EU') continue;
     const played = useTables && L.table && Object.values(L.table).some((t) => t.p > 0);
     const order = [...new Set((played ? sortedTable(L).map((t) => t.id).filter((id) => L.teams.includes(id)) : []).concat(L.teams.slice().sort((a, b) => st.clubs[b].lv - st.clubs[a].lv)))];
     c1.push(...order.slice(0, 3)); c2.push(...order.slice(3, 8));
   }
   const byLv = (a, b) => st.clubs[b].lv - st.clubs[a].lv;
   const ucl = c1.filter((id) => !inU.has(id)).sort(byLv).slice(0, EURO_SIZE);
+  // za mało mistrzów i wicemistrzów: brakujące miejsca dostają najlepsze kluby z dalszych miejsc
+  if (ucl.length < EURO_SIZE) ucl.push(...c2.filter((id) => !inU.has(id)).slice().sort(byLv).slice(0, EURO_SIZE - ucl.length));
   const inL = new Set(ucl);
   const usl = c2.concat(c1).filter((id) => !inU.has(id) && !inL.has(id)).sort(byLv).slice(0, EURO_SIZE);
   st.euro = { ucl: mkGroups(st, EURO_NAMES.ucl, ucl, r), usl: mkGroups(st, EURO_NAMES.usl, usl, r) };
@@ -144,6 +152,7 @@ function koResult(st, t) {
   if (t.w != null) return;
   const r = simScore(st.clubs[t.h].lv, st.clubs[t.a].lv, true);
   t.r = r;
+  simStats(st, t.h, t.a, r);
   if (r[0] === r[1]) { const hw = Math.random() < 0.5 + (st.clubs[t.h].lv - st.clubs[t.a].lv) / 60; t.pens = hw ? [5, 4] : [3, 4]; t.w = hw ? t.h : t.a; }
   else t.w = r[0] > r[1] ? t.h : t.a;
 }
@@ -152,12 +161,12 @@ function koResult(st, t) {
 export function euroRound(st, E, i) {
   if (!E) return;
   if (E.kind === 'league') {
-    for (const m of E.fx[i] || []) { if (m.r) continue; m.r = simScore(st.clubs[m.h].lv, st.clubs[m.a].lv, true); applyResult(E, m); }
+    for (const m of E.fx[i] || []) { if (m.r) continue; m.r = simScore(st.clubs[m.h].lv, st.clubs[m.a].lv, true); applyResult(E, m); simStats(st, m.h, m.a, m.r); }
     E.round = Math.max(E.round, i + 1);
     return;
   }
   if (i < E.G) {
-    for (const m of E.gfx[i] || []) { if (m.r) continue; m.r = simScore(st.clubs[m.h].lv, st.clubs[m.a].lv, true); applyResult(E, m); }
+    for (const m of E.gfx[i] || []) { if (m.r) continue; m.r = simScore(st.clubs[m.h].lv, st.clubs[m.a].lv, true); applyResult(E, m); simStats(st, m.h, m.a, m.r); }
     E.round = i + 1;
     if (i === E.G - 1) {
       const T = [0, 1, 2, 3].map((g) => groupTable(E, g).map((x) => x.id));
@@ -224,6 +233,7 @@ export function draftCareer({ fn, ln, nat, pos, num, look, foot = 'R' }) {
     seasons: [], trophies: [], awards: [], msgs: [], msgSeq: 1, offers: [], listed: false, retired: false, log: [],
   };
   buildWorld(st, r);
+  ensureRosters(st);
   return st;
 }
 
@@ -267,6 +277,9 @@ export function simScore(sh, sa, home = true) {
   const lh = (home ? 1.45 : 1.2) * Math.exp((sh - sa) / 17), la = (home ? 1.12 : 1.2) * Math.exp((sa - sh) / 17);
   return [poisson(lh), poisson(la)];
 }
+/** Statystyki zawodników obu klubów w meczu symulowanym. */
+function simStats(st, h, a, r) { teamMatchStats(st, h, r[0], r[1]); teamMatchStats(st, a, r[1], r[0]); }
+
 function applyResult(L, m) {
   const [hg, ag] = m.r, H = L.table[m.h], A = L.table[m.a];
   H.p++; A.p++; H.gf += hg; H.ga += ag; A.gf += ag; A.ga += hg;
@@ -583,6 +596,12 @@ export function finishMatch(M) {
   }
   if (M.comp === 'cup') { M.fx.tie.r = [hg, ag]; M.fx.tie.pens = pens; M.fx.tie.w = won ? PC.club : (M.home ? M.fx.a : M.fx.h); }
   if (M.comp === 'tour') tourAfterMatch(M, won, gu === gt && !pens);
+  // statystyki kolegów i rywali, relacje z kolegami z boiska
+  if (M.comp !== 'tour' && M.comp !== 'intl' && PC.pl) {
+    const mates = teamMatchStats(PC, PC.club, gu, gt, { meIn: played, mePos: p.pos, skipG: played ? M.my.g : 0, skipA: played ? M.my.a : 0, live: M.liveUs });
+    teamMatchStats(PC, M.themKey, gt, gu, { live: M.liveThem });
+    if (played) relAfterMatch(PC, mates, M.relExtra || {});
+  }
   PC.log.unshift({ y: PC.year, w: PC.week, line: M.line, res: `${hg}:${ag}${pens ? ` k. ${pens[0]}:${pens[1]}` : ''}`, comp: M.comp, r: played ? M.rating : null, g: M.my.g, a: M.my.a });
   if (PC.log.length > 120) PC.log.length = 120;
   return M;
@@ -611,6 +630,7 @@ function cupWeek() {
     if (t.w != null) continue;
     const r = simScore(PC.clubs[t.h].lv, PC.clubs[t.a].lv, true);
     t.r = r;
+    simStats(PC, t.h, t.a, r);
     if (r[0] === r[1]) { const hw = Math.random() < 0.5; t.pens = hw ? [5, 3] : [3, 5]; t.w = hw ? t.h : t.a; } else t.w = r[0] > r[1] ? t.h : t.a;
   }
   c.alive = c.ties.map((t) => t.w);
@@ -644,6 +664,7 @@ export function endWeek() {
         if (m.r) continue;
         m.r = simScore(PC.clubs[m.h].lv, PC.clubs[m.a].lv, true);
         applyResult(L, m);
+        simStats(PC, m.h, m.a, m.r);
       }
       L.round = rd + 1;
     }
@@ -686,10 +707,11 @@ function clubChanges(winter) {
     });
   }
   const c = myClub(), diff = Math.round((c.lv - before) * 10) / 10;
-  const n = rint(winter ? 1 : 2, winter ? 2 : 4);
-  const rr = mkRng(c.id * 13 + PC.year * 7 + (winter ? 1 : 0));
-  const names = Array.from({ length: n }, () => { const g = genName(NAT[c.nat], rr); return `${g.fn} ${g.ln}`; });
-  msg(winter ? 'Zimowe okno: zmiany w klubie' : 'Letnie okno: nowi zawodnicy w klubie', `${c.n} ${winter ? 'uzupełnił skład' : 'przebudował skład przed nowym sezonem'}. Nowi zawodnicy: ${names.join(', ')}. ` + (diff > 0.3 ? `Drużyna jest mocniejsza: siła klubu wzrosła do ${Math.round(c.lv)}.` : diff < -0.3 ? `Drużyna osłabła: siła klubu spadła do ${Math.round(c.lv)}.` : `Siła drużyny bez większych zmian: ${Math.round(c.lv)}.`));
+  PC._lvDiff = diff;
+  // latem nowych zawodników przynosi przebudowa składów (summerStep), zimą klub dokupuje 1–2 zawodników
+  if (!winter) return;
+  const names = signPlayers(PC, c.id, rint(1, 2)).map((p) => `${p.fn} ${p.ln}, ${p.pos}, ${p.o}`);
+  msg('Zimowe okno: zmiany w klubie', `${c.n} uzupełnił skład. Nowi zawodnicy: ${names.join('; ')}. ` + (diff > 0.3 ? `Drużyna jest mocniejsza: siła klubu wzrosła do ${Math.round(c.lv)}.` : diff < -0.3 ? `Drużyna osłabła: siła klubu spadła do ${Math.round(c.lv)}.` : `Siła drużyny bez większych zmian: ${Math.round(c.lv)}.`));
 }
 
 function trophyNote(name) { PC.awards.push({ name, year: PC.year }); }
@@ -786,17 +808,34 @@ function endSeason() {
   const tr = [];
   if (pos === 1 && ss.apps >= 5) { trophy(`Mistrzostwo: ${leagueName(L)}`, 'league'); tr.push('mistrzostwo ligi'); }
   if (PC.cup && PC.cup.winner === PC.club && ss.cupApps) tr.push('puchar kraju');
-  // nagrody indywidualne
-  const topAI = Math.round((L.div === 1 ? 15 : 13) + Math.random() * 8);
+  // nagrody indywidualne: wyścigi o nagrody w każdej lidze (dla wszystkich zawodników) i światowy ranking
   const aw = [];
-  if (ss.goals > topAI && ss.goals >= 10) aw.push(`Król strzelców: ${leagueName(L)}`);
-  if (ss.apps >= 14 && avg >= 7.35) aw.push(`Piłkarz sezonu: ${leagueName(L)}`);
-  else if (ss.apps >= 14 && avg >= 7.05) aw.push(`Drużyna sezonu: ${leagueName(L)}`);
-  if (p.age <= 21 && ss.apps >= 12 && avg >= 6.95) aw.push(`Młodzieżowiec roku: ${leagueName(L)}`);
-  if (ss.cleanSheets >= 12 && p.pos === 'GK') aw.push(`Najlepszy bramkarz: ${leagueName(L)}`);
+  const seasonAw = { year: PC.year, leagues: {}, world: [] };
+  for (const LL of Object.values(PC.leagues)) {
+    const row = {};
+    for (const A of AWARDS) {
+      const w = awardRace(PC, LL, A, 1)[0];
+      if (!w) continue;
+      row[A.k] = { id: w.id, n: `${w.fn} ${w.ln}`, c: w.c, v: A.fmt(w) };
+      const name = `${A.n}: ${leagueName(LL)}`;
+      if (w.me) aw.push(name); else (w.aw = w.aw || []).push({ y: PC.year, n: name });
+    }
+    seasonAw.leagues[LL.key] = row;
+  }
+  globalRanking(PC, 100).forEach((x, i) => {
+    const name = globalAwardFor(i + 1);
+    if (i < 30) seasonAw.world.push({ place: i + 1, id: x.p.id, n: `${x.p.fn} ${x.p.ln}`, c: x.p.c, pos: x.p.pos, sc: x.sc });
+    if (!name) return;
+    if (x.p.me) aw.push(i < 3 ? name : `${name}: ${i + 1}. miejsce na świecie`);
+    else (x.p.aw = x.p.aw || []).push({ y: PC.year, n: name });
+  });
+  PC.awHist = PC.awHist || [];
+  PC.awHist.unshift(seasonAw);
+  if (PC.awHist.length > 10) PC.awHist.length = 10;
+  // trofea klubów w historii
+  for (const LL of Object.values(PC.leagues)) if (LL.div === 1) { const ch = sortedTable(LL)[0]; if (ch && ch.p > 0) addHist(PC, ch.id, 'league'); }
+  if (PC.cup && PC.cup.winner != null) addHist(PC, PC.cup.winner, 'cup');
   const o = ovr(p);
-  if (o >= 86 && avg >= 7.45 && ss.apps >= 20) aw.push('Złota Piłka');
-  else if (o >= 82 && avg >= 7.3 && ss.apps >= 20 && Math.random() < 0.35) aw.push('Złota Piłka: miejsce w pierwszej dziesiątce');
   for (const a of aw) PC.awards.push({ name: a, year: PC.year });
   // puchary europejskie
   const euroLines = [];
@@ -807,6 +846,7 @@ function endSeason() {
       if (E.winner == null) continue;
       const pos = E.kind === 'league' ? sortedTable(E).findIndex((x) => x.id === PC.club) + 1 : E.rank.indexOf(PC.club) + 1;
       euroLines.push(`${E.name}: wygrywa ${PC.clubs[E.winner].n}${E.teams.includes(PC.club) ? (pos > 0 ? `, ${myClub().n} na ${pos}. miejscu` : `, ${myClub().n} odpada w fazie grupowej`) : ''}`);
+      addHist(PC, E.winner, 'euro');
       if (E.winner === PC.club && ss.euroApps >= 2) { trophy(E.name, k); tr.push(E.name); }
     }
     // Ultra Liga w następnym sezonie: po 5 najlepszych klubów z faz pucharowych Ligi Mistrzów i Super Ligi
@@ -847,6 +887,11 @@ function summerStep() {
     if (meOvr() >= myClub().lv - 8) { PC.contract = PC.year + 2; PC.wage = wageFor(myClub().lv, meOvr()); msg('Nowy kontrakt', `${myClub().n} przedłużył z Tobą kontrakt do ${PC.contract} roku.`); }
     else { msg('Koniec kontraktu', `${myClub().n} nie przedłużył kontraktu. Szukasz nowego klubu.`); PC.listed = true; }
   }
+  // przebudowa składów: wiek, rozwój, emerytury, młodzi zawodnicy i transfery między klubami
+  const { moves } = rosterSeasonEnd(PC);
+  const mine = (moves[PC.club] || []).map((x) => `${x.fn} ${x.ln}, ${x.pos}, ${x.o}`);
+  const diff = PC._lvDiff || 0, c = myClub();
+  msg('Letnie okno: nowi zawodnicy w klubie', `${c.n} przebudował skład przed nowym sezonem.` + (mine.length ? ` Nowi zawodnicy: ${mine.join('; ')}.` : '') + ` ` + (diff > 0.3 ? `Drużyna jest mocniejsza: siła klubu wzrosła do ${Math.round(c.lv)}.` : diff < -0.3 ? `Drużyna osłabła: siła klubu spadła do ${Math.round(c.lv)}.` : `Siła drużyny bez większych zmian: ${Math.round(c.lv)}.`));
   transferWindow('letnie');
   if (p.age >= 40) { PC.retired = true; msg('Koniec kariery', 'W wieku 40 lat kończysz karierę piłkarską. Dziękujemy za wspaniałe lata!'); }
   newSeason(PC);

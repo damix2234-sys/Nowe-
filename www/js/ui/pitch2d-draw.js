@@ -112,9 +112,37 @@ function renderInner(P, c, W, H, rot) {
     c.beginPath(); c.ellipse(mx, my + V.R * 0.25, V.R * 1.45 * pulse, V.R * 1.05 * pulse, 0, 0, TAU); c.stroke();
     c.restore();
   }
-  for (const p of people) if (p !== own) drawPlayer(V, P, p);
-  if (own && own.state !== 'gone') drawPlayer(V, P, own);
-  drawBall(V, P);
+  // udany drybling: sterowana postać i piłka są przezroczyste, z niebieską poświatą i smugą
+  const ghost = me && P.sim.ghostT > 0 ? P.sim.ghostT : 0;
+  if (ghost) {
+    const tr = (P._ghTrail = P._ghTrail || []);
+    if (!tr.length || P.time - tr[tr.length - 1].t > 0.05) tr.push({ x: me.x, y: me.y, t: P.time });
+    while (tr.length > 9) tr.shift();
+    c.save();
+    tr.forEach((q, i) => {
+      c.globalAlpha = 0.05 + 0.05 * i;
+      c.fillStyle = '#7fe8ff';
+      c.beginPath(); c.arc(X(q.x), Y(q.y), V.R * 0.95, 0, TAU); c.fill();
+    });
+    const fade = Math.min(1, ghost / 0.4);
+    c.globalAlpha = 0.55 * fade;
+    c.strokeStyle = '#7fe8ff'; c.lineWidth = Math.max(2, V.R * 0.25);
+    c.shadowColor = '#7fe8ff'; c.shadowBlur = 16;
+    const gp = 1 + Math.sin(P.time * 14) * 0.12;
+    c.beginPath(); c.arc(X(me.x), Y(me.y), V.R * 1.9 * gp, 0, TAU); c.stroke();
+    // licznik pozostałego czasu efektu (łuk)
+    c.globalAlpha = 0.9;
+    c.beginPath(); c.arc(X(me.x), Y(me.y), V.R * 2.35, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, ghost / 3)); c.stroke();
+    c.restore();
+  } else if (P._ghTrail) P._ghTrail.length = 0;
+  const drawP = (p) => {
+    if (ghost && p === me) { c.save(); c.globalAlpha = 0.4; drawPlayer(V, P, p); c.restore(); }
+    else drawPlayer(V, P, p);
+  };
+  for (const p of people) if (p !== own) drawP(p);
+  if (own && own.state !== 'gone') drawP(own);
+  if (ghost && own === me) { c.save(); c.globalAlpha = 0.45; drawBall(V, P); c.restore(); }
+  else drawBall(V, P);
   drawLabels(V, P, people);
   if (me) {
     const mx = X(me.x), my = Y(me.y) - V.R * 2.1;
